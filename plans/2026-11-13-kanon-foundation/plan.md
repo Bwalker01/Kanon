@@ -11,7 +11,6 @@ tags:
   - stage/foundation
 aliases:
   - Kanon plan
-  - Oikos plan
   - Mercatus plan
   - Foundation plan
 ---
@@ -746,7 +745,7 @@ Each phase ends with something you can watch work, run in this repository itself
   measurement surface", which is what a kanon is. Watch: some people may type "canon".
 - **Pantheon** is a GitHub repository name, not a package, so the busy PyPI name does not
   matter.
-- **Considered on the way:** Oikos (chosen, then replaced); Athena (clashes with Amazon
+- **Considered on the way:** Athena (clashes with Amazon
   Athena and several AI-agent projects with almost the same pitch); Parthenon (too long);
   Mentor, Glaux, Stoa, Hodos, Skopos, Biblos (viable, not chosen).
 - **Rejected for clashing with tools in the same space:** Telos, Argo, Nous, Mnemosyne,
@@ -783,11 +782,11 @@ Each phase ends with something you can watch work, run in this repository itself
 
 ## 13. Revision history
 
-- **Revision 4 (2026-11-13).** MODIFIED engine name Oikos → Kanon (D8 revised by the owner);
+- **Revision 4 (2026-11-13).** MODIFIED engine name to Kanon (D8 revised by the owner);
   plan folder renamed to match. Reason: owner wanted a short common Greek word closer
   to the project's purpose.
-- **Revision 3 (2026-11-13).** MODIFIED names: engine Mercatus → Oikos, marketplace →
-  Pantheon (D8); plan folder renamed to match. ADDED section 6.5 (naming entries),
+- **Revision 3 (2026-11-13).** MODIFIED names: marketplace named Pantheon, engine renamed
+  from Mercatus (D8); plan folder renamed to match. ADDED section 6.5 (naming entries),
   section 7 (optional GitHub mode: Projects, branches, pull requests, zero Actions minutes
   by default) and section 8 (keeping cost down) (D9). MODIFIED roadmap phases 0 to 3,
   owner decisions, risks; renumbered sections 7 to 12 as 9 to 14. Reason: the owner's

@@ -2,7 +2,8 @@
 name: Mercatus foundation plan
 description: Research findings on Koine-OS, Pinax, AutoBuild and Ergasterion, and a phased plan for building Mercatus, an importable context engine with a marketplace of specialist agents run through the Koine Loop
 type: plan
-status: draft-awaiting-owner-approval
+status: draft-v2-awaiting-owner-approval
+revision: 2
 date: 2026-11-13
 tags:
   - type/plan
@@ -15,8 +16,9 @@ aliases:
 
 # Mercatus: research findings and foundation plan
 
-> **Status:** draft for the owner's review. Nothing here is built yet. Section 9 lists the
-> questions that need your answers before Phase 1 starts.
+> **Status:** revision 2, for the owner's approval. Revision 1 asked seven questions; the
+> owner's answers are recorded in section 9 and folded into every section they affect.
+> Section 11 lists what changed. Nothing is built yet.
 >
 > **How to read this:** each claim about an existing project is marked **[Evidence]** with
 > the file it comes from. Each design choice is marked **[Proposal]** with the evidence
@@ -45,13 +47,15 @@ layer in any repository, enforces the Koine Loop with a recorded human approval 
 end, keeps human-readable documentation current, and onboards specialist agents from a
 catalogue as the project needs them.
 
-Two findings change the brief and need your decision (section 9):
+Two findings from revision 1, now settled by the owner (section 9):
 
 1. **Ergasterion is not an agent harness.** It is a deterministic generator that turns
-   YAML declarations into dbt data pipelines. It contains no AI model. It fits Mercatus
-   as a *tool* a data-engineering specialist uses, not as an agent.
-2. **I could not find "Agora".** It is not a public repository under `Bwalker01` or
-   `antikas`. I have not assumed anything about its contents.
+   YAML declarations into dbt data pipelines, with no AI model inside. **Decision:** the
+   marketplace holds two kinds of entry, *agents* (specialist roles) and *tools*
+   (programs agents call). Ergasterion is a tool; a data-product engineer agent uses it.
+   Everything (data, proofs of concept, security, automation, and so on) is in scope.
+2. **"Agora" was an idea, not a repository.** It is background only and sets no
+   requirements.
 
 ---
 
@@ -92,7 +96,7 @@ begins." In the loop itself, the reviewer can be "a person, another AI agent, or
 > separate reviewer always, and human approval at stage boundaries and plan
 > authorisation. Mercatus would make *both* mandatory for every output. That is
 > compatible with Koine, but it is a choice we are making, not something Koine already
-> says. (Question Q4.)
+> says. (Settled by owner decision D4: human approval at major gates, section 5.2.)
 
 **What Koine admits it cannot enforce.** [Evidence: `adapters/claude-code/README.md`]
 "Skills cannot enforce specifications at the runtime level", "No mechanical enforcement
@@ -184,9 +188,9 @@ blind reviewer, which is the Koine Loop for code.
 - I searched the code for AI or model use. The only hits are two docstrings referring to
   conventions "read by a translation agent". **No model calls exist in the engine.**
 
-**Role in Mercatus:** not an agent. A data-engineering specialist agent would *use*
-Ergasterion: draft declarations, run `emit-products --check`, and have the reviewer check
-the output. (Question Q2.)
+**Role in Mercatus:** a marketplace **tool**, not an agent (owner decision D2). A
+data-product engineer agent uses it: drafts declarations, runs `emit-products --check`,
+and hands the output to the reviewer.
 
 ### 2.5 Things I found that limit what I can claim
 
@@ -196,7 +200,7 @@ the output. (Question Q2.)
 - **Public repos are projections of private ones.** Pinax and AutoBuild release commits read
   "projected from private commit ...". The public code can change in larger jumps than its
   history shows. All four are pre-1.0. **Mercatus must pin versions.**
-- **Agora:** not found (see section 1).
+- **Agora:** an earlier idea with no written record; background only (owner decision D1).
 
 ### 2.6 Open standards worth building on
 
@@ -227,6 +231,14 @@ someone else's server (Phase 5).
 - **Started in any repo:** `mercatus init` writes a minimal context layer, the
   instructions any coding agent reads, and a Pinax tracker. This copies Pinax's own
   `pinax init` pattern.
+- **Claude Code first, any assistant in principle** (owner decision D5). Claude Code is
+  the first supported assistant and the only one tested in Phases 1 to 3. Everything the
+  loop needs lives in plain files and the `mercatus` command, with AGENTS.md as the
+  root context, so another assistant needs only a thin adapter, never a second copy of
+  the method (Koine's thin-wrapper rule).
+- **Proven on itself first** (owner decision D7). The Mercatus repository is instance
+  number one: from Phase 1, Mercatus is planned, reviewed, approved and documented with
+  Mercatus. A real outside project comes once the core works.
 - **Works with whatever model is connected,** in two modes (the same split AutoBuild uses
   between `autobuild-coordinated` and the Python `autobuild` command):
   - **In-session mode (default, no API keys):** the person's own coding assistant (Claude
@@ -249,230 +261,369 @@ docs/
   INDEX.md                     map of all documentation, one line per entry
   status/dashboard.md          current state; read first every session
   daily/YYYY-MM-DD.md          append-only activity log
+  requirements/                refined requirements with acceptance criteria (section 4)
   features/  builds/  fixes/  ideas/  decisions/   one folder per document type you named
   learnings/                   lessons that apply across the project
   sources/                     raw input (interviews, notes, links) before it is compiled
   archive/                     superseded documents, with a header saying why
 plans/YYYY-MM-DD-topic/        the loop's audit trail (plan, drafts, reviews, approval, final)
 .mercatus/roster/              the agents currently on the team, one file each
-.ergon/                        Pinax tracker (created by pinax init)
+.mercatus/agents/  .mercatus/tools/   packages pulled from the marketplace (section 6)
+mercatus.lock                  exact marketplace versions and content hashes in use
+.ergon/                        Pinax tracker, holds the work tickets (created by pinax init)
 ```
 
 Every document carries Koine's required frontmatter. Each folder starts empty except for a
 short `INDEX.md` and a template. Following Koine's minimum viable OS, only four roles are
-on the roster at the start (section 5.3).
+on the roster at the start (section 6.4).
 
 ---
 
-## 4. The Mercatus Loop
+## 4. From requirement to working code
 
-**[Proposal]** The Koine Loop, with the reviewer and the human approval both required and
-both recorded. Each step names its precedent.
+**[Proposal, from owner decision D2]** The engine takes a person's requirements, refines
+them into actionable steps, turns those into work tickets, and has specialists complete
+the tickets using whatever tools they need. Each stage is a run of the Mercatus Loop
+(section 5). The stages marked **GATE** stop for the person (section 5.2).
 
 ```text
- request ─▶ 1 SPECIFY ─▶ 2 PLAN ─▶ [human approves plan] ─▶ 3 REGISTER
-                                                              │
-   ┌──────────────────────────────────────────────────────────┘
-   ▼
- 4 CREATE (specialist) ─▶ 5 REVIEW (independent) ─▶ pass? ──no──▶ 6 ADJUST ─▶ back to 5
-                                                     │                (max rounds, then
-                                                    yes                escalate to human)
-                                                     ▼
-                         7 DOCUMENT (scribe + its reviewer)
-                                                     ▼
-                         8 APPROVE (human, explicit, recorded)
-                                                     ▼
-                         9 PROMOTE, LOG, LEARN
+ your words ─▶ A INTAKE ─▶ B REFINE ──GATE──▶ C BREAK DOWN ──GATE──▶ D TICKETS
+                                                                       │
+            ┌──────────────────────────────────────────────────────────┘
+            ▼
+        E STAFF (onboard missing specialists ──GATE──) ─▶ F EXECUTE (per ticket, loop)
+                                                                       │
+                                     H RELEASE ◀──GATE── G DOCUMENT ◀──┘
+```
+
+| Stage | What happens | Output | Precedent |
+|---|---|---|---|
+| A Intake | Your request is saved as you wrote it. | `docs/sources/<date>-<topic>.md` | Koine discipline 9 (sources inbox) |
+| B Refine | The coordinator interviews you until the requirement has a goal, scope, constraints and **acceptance criteria that a wrong answer would fail**. Missing information is asked for, never invented. | `docs/requirements/<topic>.md` | Koine `prompts/bootstrap-interview.md` ("If any input is missing, halt and ask. Do NOT invent answers."); `autobuild-plan` acceptance rules |
+| C Break down | The coordinator, with any specialists the work touches (for example an architect or security reviewer), turns the requirement into a plan of work items. Each item states its inputs, outputs, acceptance check, the capability it needs and the tools it may use. | `plans/<date>-<topic>/plan.md` | Koine specification test (four parts); `autobuild-plan` "next slice in full, later items in one line" |
+| D Tickets | Each item becomes a Pinax item with its dependencies and a brief. Code items use AutoBuild's brief format (`Item nature`, `## Declared paths`, acceptance) so AutoBuild can run them unchanged. | `.ergon/` items and briefs | Pinax; AutoBuild `docs/running-autobuild.md` |
+| E Staff | Each ticket is matched to a roster agent by capability. If none fits, the coordinator proposes one from the marketplace (section 6.4). | Roster entries | Koine archetypes ("capability-first") |
+| F Execute | The assigned specialist does the ticket with its tools, in isolation; the independent reviewer checks it; corrections loop. | Code on a branch, or a document draft; review files | Koine Loop; AutoBuild builder and blind reviewer |
+| G Document | The scribe updates the human-facing documents the work changed. | `docs/features/`, `docs/builds/`, `docs/fixes/`, `docs/decisions/` | Owner brief: documentation at the heart |
+| H Release | Merge to the main branch, and later release or deployment. | Merged commit, release notes | AutoBuild keeps releases and deployments outside its own scope, so they are a gate here |
+
+**Examples of specialists this pipeline can call** (illustrative; each would be a
+marketplace entry, none exists yet): requirements analyst, solution architect,
+proof-of-concept builder, software builder (on AutoBuild), security reviewer, test
+engineer, automation engineer (CI/CD and scripted workflows), data-product engineer (on
+Ergasterion), technical writer.
+
+---
+
+## 5. The Mercatus Loop
+
+**[Proposal]** The Koine Loop with an independent reviewer on every output and a human
+approval at every major gate. Each step names its precedent.
+
+```text
+ 1 SPECIFY ─▶ 2 PLAN ─▶ 3 CREATE ─▶ 4 REVIEW (independent) ─▶ pass? ─no─▶ 5 ADJUST ─▶ back to 4
+                                                               │            (round limit, then
+                                                              yes            escalate to person)
+                                                               ▼
+                                         6 GATE? ─major─▶ person approves or requests changes
+                                               │minor                     │
+                                               ▼                          ▼
+                                         7 PROMOTE, LOG, LEARN ◀──────────┘
 ```
 
 | Step | What happens | Written to | Precedent |
 |---|---|---|---|
-| 1 Specify | The request is turned into a specification: inputs, transformation, output shape, review checks. If the request is vague, the coordinator asks the person; it does not guess. | `docs/sources/` then `plans/.../plan.md` | Koine "specifications, not intent"; Koine "It will not guess" |
-| 2 Plan | The coordinator names the specialist, the reviewer(s), the inputs and the output path. **The person approves the plan** before work begins. | `plans/.../plan.md` | Koine step 1 and stop points; `autobuild-plan` stops before launch |
-| 3 Register | The plan becomes Pinax items with dependencies. | `.ergon/` | Pinax |
-| 4 Create | The named specialist produces a draft in isolation (code in its own worktree). | `draft-vN.md` or a worktree branch | Koine step 2; AutoBuild builder |
-| 5 Review | A **fresh** reviewer with a different prompt, read-only tools and **no access to the creator's transcript** checks the draft against the spec. Verdict: `pass`, `correct`, `escalate`, `park`, with each finding marked blocking or not. | `review-<reviewer>-vN.md` | Koine step 3; AutoBuild blind reviewer and verdict rules |
-| 6 Adjust | The creator revises into a new file. Limit: 3 rounds (default, configurable), then the item goes to the person with the open findings. | `draft-vN+1.md` | Koine convergence rule (3 to 4); AutoBuild default of 2 corrections |
-| 7 Document | The scribe writes or updates the human-facing documentation the change affects, and a documentation reviewer checks it. | `docs/...` | Your brief (documentation at the heart); Koine disciplines |
-| 8 Approve | The person sees one summary: what changed, the reviewer's verdict and findings, the documentation diff. They approve, reject, or send back. The decision, who made it, and the commit it applies to are recorded. Until then the Pinax item sits behind a `decision` gate. | `approval.md`; Pinax event | Your brief; Pinax `decision` gate |
-| 9 Promote, log, learn | Output moves to its permanent home; `plans/` keeps the history. Daily log and dashboard are updated. Recurring findings become `learnings/`. | `docs/daily/`, `docs/status/`, `docs/learnings/` | Koine step 5, disciplines 5, 7, 8; Koine Stage 5 |
+| 1 Specify | Inputs, transformation, output shape and review checks are written down before anything is made. | `plan.md` | Koine "specifications, not intent" |
+| 2 Plan | The coordinator names the creator, the reviewer(s), inputs and output path. The plan is committed before the first draft. | `plans/<date>-<topic>/plan.md` | Koine step 1 |
+| 3 Create | The named specialist produces a draft in isolation (code in its own Git worktree). | `draft-vN.md` or a branch | Koine step 2; AutoBuild builder |
+| 4 Review | A **fresh** reviewer, with a different prompt, read-only tools and **no access to the creator's transcript**, checks the draft against the specification. Verdict `pass`, `correct`, `escalate` or `park`; each finding marked blocking or not. | `review-<reviewer>-vN.md` | Koine step 3; AutoBuild blind reviewer and verdict rules |
+| 5 Adjust | The creator revises into a new file. Default limit three rounds, then the item goes to the person with the open findings. | `draft-vN+1.md` | Koine convergence rule (3 to 4); AutoBuild default of 2 corrections |
+| 6 Gate | Major outputs stop for the person (section 5.2). Minor outputs go straight on once the reviewer passes them. | `approval.md` for major gates | Owner decision D4 |
+| 7 Promote, log, learn | The output moves to its permanent home; `plans/` keeps the history; daily log and dashboard updated; repeated findings become learnings. | `docs/...` | Koine step 5; disciplines 5, 7, 8; Stage 5 |
 
-**What `mercatus verify` checks** (mechanical, not advisory):
+### 5.1 What `mercatus verify` checks
 
-- Every `final.md` or promoted output has a `plan.md` committed before its first draft.
-- Every draft has at least one review file from a reviewer that is not its creator.
-- Every promoted output has an `approval.md` naming a human approver listed in
-  `mercatus.toml`.
-- Loops over the round limit were escalated, not silently continued.
+Mechanical checks, run as a pre-commit hook and in CI, modelled on `pinax verify`:
+
+- Every promoted output has a `plan.md` committed before its first draft.
+- Every draft has at least one review file from a reviewer other than its creator.
+- Every output of a major-gate type has an `approval.md` from a listed human approver,
+  pointing at the exact commit that was approved.
+- Loops over the round limit were escalated, not quietly continued.
+- Every marketplace package in use matches the version and content hash in
+  `mercatus.lock`.
 - Every document has the required frontmatter and is listed in an `INDEX.md`.
+
+### 5.2 Human approval gates
+
+**[Proposal, from owner decision D4]** The person approves at major gates and is shown
+the material clearly. Minor outputs are reviewed by the independent reviewer only and
+listed in the daily summary so nothing happens out of sight. The split is set in
+`mercatus.toml` and can be changed per project.
+
+| Major gates (the person approves) | Minor outputs (reviewer only, listed in the daily summary) |
+|---|---|
+| Refined requirements (stage B) | Daily log entries |
+| Plans and work breakdowns (stage C) | Dashboard and INDEX updates |
+| Decision records (`docs/decisions/`) | Ticket status changes |
+| Documentation of record: features, builds, fixes | Intermediate drafts and review files |
+| Bringing in, updating or removing a marketplace agent or tool | Learnings proposed (approved in the four-weekly review) |
+| Merging to the main branch; releases; deployments | |
+
+**What the person sees at a gate.** One file, `plans/<date>-<topic>/gate.md`, written in
+plain language: what is being asked, what changed, the reviewer's verdict and any
+findings left open, what happens on approval, and links to the full material. The person
+answers **approve** or **request changes** with comments. Requested changes go back into
+the loop at step 5 and return to the same gate.
+
+**Making sure an approval really came from the person.** An assistant working in the
+repository can write files, so it could in principle write an `approval.md` itself. This
+needs a real control, not a convention:
+
+- **In Claude Code (Phase 1):** approvals are recorded by `mercatus approve`, which only
+  accepts an answer typed at an interactive terminal, and `mercatus init` adds a Claude
+  Code permission rule that denies the assistant that command. Claude Code supports
+  project permission rules in `.claude/settings.json`. **[Unverified]** whether every
+  route around the rule can be closed; Phase 1 must test this before relying on it.
+- **On GitHub (Phase 3 onward):** a major gate can be a pull request that the person
+  approves under their own GitHub account. The approval then lives outside the assistant's
+  reach.
 
 ---
 
-## 5. The marketplace
+## 6. The marketplace
 
-### 5.1 What an agent package is
+**[Proposal, from owner decision D3]** One central marketplace holds every agent and
+tool; anyone can submit a new one; every Mercatus instance can search it and pull entries
+in when a project needs them.
 
-**[Proposal]** An Agent Skills folder (so any skills-aware assistant can load it) plus a
-small Mercatus manifest. Using the standard's optional `metadata` field, or a sidecar file
-if that becomes too limiting:
+### 6.1 Two kinds of entry
+
+| | Agent | Tool |
+|---|---|---|
+| What it is | A specialist role: instructions, a generator and a paired reviewer | A program agents run |
+| Format | An Agent Skills folder (`SKILL.md` plus files) and a `mercatus-agent.yml` manifest | A `mercatus-tool.yml` manifest: how to install it at a pinned version, how to check it works, what it may touch |
+| Examples | Security reviewer, proof-of-concept builder, automation engineer | Pinax, AutoBuild, Ergasterion, linters, scanners |
+| Precedent | Agent Skills spec; Koine Convention 1 (no generator without a reviewer) | AutoBuild probes every adapter before work begins |
+
+Agent manifest (example):
 
 ```yaml
-# agents/data-engineer/mercatus-agent.yml
-id: data-engineer
+# agents/data-product-engineer/mercatus-agent.yml
+id: data-product-engineer
 version: 0.1.0
-archetype: daedalus               # optional Koine vocabulary
+archetype: daedalus                  # optional Koine vocabulary
 summary: Designs and changes governed data pipelines.
-generators: [draft-data-product]   # each must name a reviewer below
-reviewers:  [review-data-product]  # Koine Convention 1: no generator without a reviewer
-inputs:  [docs/features/*.md, declarations/**/*.yml]
+capabilities: [data-pipeline, data-contract]
+generators: [draft-data-product]     # each needs a paired reviewer
+reviewers:  [review-data-product]
+inputs:  [docs/requirements/*.md, declarations/**/*.yml]
 outputs: [declarations/**/*.yml, docs/builds/*.md]
-tools:   [ergasterion]             # programs it may run
-mcp:     []                        # MCP servers it needs
-harnesses: [claude-code, codex, copilot]
-trust: reviewed                    # core | reviewed | community
+tools:   [ergasterion@0.6.1]         # marketplace tool entries it needs
+mcp:     []
+assistants: [claude-code]            # tested with
 licence: MIT
 ```
 
-Rules the engine enforces at onboarding: every generator has a paired reviewer; inputs and
-outputs are declared (Koine's specification test); tool permissions are listed (the Agent
-Skills `allowed-tools` field is marked experimental in the spec, so Mercatus checks its own
-list rather than relying on it).
+Tool manifest (example):
 
-### 5.2 Onboarding a specialist ("hiring an expert")
+```yaml
+# tools/ergasterion/mercatus-tool.yml
+id: ergasterion
+version: 0.6.1
+summary: Generates dbt data pipelines and data contracts from YAML declarations.
+install: pipx install ergasterion-factory==0.6.1
+check:   ergasterion --help
+writes:  [models/products/**, contracts/products/**, graphs/products/**, manifests/products/**]
+network: none
+upstream: https://github.com/antikas/ergasterion
+licence: MIT
+```
 
-The onboarding runs through the Mercatus Loop like any other output:
+The tool's commands, paths and package name above come from Ergasterion's README and
+`pyproject.toml`; the exact `check` command will be confirmed when the entry is written.
 
-1. **Need found.** A Pinax item has no roster agent whose outputs cover it, or the person
-   asks for a capability.
-2. **Candidate proposed.** The coordinator searches the configured catalogues and writes a
-   plan: which package, why, what it can touch.
-3. **Reviewed.** The reviewer checks the package: manifest complete, reviewer paired,
-   permissions proportionate, licence compatible, scripts read.
-4. **Approved by a person.** Nobody joins the team without an explicit approval.
-5. **Introduced.** A roster file is written, plus a short human-readable "who joined, what
-   they do, what they may touch" note in the daily log and dashboard.
-6. **Leaving** is archive-not-delete: the roster file moves to `docs/archive/` with the
-   reason.
+### 6.2 The central marketplace
 
-A **catalogue** is a Git repository with an index of agent packages. Mercatus ships one
-official catalogue; teams can add their own (private) ones in `mercatus.toml`.
+**[Proposal]** A public Git repository, `mercatus-marketplace` (name to confirm), not a
+hosted service, to start.
 
-### 5.3 Starting roster and first specialists
+```text
+mercatus-marketplace/
+  agents/<id>/              one folder per agent, each version tagged
+  tools/<id>/               one folder per tool
+  index.json                generated list of every entry, version, capability and trust level
+  SUBMITTING.md             how to submit
+  .github/workflows/        the automatic checks
+```
 
-**Core (always present after `init`), four roles** per Koine's "three to five":
+Why a Git repository first:
+
+- **Nothing to host,** in line with Pinax and Koine-OS. A browsable website can be
+  generated from `index.json` later.
+- **Submissions, review and history come free** as pull requests.
+- **There is a working precedent.** Claude Code's own plugin marketplaces are Git
+  repositories with a catalogue file (`.claude-plugin/marketplace.json`), added by
+  `owner/repo` or Git URL (Claude Code documentation, section 12).
+
+### 6.3 Submitting a new entry
+
+1. The author opens a pull request adding `agents/<id>/` or `tools/<id>/`.
+2. **Automatic checks** (`mercatus market lint` in CI): manifest is complete; the Agent
+   Skills `name` rules hold; every generator has a paired reviewer; inputs, outputs and
+   tool permissions are declared; licence present; every script listed.
+3. **Independent AI review** following the Mercatus Loop: is the specification clear, are
+   the permissions in proportion to the job, does anything in the scripts do something the
+   manifest does not declare. Findings are posted on the pull request.
+4. **A human maintainer approves and merges.** No entry reaches the marketplace without a
+   person's approval.
+5. Trust levels: `core` (maintained with Mercatus), `reviewed` (passed steps 2 to 4),
+   `community` (listed from other catalogues; shown with a warning).
+
+### 6.4 Pulling an entry into a project
+
+1. **Need found.** A ticket needs a capability no roster agent has, or the person asks
+   for one.
+2. **Search.** `mercatus market search <capability>` reads `index.json` from the central
+   marketplace and from any extra catalogues listed in `mercatus.toml` (for example a
+   team's private one).
+3. **Proposal at a gate.** The coordinator writes a `gate.md`: which entry, why, what it
+   may touch, its trust level, the reviewer's notes. The person approves.
+4. **Install.** `mercatus market add` copies the entry into `.mercatus/agents/` or
+   `.mercatus/tools/` at that exact version and writes its commit and content hash to
+   `mercatus.lock`. A copy, not a live link, means the project keeps working if the
+   marketplace changes, and `mercatus verify` notices if the copy is edited.
+5. **Introduce.** A roster file and a short "who joined, what they do, what they may
+   touch" entry in the daily log and dashboard.
+6. **Update** is a new proposal through the same gate. **Remove** is archive-not-delete
+   (Koine discipline 2).
+
+**Starting roster** (always present after `init`), four roles in line with Koine's
+"three to five":
 
 | Role | Koine archetype | Job |
 |---|---|---|
-| Coordinator | Metis | Turns requests into specs and plans; picks specialists; proposes onboarding |
-| Reviewer | Kritos | Independent review; never produces |
+| Coordinator | Metis | Refines requirements, writes plans and tickets, staffs tickets, writes gate summaries |
+| Reviewer | Kritos | Independent review of everything; never produces |
 | Scribe | Clio and Paideia | Keeps documentation, daily log, dashboard and INDEX files current |
-| Context keeper | Mnemon | Loads the right context for each session; compiles `sources/`; flags stale docs |
+| Context keeper | Mnemon | Loads the right context per session; compiles `sources/`; flags stale documents |
 
-**First catalogue entries, built on Antikas's projects:**
-
-| Entry | Built on | Type |
-|---|---|---|
-| Tracker integration | Pinax | Built into the engine, not a hireable agent |
-| Software builder | AutoBuild (its builder and blind reviewer seats) | Specialist |
-| Data-product engineer | Ergasterion as its tool | Specialist (pending Q2) |
+**First marketplace entries:** tools Pinax, AutoBuild and Ergasterion; agents software
+builder (on AutoBuild), security reviewer, proof-of-concept builder, data-product engineer
+(on Ergasterion).
 
 ---
 
-## 6. Model and harness independence
+## 7. Model and assistant independence
 
-**[Proposal]** Copy AutoBuild's ports-and-adapters shape (evidence: `docs/architecture.md`,
-dependency direction enforced by `tests/architecture/`):
+**[Proposal]** Copy AutoBuild's ports-and-adapters design (evidence:
+`docs/architecture.md`; dependency direction enforced by `tests/architecture/`):
 
-- A `HarnessPort` with adapters for Claude Code, Codex, GitHub Copilot, and direct API
-  access. Each adapter is tested against a shared contract.
-- In-session mode needs no adapter beyond the instruction files: AGENTS.md for any agent
-  that reads it, CLAUDE.md and `.claude/skills/` for Claude Code, and
-  `.github/copilot-instructions.md` plus prompt files for Copilot (all three have
-  precedents in Koine's adapters).
-- The reviewer can be set to run on a different model from the creator. This is an
-  option, not a default; I have no evidence on whether it improves results for this kind
-  of work, so we should measure it before recommending it.
+- **Phases 1 and 2, in-session:** the work happens inside Claude Code. Mercatus installs
+  `CLAUDE.md` (pointing at `AGENTS.md`), skills under `.claude/skills/`, subagent
+  definitions for the reviewer so it runs in a fresh context, and the permission rule from
+  section 5.2. Koine's Claude Code adapter maps each of these primitives already.
+- **Phase 3, engine mode:** a `HarnessPort` with Claude Code first. Further adapters
+  (Codex, Copilot, direct API) follow AutoBuild's tested pattern and are added when
+  someone needs them.
+- **Running the reviewer on a different model** from the creator is an option, not a
+  default. I have no evidence on whether it helps here, so it should be measured first.
 
 ---
 
-## 7. Roadmap
+## 8. Roadmap
 
-Each phase ends with something you can watch work, and is itself run through the loop.
+Each phase ends with something you can watch work, run in the Mercatus repository itself
+(owner decision D7).
 
 | Phase | Delivers | Done when |
 |---|---|---|
-| **0. Foundation** | This plan approved; first decision records (licence, language, how Antikas's projects are included); Mercatus's own repo uses its own docs layout | You have approved the plan and the Phase 1 slice |
-| **1. Context layer and loop** | `mercatus init`; templates for features, builds, fixes, ideas, decisions; AGENTS.md and Claude Code and Copilot instructions; the loop as skills; `mercatus verify` with a pre-commit hook | In an empty test repo, one feature document goes plan → draft → independent review → correction → human approval → promoted, with every file committed, and `mercatus verify` fails if any one step is removed |
-| **2. Tracker and roster** | Pinax built in; roster files; the four core roles; onboarding flow; the official catalogue repo with its first entry | A person asks for something no core role covers; Mercatus proposes a specialist, it is reviewed, approved, and appears in the roster and the docs |
-| **3. Engine mode and builder** | `HarnessPort` with Claude Code first; AutoBuild as the software-builder specialist | A small feature goes from request to merged code with a blind review and a human approval, through two different harnesses |
-| **4. Marketplace** | Trust levels, version pinning, third-party catalogues; data-product engineer on Ergasterion (if Q2 says yes) | A second team's catalogue can be added and one of its agents onboarded |
-| **5. Feedback and scale** | Metrics (loop rounds, approval rates, agent use) feeding `learnings/`; A2A for agents on other servers if needed | A four-weekly review (Koine Stage 5) produces at least one change to the core |
+| **0. Foundation** | This plan approved; decision records for D1 to D7; the Mercatus repo laid out with its own docs structure | You approve revision 2 and the Phase 1 slice |
+| **1. Context layer, loop and gates** | `mercatus init`; templates (requirement, feature, build, fix, idea, decision, gate); Claude Code skills for the four core roles; `mercatus approve` with the permission rule; `mercatus verify` as pre-commit hook | In this repo, one requirement goes intake → refine → gate → plan → gate → draft → independent review → correction → gate → promoted, every file committed. `verify` fails if any step is removed. An attempt by the assistant to approve its own gate is refused. |
+| **2. Tickets and staffing** | Pinax built in; plans become tickets; capability matching; roster files; local catalogue with first agent entries | A plan becomes Pinax tickets; one ticket needs a specialist not on the roster; Mercatus proposes it, you approve, it joins and completes the ticket |
+| **3. Building code** | Engine mode (`HarnessPort`, Claude Code); AutoBuild as the software builder's tool; GitHub pull-request approvals as gates | A small feature goes from requirement to merged code, with blind review and your approval on the pull request |
+| **4. Central marketplace** | `mercatus-marketplace` repository; `market lint`, `search`, `add`, `update`; submission checks and AI review in CI; trust levels; `mercatus.lock`; first entries (Ergasterion and the data-product engineer, security reviewer, proof-of-concept builder) | An entry submitted by pull request is checked, reviewed, merged, then pulled into a fresh project and used on a ticket |
+| **5. First outside project and feedback** | Mercatus used on a real project; four-weekly review (Koine Stage 5) with loop metrics; other assistants' adapters as needed | The review produces at least one change to the core, made through the loop |
 
 ---
 
-## 8. Risks
+## 9. Owner decisions (2026-11-13)
+
+| # | Question in revision 1 | Owner's answer | Effect on this plan |
+|---|---|---|---|
+| D1 | Where is Agora? | An idea only, no repository; background | Sets no requirements |
+| D2 | Is Ergasterion in scope? | Everything is in scope: refine requirements, create tickets, call tools such as Ergasterion to produce code; specialists for proofs of concept, security, automation and more | Section 4 added; marketplace holds agents and tools (6.1) |
+| D3 | How to include Antikas's projects? | The engine pulls them in as needed from a real central marketplace that accepts new submissions | Section 6 rewritten around a central marketplace |
+| D4 | Approve every output? | Human approval at major gates (plans, decisions, documentation and similar), shown clearly, with approve or request changes | Section 5.2 |
+| D5 | First assistant? | Claude Code now; should work in principle with any assistant | Sections 3 and 7 |
+| D6 | Python 3.11+ and MIT? | Agreed | Phase 0 decision record |
+| D7 | First real user? | None yet; prove it on Mercatus itself first | Every phase is tested in this repository |
+
+**Still open (none blocks Phase 1):**
+
+- **Marketplace name and home.** A separate repository under your GitHub account is
+  proposed (`mercatus-marketplace`). Needed by Phase 4.
+- **Upstream contact.** Pinax, AutoBuild and Ergasterion would be listed as marketplace
+  tools pointing at their PyPI releases, with credit. They are MIT-licensed, so no
+  permission is needed, but letting the author know is worth considering. Needed by
+  Phase 4.
+
+---
+
+## 10. Risks
 
 | Risk | Evidence | Mitigation |
 |---|---|---|
-| Upstream changes break Mercatus | All four projects are pre-1.0 and released from private repos | Pin versions; use them only behind Mercatus ports; contract tests per adapter |
-| Third-party agents run harmful scripts | Agent Skills folders can include `scripts/`; `allowed-tools` is experimental | Every onboarding is reviewed and approved by a person; permissions declared and checked; trust levels |
-| Reviewers that always pass | Koine anti-pattern "reviewers that cannot fail" | `verify` tracks pass rates; a reviewer with no failures over N items is flagged for the person |
-| Documentation overload | Koine: "It will not produce thirty skills on day one" | Blank slate with four roles; folders created empty; specialists added only on need |
-| Skills not triggering | Koine reports about 70% auto-invocation in Claude Code (author's figure) | Plans name every agent explicitly; `verify` checks that named reviewers ran |
-| Cost of review rounds | AutoBuild added usage meters and lane cooling, which shows this is a real cost | Round limit; review effort configurable per agent; usage reporting in Phase 3 |
-| Human approval becomes a bottleneck | Inferred, not evidenced | One-screen approval summaries; batch approvals; open question Q4 on what may skip approval |
+| The assistant approves its own gate | It can write files in the repository | Approval only through an interactive command the assistant is denied (Phase 1, tested); pull-request approvals (Phase 3) |
+| A marketplace entry does harm | Agent Skills folders can include `scripts/`; `allowed-tools` is marked experimental | Automatic checks, AI review and human merge on submission; human gate to bring it into a project; pinned copies with content hashes |
+| Upstream changes break tools | All four upstream projects are pre-1.0 and released from private repositories | Tool entries pin exact versions; updates go through a gate |
+| Reviewers that always pass | Koine anti-pattern "reviewers that cannot fail" | Track pass rates; flag a reviewer with no failures over a set number of items |
+| Too many gates slow you down | Not yet measured | Major and minor split (5.2) set per project; one-file gate summaries; revisit at the first four-weekly review |
+| Skills do not trigger | Koine reports about 70% auto-invocation in Claude Code (author's figure) | Plans name every agent; `verify` checks the named reviewers ran |
+| Review rounds cost money | AutoBuild built usage meters, which suggests a real cost | Round limit; review effort set per agent; usage reported from Phase 3 |
+| Documentation overload | Koine: "It will not produce thirty skills on day one" | Blank slate with four roles; specialists only on need |
 
 ---
 
-## 9. Questions for you
+## 11. Revision history
 
-These need your answer before Phase 1. Each one changes what gets built.
-
-- **Q1. Agora.** Is there a document or repo for the original "Agora" idea? I could not
-  find one. If it has requirements Mercatus must keep, I need to read it.
-- **Q2. Ergasterion.** It is a data-pipeline generator with no AI inside. Do you want
-  data products in scope for Mercatus (as a specialist using Ergasterion), or did you mean
-  a different project?
-- **Q3. Relationship with Antikas's projects.** Options: (a) install Pinax and AutoBuild
-  from PyPI as pinned dependencies and copy Koine-OS in (its own recommended model);
-  (b) fork all of them into Mercatus; (c) work with the author upstream. I recommend (a):
-  all are MIT-licensed, and it keeps credit and upstream fixes. Have you been in touch with
-  the author?
-- **Q4. Approval scope.** Must a person approve **every** output, including small
-  documentation updates and log entries, or only certain kinds (code merges, new agents,
-  decisions)? Koine requires approval at stage boundaries; your brief says all output.
-- **Q5. First harness.** Which assistant will you use first: Claude Code, Copilot,
-  Codex, or something else? Phase 1 starts with that one.
-- **Q6. Language and licence.** I propose Python 3.11+ (matches Pinax and AutoBuild) and
-  MIT (matches all four upstream projects). Agree?
-- **Q7. Who is the first real user?** A real project to test Mercatus on in Phase 1 will
-  find problems no test repo will.
+- **Revision 2 (2026-11-13).** ADDED section 4 (requirement to code); section 5.2
+  (gates, and how approvals are protected); section 6 rewritten around a central
+  marketplace with agents and tools, submission and pull-in; section 9 records owner
+  decisions D1 to D7. MODIFIED summary, Ergasterion's role, sections 3, 7, 8 and 10.
+  REMOVED the seven open questions, now answered. Reason: the owner's answers to
+  revision 1.
+- **Revision 1 (2026-11-13).** First draft: research findings and initial proposal.
+  Preserved in Git history.
 
 ---
 
-## 10. Sources
+## 12. Sources
 
 Upstream repositories (cloned 2026-11-13):
 
 - [antikas/koine-os](https://github.com/antikas/koine-os): `README.md`,
   `method/the-koine-loop.md`, `method/00-overview.md`, `method/knowledge-discipline.md`,
-  `method/agent-archetypes.md`, `adapters/claude-code/README.md`
+  `method/agent-archetypes.md`, `adapters/claude-code/README.md`,
+  `prompts/bootstrap-interview.md`
 - [antikas/pinax-tracker](https://github.com/antikas/pinax-tracker): `README.md`,
   `DESIGN.md`, `docs/decisions/ADR-004-separation-enforcement.md`
 - [antikas/autobuild-factory](https://github.com/antikas/autobuild-factory): `README.md`,
-  `docs/architecture.md`, `skills/autobuild-plan/SKILL.md`,
+  `docs/architecture.md`, `docs/running-autobuild.md`, `skills/autobuild-plan/SKILL.md`,
   `skills/autobuild-coordinated/agents/autobuild-reviewer.agent.md`,
   `src/autobuild/adapters/koine_knowledge.py`
-- [antikas/ergasterion](https://github.com/antikas/ergasterion): `README.md`
+- [antikas/ergasterion](https://github.com/antikas/ergasterion): `README.md`, `pyproject.toml`
 
-Standards (read from their GitHub sources):
+Standards and products:
 
 - [agentskills/agentskills](https://github.com/agentskills/agentskills): `docs/specification.mdx`, `GOVERNANCE.md`
 - [agentsmd/agents.md](https://github.com/agentsmd/agents.md)
 - [a2aproject/A2A](https://github.com/a2aproject/A2A): `docs/specification.md`
+- [Claude Code: plugin marketplaces](https://code.claude.com/docs/en/plugin-marketplaces)
 
-Secondary sources (used only for context, not for claims above):
+Secondary sources (background only, not relied on for claims):
 
 - [i-scoop: Agent Skills and the Agentic AI Foundation](https://www.i-scoop.eu/agent-skills-agentic-ai-foundation/)
 - [DEV Community: AI agent standards in 2026](https://dev.to/ialijr/top-ai-agent-standards-to-know-in-2026-31gm)
 - [Tyk: A2A architecture and specification](https://tyk.io/blog/a2a-protocol/)
+- [Morph: Claude Code plugins and marketplaces](https://www.morphllm.com/claude-code-marketplace)

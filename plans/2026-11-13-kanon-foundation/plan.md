@@ -1,28 +1,31 @@
 ---
-name: Oikos foundation plan
-description: Research findings on Koine-OS, Pinax, AutoBuild and Ergasterion, and a phased plan for building Oikos, an importable context engine with a marketplace of specialist agents run through the Koine Loop
+name: Kanon foundation plan
+description: Research findings on Koine-OS, Pinax, AutoBuild and Ergasterion, and a phased plan for building Kanon, an importable context engine with a marketplace of specialist agents run through the Koine Loop
 type: plan
-status: draft-v3-awaiting-owner-approval
-revision: 3
+status: draft-v4-awaiting-owner-approval
+revision: 4
 date: 2026-11-13
 tags:
   - type/plan
-  - project/oikos
+  - project/kanon
   - stage/foundation
 aliases:
+  - Kanon plan
   - Oikos plan
   - Mercatus plan
   - Foundation plan
 ---
 
-# Oikos: research findings and foundation plan
+# Kanon: research findings and foundation plan
 
-> **Status:** revision 3, for the owner's approval. The owner's answers and decisions are
+> **Status:** revision 4, for the owner's approval. The owner's answers and decisions are
 > recorded in section 11 and folded into every section they affect. Section 13 lists what
 > changed. Nothing is built yet.
 >
-> **Names** (owner decision D8): the engine is **Oikos** (οἶκος, the household or shared
-> home, and the root of "ecosystem"). The marketplace is the **Pantheon**. Both replace
+> **Names** (owner decision D8): the engine is **Kanon** (κανών, a measuring rod; a rule or
+> standard; the root of "canon", the agreed body of authoritative texts). It keeps the
+> project's documentation of record and the standard every review measures against.
+> The marketplace is the **Pantheon**. Both replace
 > the working name Mercatus, which is Latin and itself means "marketplace". The GitHub
 > repository is still called `Mercatus` until the owner renames it.
 >
@@ -35,7 +38,7 @@ aliases:
 
 ## 1. Summary
 
-Oikos can be built, and most of the hard parts already exist as working, MIT-licensed
+Kanon can be built, and most of the hard parts already exist as working, MIT-licensed
 code and method by Georgios Antikatzidis (GitHub `antikas`):
 
 | Need in your brief | What already exists | What is missing |
@@ -48,7 +51,7 @@ code and method by Georgios Antikatzidis (GitHub `antikas`):
 | A marketplace of specialists added on demand | Koine's 12 role archetypes (a vocabulary only); the Agent Skills open standard (a package format) | The registry, the onboarding process, and the trust rules |
 | Importable into any repo, works with any model | Pinax and AutoBuild install from PyPI; AutoBuild's harness adapters | A single `init` that sets up everything at once |
 
-**Oikos's job is the missing column:** an installable engine that sets up the context
+**Kanon's job is the missing column:** an installable engine that sets up the context
 layer in any repository, enforces the Koine Loop with a recorded human approval at the
 end, keeps human-readable documentation current, and onboards specialist agents from a
 catalogue as the project needs them.
@@ -100,7 +103,7 @@ begins." In the loop itself, the reviewer can be "a person, another AI agent, or
 > reviewer reviews all agent output ... before passing back to a human user for explicit
 > approval." That is a **stricter version** of what Koine-OS documents: Koine requires a
 > separate reviewer always, and human approval at stage boundaries and plan
-> authorisation. Oikos would make *both* mandatory for every output. That is
+> authorisation. Kanon would make *both* mandatory for every output. That is
 > compatible with Koine, but it is a choice we are making, not something Koine already
 > says. (Settled by owner decision D4: human approval at major gates, section 5.2.)
 
@@ -111,7 +114,7 @@ of the Koine Loop convergence limit", and if a generator runs without its review
 "approximately 70 percent reliability" (the author's figure; I have not measured it), and
 so requires reviewers to be named explicitly in plan files.
 
-This is the strongest argument for Oikos being an **engine** rather than another pack:
+This is the strongest argument for Kanon being an **engine** rather than another pack:
 an engine can refuse to promote output that has no review file or approval record.
 
 **Knowledge disciplines.** [Evidence: `method/knowledge-discipline.md`] Eleven rules:
@@ -152,9 +155,9 @@ requirement.
 - Each state change is committed and pushed immediately so other clones see it.
 - **Deliberate boundary** [Evidence: ADR-004]: Pinax records delivery state only and
   "does not index or synthesise a separate knowledge base." Durable knowledge belongs
-  elsewhere. **Oikos is that elsewhere.**
+  elsewhere. **Kanon is that elsewhere.**
 
-**Role in Oikos:** the work ledger. Every task an agent or person does is a Pinax item.
+**Role in Kanon:** the work ledger. Every task an agent or person does is a Pinax item.
 Its `decision` gate can hold an item until a person approves it.
 
 ### 2.3 AutoBuild (`antikas/autobuild-factory`, MIT, v0.9.4, Python 3.11+, on PyPI)
@@ -177,10 +180,10 @@ Its `decision` gate can hold an item until a person approves it.
   outside AutoBuild."
 - **Dependency gap:** its `KnowledgePort` has a Koine adapter that shells out to a
   `koine-memory` command [Evidence: `src/autobuild/adapters/koine_knowledge.py`]. That
-  command is **not in any public repository** I could find. Oikos can implement this
+  command is **not in any public repository** I could find. Kanon can implement this
   port itself.
 
-**Role in Oikos:** the software-build specialist. It already implements builder plus
+**Role in Kanon:** the software-build specialist. It already implements builder plus
 blind reviewer, which is the Koine Loop for code.
 
 ### 2.4 Ergasterion (`antikas/ergasterion`, MIT, v0.6.1, Python 3.11+)
@@ -194,7 +197,7 @@ blind reviewer, which is the Koine Loop for code.
 - I searched the code for AI or model use. The only hits are two docstrings referring to
   conventions "read by a translation agent". **No model calls exist in the engine.**
 
-**Role in Oikos:** a marketplace **tool**, not an agent (owner decision D2). A
+**Role in Kanon:** a marketplace **tool**, not an agent (owner decision D2). A
 data-product engineer agent uses it: drafts declarations, runs `emit-products --check`,
 and hands the output to the reviewer.
 
@@ -205,7 +208,7 @@ and hands the output to the reviewer.
   author's own `AGENTS.md` and `CLAUDE.md` are not public. I have not guessed at them.
 - **Public repos are projections of private ones.** Pinax and AutoBuild release commits read
   "projected from private commit ...". The public code can change in larger jumps than its
-  history shows. All four are pre-1.0. **Oikos must pin versions.**
+  history shows. All four are pre-1.0. **Kanon must pin versions.**
 - **Agora:** an earlier idea with no written record; background only (owner decision D1).
 
 ### 2.6 Open standards worth building on
@@ -214,7 +217,7 @@ Checked against the standards' own repositories on 2026-11-13. The public websit
 (`agentskills.io`, `agents.md`) were blocked by this session's network, so I read their
 GitHub sources instead.
 
-| Standard | What it gives Oikos | Evidence |
+| Standard | What it gives Kanon | Evidence |
 |---|---|---|
 | **Agent Skills** (`SKILL.md`) | A package format for one capability: a folder with `SKILL.md` (required `name`, `description`; optional `license`, `compatibility`, `metadata`, `allowed-tools`) plus `scripts/`, `references/`, `assets/`. Loaded in three steps: about 100 tokens of metadata at startup, the body when activated, files when needed. | `agentskills/agentskills` `docs/specification.mdx`; governance adopted 2026-11-04 as an LF Projects series, Apache-2.0 |
 | **AGENTS.md** | A plain Markdown file of project instructions that many coding agents read. The nearest file in the directory tree takes precedence, so subfolders can carry their own. Stewarded by the Agentic AI Foundation under the Linux Foundation. | `agentsmd/agents.md` site source |
@@ -228,40 +231,40 @@ someone else's server (Phase 5).
 
 ---
 
-## 3. What Oikos is
+## 3. What Kanon is
 
 **[Proposal]** A Python package and a folder convention.
 
-- **Installed once:** `pipx install oikos-engine`. Python matches Pinax (3.10+) and AutoBuild
+- **Installed once:** `pipx install kanon-engine`. Python matches Pinax (3.10+) and AutoBuild
   (3.11+), so we target 3.11+ and can import both directly.
-- **Started in any repo:** `oikos init` writes a minimal context layer, the
+- **Started in any repo:** `kanon init` writes a minimal context layer, the
   instructions any coding agent reads, and a Pinax tracker. This copies Pinax's own
   `pinax init` pattern.
 - **Claude Code first, any assistant in principle** (owner decision D5). Claude Code is
   the first supported assistant and the only one tested in Phases 1 to 3. Everything the
-  loop needs lives in plain files and the `oikos` command, with AGENTS.md as the
+  loop needs lives in plain files and the `kanon` command, with AGENTS.md as the
   root context, so another assistant needs only a thin adapter, never a second copy of
   the method (Koine's thin-wrapper rule).
 - **Proven on itself first** (owner decision D7). This repository is instance number one:
-  from Phase 1, Oikos is planned, reviewed, approved and documented with Oikos. A real outside project comes once the core works.
+  from Phase 1, Kanon is planned, reviewed, approved and documented with Kanon. A real outside project comes once the core works.
 - **Works with whatever model is connected,** in two modes (the same split AutoBuild uses
   between `autobuild-coordinated` and the Python `autobuild` command):
   - **In-session mode (default, no API keys):** the person's own coding assistant (Claude
-    Code, Copilot, Codex, or anything that reads AGENTS.md) runs the Koine Loop (as Oikos runs it) through
-    installed skills. The `oikos` command does the checking and record-keeping.
-  - **Engine mode (later):** `oikos run` drives harnesses headlessly through adapters,
+    Code, Copilot, Codex, or anything that reads AGENTS.md) runs the Koine Loop (as Kanon runs it) through
+    installed skills. The `kanon` command does the checking and record-keeping.
+  - **Engine mode (later):** `kanon run` drives harnesses headlessly through adapters,
     for unattended work.
-- **Enforces, not just suggests.** `oikos verify` (modelled on `pinax verify`) fails if
+- **Enforces, not just suggests.** `kanon verify` (modelled on `pinax verify`) fails if
   any promoted output lacks its plan, its independent review, or its human approval
   record. It runs as a pre-commit hook and in CI. This closes the gap Koine's own adapter
   documents.
 
-### 3.1 What `oikos init` creates (the blank slate)
+### 3.1 What `kanon init` creates (the blank slate)
 
 ```text
 AGENTS.md                      root context: what the project is, where to look, the loop rules
 CLAUDE.md                      one line pointing to AGENTS.md (Claude Code reads CLAUDE.md)
-oikos.toml                  instance settings: model adapters, reviewer rules, approvers
+kanon.toml                  instance settings: model adapters, reviewer rules, approvers
 docs/
   INDEX.md                     map of all documentation, one line per entry
   status/dashboard.md          current state; read first every session
@@ -272,9 +275,9 @@ docs/
   sources/                     raw input (interviews, notes, links) before it is compiled
   archive/                     superseded documents, with a header saying why
 plans/YYYY-MM-DD-topic/        the loop's audit trail (plan, drafts, reviews, approval, final)
-.oikos/roster/              the agents currently on the team, one file each
-.oikos/agents/  .oikos/tools/   packages pulled from the marketplace (section 6)
-oikos.lock                  exact marketplace versions and content hashes in use
+.kanon/roster/              the agents currently on the team, one file each
+.kanon/agents/  .kanon/tools/   packages pulled from the marketplace (section 6)
+kanon.lock                  exact marketplace versions and content hashes in use
 .ergon/                        Pinax tracker, holds the work tickets (created by pinax init)
 ```
 
@@ -288,7 +291,7 @@ on the roster at the start (section 6.4).
 
 **[Proposal, from owner decision D2]** The engine takes a person's requirements, refines
 them into actionable steps, turns those into work tickets, and has specialists complete
-the tickets using whatever tools they need. Each stage is a run of the Koine Loop (as Oikos runs it)
+the tickets using whatever tools they need. Each stage is a run of the Koine Loop (as Kanon runs it)
 (section 5). The stages marked **GATE** stop for the person (section 5.2).
 
 ```text
@@ -320,7 +323,7 @@ Ergasterion), technical writer.
 
 ---
 
-## 5. The Koine Loop (as Oikos runs it)
+## 5. The Koine Loop (as Kanon runs it)
 
 **[Proposal]** The Koine Loop with an independent reviewer on every output and a human
 approval at every major gate. Each step names its precedent.
@@ -346,7 +349,7 @@ approval at every major gate. Each step names its precedent.
 | 6 Gate | Major outputs stop for the person (section 5.2). Minor outputs go straight on once the reviewer passes them. | `approval.md` for major gates | Owner decision D4 |
 | 7 Promote, log, learn | The output moves to its permanent home; `plans/` keeps the history; daily log and dashboard updated; repeated findings become learnings. | `docs/...` | Koine step 5; disciplines 5, 7, 8; Stage 5 |
 
-### 5.1 What `oikos verify` checks
+### 5.1 What `kanon verify` checks
 
 Mechanical checks, run as a pre-commit hook and in CI, modelled on `pinax verify`:
 
@@ -356,7 +359,7 @@ Mechanical checks, run as a pre-commit hook and in CI, modelled on `pinax verify
   pointing at the exact commit that was approved.
 - Loops over the round limit were escalated, not quietly continued.
 - Every marketplace package in use matches the version and content hash in
-  `oikos.lock`.
+  `kanon.lock`.
 - Every document has the required frontmatter and is listed in an `INDEX.md`.
 
 ### 5.2 Human approval gates
@@ -364,7 +367,7 @@ Mechanical checks, run as a pre-commit hook and in CI, modelled on `pinax verify
 **[Proposal, from owner decision D4]** The person approves at major gates and is shown
 the material clearly. Minor outputs are reviewed by the independent reviewer only and
 listed in the daily summary so nothing happens out of sight. The split is set in
-`oikos.toml` and can be changed per project.
+`kanon.toml` and can be changed per project.
 
 | Major gates (the person approves) | Minor outputs (reviewer only, listed in the daily summary) |
 |---|---|
@@ -385,8 +388,8 @@ the loop at step 5 and return to the same gate.
 repository can write files, so it could in principle write an `approval.md` itself. This
 needs a real control, not a convention:
 
-- **In Claude Code (Phase 1):** approvals are recorded by `oikos approve`, which only
-  accepts an answer typed at an interactive terminal, and `oikos init` adds a Claude
+- **In Claude Code (Phase 1):** approvals are recorded by `kanon approve`, which only
+  accepts an answer typed at an interactive terminal, and `kanon init` adds a Claude
   Code permission rule that denies the assistant that command. Claude Code supports
   project permission rules in `.claude/settings.json`. **[Unverified]** whether every
   route around the rule can be closed; Phase 1 must test this before relying on it.
@@ -399,7 +402,7 @@ needs a real control, not a convention:
 ## 6. The Pantheon (marketplace)
 
 **[Proposal, from owner decision D3]** One central marketplace holds every agent and
-tool; anyone can submit a new one; every Oikos instance can search it and pull entries
+tool; anyone can submit a new one; every Kanon instance can search it and pull entries
 in when a project needs them.
 
 ### 6.1 Two kinds of entry
@@ -474,30 +477,30 @@ Why a Git repository first:
 ### 6.3 Submitting a new entry
 
 1. The author opens a pull request adding `agents/<id>/` or `tools/<id>/`.
-2. **Automatic checks** (`oikos pantheon lint` in CI): manifest is complete; the Agent
+2. **Automatic checks** (`kanon pantheon lint` in CI): manifest is complete; the Agent
    Skills `name` rules hold; every generator has a paired reviewer; inputs, outputs and
    tool permissions are declared; licence present; every script listed.
-3. **Independent AI review** following the Koine Loop (as Oikos runs it): is the specification clear, are
+3. **Independent AI review** following the Koine Loop (as Kanon runs it): is the specification clear, are
    the permissions in proportion to the job, does anything in the scripts do something the
    manifest does not declare. Findings are posted on the pull request.
 4. **A human maintainer approves and merges.** No entry reaches the marketplace without a
    person's approval.
-5. Trust levels: `core` (maintained with Oikos), `reviewed` (passed steps 2 to 4),
+5. Trust levels: `core` (maintained with Kanon), `reviewed` (passed steps 2 to 4),
    `community` (listed from other catalogues; shown with a warning).
 
 ### 6.4 Pulling an entry into a project
 
 1. **Need found.** A ticket needs a capability no roster agent has, or the person asks
    for one.
-2. **Search.** `oikos pantheon search <capability>` reads `index.json` from the central
-   marketplace and from any extra catalogues listed in `oikos.toml` (for example a
+2. **Search.** `kanon pantheon search <capability>` reads `index.json` from the central
+   marketplace and from any extra catalogues listed in `kanon.toml` (for example a
    team's private one).
 3. **Proposal at a gate.** The coordinator writes a `gate.md`: which entry, why, what it
    may touch, its trust level, the reviewer's notes. The person approves.
-4. **Install.** `oikos pantheon add` copies the entry into `.oikos/agents/` or
-   `.oikos/tools/` at that exact version and writes its commit and content hash to
-   `oikos.lock`. A copy, not a live link, means the project keeps working if the
-   marketplace changes, and `oikos verify` notices if the copy is edited.
+4. **Install.** `kanon pantheon add` copies the entry into `.kanon/agents/` or
+   `.kanon/tools/` at that exact version and writes its commit and content hash to
+   `kanon.lock`. A copy, not a live link, means the project keeps working if the
+   marketplace changes, and `kanon verify` notices if the copy is edited.
 5. **Introduce.** A roster file and a short "who joined, what they do, what they may
    touch" entry in the daily log and dashboard.
 6. **Update** is a new proposal through the same gate. **Remove** is archive-not-delete
@@ -549,8 +552,8 @@ name is not already taken in the Pantheon.
 
 ## 7. GitHub mode (optional)
 
-**[Proposal, from owner decision D9]** Oikos works with nothing but the repository. For
-people who want more structure, or larger groups, `oikos github connect` adds GitHub
+**[Proposal, from owner decision D9]** Kanon works with nothing but the repository. For
+people who want more structure, or larger groups, `kanon github connect` adds GitHub
 Projects, branches and pull requests on top. Everything in this section is optional, and
 switching it off loses no history, because the repository stays the source of truth.
 
@@ -567,14 +570,14 @@ switching it off loses no history, because the repository stays the source of tr
 Why the repository stays in charge: Koine's first discipline is one source of truth per
 fact, and Pinax already gives agents a tracker they can read and write offline with no
 network calls. Making GitHub a second, equal tracker would create two records that drift
-apart. So Oikos **writes** ticket state to GitHub, and **reads back** only the things that
+apart. So Kanon **writes** ticket state to GitHub, and **reads back** only the things that
 have to come from people on GitHub: pull-request approvals and change requests, plus any
 fields you choose to edit there (for example priority), which are imported as Pinax
 events.
 
 ### 7.2 The Project board
 
-One GitHub Project per Oikos instance, created by `oikos github connect` with these
+One GitHub Project per Kanon instance, created by `kanon github connect` with these
 fields. Every field is a standard Projects field type (single select, text, number), set
 through the `gh project` commands (checked in `gh` 2.89: `item-add`, `item-edit`,
 `field-create`; they need the `project` token scope).
@@ -597,9 +600,9 @@ production.
 
 ```text
 main ◀────────── PR: "Feature: <requirement>"  (the human gate)
-  └─ oikos/feature/<topic>               one branch per approved plan
-       ├─ oikos/<ticket-id>-<slug>       one branch per ticket, built in its own worktree
-       ├─ oikos/<ticket-id>-<slug>       merged into the feature branch after its review passes
+  └─ kanon/feature/<topic>               one branch per approved plan
+       ├─ kanon/<ticket-id>-<slug>       one branch per ticket, built in its own worktree
+       ├─ kanon/<ticket-id>-<slug>       merged into the feature branch after its review passes
        └─ ...
 ```
 
@@ -609,7 +612,7 @@ main ◀────────── PR: "Feature: <requirement>"  (the human 
 - **One pull request per approved plan,** gathering all its tickets, not one per ticket.
   That gives people one place to review a coherent piece of work and keeps notifications
   and review effort down.
-- **The pull request description** is generated from the files Oikos already keeps, so it
+- **The pull request description** is generated from the files Kanon already keeps, so it
   costs no extra model call:
 
   ```markdown
@@ -625,18 +628,18 @@ main ◀────────── PR: "Feature: <requirement>"  (the human 
 - **Reviewer notes appear underneath** as a pull-request review of type *comment*: the
   independent reviewer's verdict and findings for each ticket, copied from the
   `review-*.md` files and clearly labelled as the AI reviewer. GitHub does not let you
-  approve your own pull request, and Oikos acts with your credentials, so its review is a
-  comment and **the approval is yours alone**. A team can later give Oikos its own GitHub
+  approve your own pull request, and Kanon acts with your credentials, so its review is a
+  comment and **the approval is yours alone**. A team can later give Kanon its own GitHub
   App or bot account so its notes appear under a separate name.
-- **The gate:** you approve (Oikos merges and closes the tickets) or request changes
-  (Oikos turns your comments into findings and the ticket goes back to the loop's adjust
+- **The gate:** you approve (Kanon merges and closes the tickets) or request changes
+  (Kanon turns your comments into findings and the ticket goes back to the loop's adjust
   step). This is the pull-request approval gate from section 5.2.
 
 ### 7.4 Keeping Actions minutes at zero by default
 
-**[Proposal]** Every GitHub action Oikos takes (creating issues, updating the board,
+**[Proposal]** Every GitHub action Kanon takes (creating issues, updating the board,
 opening pull requests, posting reviews, reading approvals) runs **from your own machine
-through the `gh` command**, so it uses **no Actions minutes**. Oikos checks for new
+through the `gh` command**, so it uses **no Actions minutes**. Kanon checks for new
 approvals when you run it, not by waiting on a schedule.
 
 GitHub's December 2025 changelog says Actions stays free on standard runners for public
@@ -644,11 +647,11 @@ repositories. Private repositories get a monthly minute allowance by plan; I cou
 confirm the current figure because this session's network blocks docs.github.com, so
 check it under your GitHub billing settings. The design does not depend on the number.
 
-One **optional** workflow, `oikos-verify.yml`, is offered for groups that want a server-side
+One **optional** workflow, `kanon-verify.yml`, is offered for groups that want a server-side
 check:
 
 - runs only on `pull_request` to `main`, never on every push;
-- runs `oikos verify` and `pinax verify` only: file checks, **no AI model calls in
+- runs `kanon verify` and `pinax verify` only: file checks, **no AI model calls in
   Actions**, so it costs no tokens there;
 - a Linux runner, a 5-minute timeout, and cancellation of any older run on the same pull
   request;
@@ -668,12 +671,12 @@ below come from practices already in Koine-OS and AutoBuild unless marked otherw
 
 | Rule | How | Evidence or precedent |
 |---|---|---|
-| **Free checks before paid ones** | Run `oikos verify`, tests and linters before asking a model to review. A draft that fails a mechanical check goes straight back without a review call. | AutoBuild reads triage lines "without a model call"; runs the validator before review |
+| **Free checks before paid ones** | Run `kanon verify`, tests and linters before asking a model to review. A draft that fails a mechanical check goes straight back without a review call. | AutoBuild reads triage lines "without a model call"; runs the validator before review |
 | **Load only what is needed** | Agents read `INDEX.md` and frontmatter descriptions first and open a full document only when needed. Skills load in three steps. | Koine INDEX drill-down and frontmatter disciplines; Agent Skills progressive disclosure (about 100 tokens of metadata per skill) |
 | **Pass files, not conversations** | Agents write results to files; the coordinator reads short summaries and paths, not the full output. The reviewer gets the specification, the diff and the test results, never the creator's transcript. | Koine "multi-agent temp-file pattern"; AutoBuild reviewer evidence pack |
 | **Plan only what is next** | The next slice is planned in full; later items get one line each until they come up. | `autobuild-plan`: "detail beyond the next slice costs review rounds and buys nothing" |
 | **Cap the loops** | At most three review rounds by default, then the person decides. Never repeat a check on unchanged evidence. | Koine convergence rule; AutoBuild two correction rounds; `autobuild-plan` "never repeated on unchanged evidence" |
-| **Right-size the model** | Each role in `oikos.toml` names a model and effort level. Example: a light model for daily-log and INDEX reviews, a strong one for code and security review. | AutoBuild per-seat model and effort |
+| **Right-size the model** | Each role in `kanon.toml` names a model and effort level. Example: a light model for daily-log and INDEX reviews, a strong one for code and security review. | AutoBuild per-seat model and effort |
 | **Batch the small things** | Minor outputs (logs, dashboard, INDEX) are reviewed together once per session, not one call each. | Section 5.2 split of major and minor |
 | **One pull request per plan** | Fewer, larger review points; the description is built from files with no model call. | Section 7.3 |
 | **Budgets that stop work** | Each ticket gets a token budget (set in the plan). Reaching it pauses the ticket at a gate showing what was spent and what is left, instead of carrying on. | AutoBuild usage meters stop a lane at a set level |
@@ -681,7 +684,7 @@ below come from practices already in Koine-OS and AutoBuild unless marked otherw
 | **Keep the fixed context stable** | Root instructions and skills change rarely and sit at the start of every session, which suits the prompt caching providers offer. | **[Unverified]** how much this saves in in-session Claude Code use; to be measured in Phase 1 |
 
 How usage is measured: in engine mode, from what the harness reports (AutoBuild already
-collects usage per seat). In in-session Claude Code mode, Oikos can only record what Claude
+collects usage per seat). In in-session Claude Code mode, Kanon can only record what Claude
 Code reports to it, so Phase 1 must find out exactly what that is before promising
 per-ticket figures. **[Unverified]**
 
@@ -692,7 +695,7 @@ per-ticket figures. **[Unverified]**
 **[Proposal]** Copy AutoBuild's ports-and-adapters design (evidence:
 `docs/architecture.md`; dependency direction enforced by `tests/architecture/`):
 
-- **Phases 1 and 2, in-session:** the work happens inside Claude Code. Oikos installs
+- **Phases 1 and 2, in-session:** the work happens inside Claude Code. Kanon installs
   `CLAUDE.md` (pointing at `AGENTS.md`), skills under `.claude/skills/`, subagent
   definitions for the reviewer so it runs in a fresh context, and the permission rule from
   section 5.2. Koine's Claude Code adapter maps each of these primitives already.
@@ -711,12 +714,12 @@ Each phase ends with something you can watch work, run in this repository itself
 
 | Phase | Delivers | Done when |
 |---|---|---|
-| **0. Foundation** | This plan approved; decision records for D1 to D9; this repo laid out with its own docs structure; repository renamed if you choose | You approve revision 3 and the Phase 1 slice |
-| **1. Context layer, loop and gates** | `oikos init`; templates (requirement, feature, build, fix, idea, decision, gate); Claude Code skills for the four core roles; `oikos approve` with the permission rule; `oikos verify` as pre-commit hook; token use recorded per loop step (section 8) | In this repo, one requirement goes intake → refine → gate → plan → gate → draft → independent review → correction → gate → promoted, every file committed. `verify` fails if any step is removed. An attempt by the assistant to approve its own gate is refused. We know what Claude Code reports about token use and record it. |
-| **2. Tickets, staffing and the Project board** | Pinax built in; plans become tickets; capability matching; roster files; local catalogue with first agent entries; optional `oikos github connect` mirroring tickets to a GitHub Project (section 7.2) | A plan becomes Pinax tickets that appear on the Project board; one ticket needs a specialist not on the roster; Oikos proposes it, you approve, it joins and completes the ticket. No Actions minutes used. |
-| **3. Building code, branches and pull requests** | Engine mode (`HarnessPort`, Claude Code); AutoBuild as the software builder's tool; ticket and feature branches; generated pull-request descriptions with reviewer notes underneath; pull-request approvals as gates; optional `oikos-verify.yml` (section 7.3, 7.4); per-ticket token budgets | A small feature of two or more tickets goes from requirement to one pull request with the full breakdown and reviewer notes, then to merged code on your approval, with its cost shown |
-| **4. Central marketplace** | `pantheon` repository; `oikos pantheon lint`, `search`, `add`, `update`; submission checks and AI review in CI; trust levels; `oikos.lock`; first entries (Ergasterion and the data-product engineer, security reviewer, proof-of-concept builder) | An entry submitted by pull request is checked, reviewed, merged, then pulled into a fresh project and used on a ticket |
-| **5. First outside project and feedback** | Oikos used on a real project; four-weekly review (Koine Stage 5) with loop metrics; other assistants' adapters as needed | The review produces at least one change to the core, made through the loop |
+| **0. Foundation** | This plan approved; decision records for D1 to D9; this repo laid out with its own docs structure; repository renamed if you choose | You approve revision 4 and the Phase 1 slice |
+| **1. Context layer, loop and gates** | `kanon init`; templates (requirement, feature, build, fix, idea, decision, gate); Claude Code skills for the four core roles; `kanon approve` with the permission rule; `kanon verify` as pre-commit hook; token use recorded per loop step (section 8) | In this repo, one requirement goes intake → refine → gate → plan → gate → draft → independent review → correction → gate → promoted, every file committed. `verify` fails if any step is removed. An attempt by the assistant to approve its own gate is refused. We know what Claude Code reports about token use and record it. |
+| **2. Tickets, staffing and the Project board** | Pinax built in; plans become tickets; capability matching; roster files; local catalogue with first agent entries; optional `kanon github connect` mirroring tickets to a GitHub Project (section 7.2) | A plan becomes Pinax tickets that appear on the Project board; one ticket needs a specialist not on the roster; Kanon proposes it, you approve, it joins and completes the ticket. No Actions minutes used. |
+| **3. Building code, branches and pull requests** | Engine mode (`HarnessPort`, Claude Code); AutoBuild as the software builder's tool; ticket and feature branches; generated pull-request descriptions with reviewer notes underneath; pull-request approvals as gates; optional `kanon-verify.yml` (section 7.3, 7.4); per-ticket token budgets | A small feature of two or more tickets goes from requirement to one pull request with the full breakdown and reviewer notes, then to merged code on your approval, with its cost shown |
+| **4. Central marketplace** | `pantheon` repository; `kanon pantheon lint`, `search`, `add`, `update`; submission checks and AI review in CI; trust levels; `kanon.lock`; first entries (Ergasterion and the data-product engineer, security reviewer, proof-of-concept builder) | An entry submitted by pull request is checked, reviewed, merged, then pulled into a fresh project and used on a ticket |
+| **5. First outside project and feedback** | Kanon used on a real project; four-weekly review (Koine Stage 5) with loop metrics; other assistants' adapters as needed | The review produces at least one change to the core, made through the loop |
 
 ---
 
@@ -731,22 +734,28 @@ Each phase ends with something you can watch work, run in this repository itself
 | D5 | First assistant? | Claude Code now; should work in principle with any assistant | Sections 3 and 9 |
 | D6 | Python 3.11+ and MIT? | Agreed | Phase 0 decision record |
 | D7 | First real user? | None yet; prove it on this project itself first | Every phase is tested in this repository |
-| D8 | Names | Keep Koine's Greek convention. Marketplace: **Pantheon**. Engine: **Oikos** (memorable and easy to spell). | Renamed throughout; section 6.5 naming of entries. Name checks below. |
+| D8 | Names | Keep Koine's Greek convention. Marketplace: **Pantheon**. Engine: a common ancient Greek word like "Koine", at most 6 letters, easy to spell and say, matching the project's purpose: **Kanon**. | Renamed throughout; section 6.5 naming of entries. Name checks below. |
 | D9 | GitHub and cost | Optional GitHub mode: Projects for tickets and tool production, branches merged into reviewable pull requests with a breakdown and reviewer notes. Spare Actions minutes; keep the whole loop token-conscious. | Sections 7 and 8 added; roadmap phases 1 to 3 |
 
-**Name checks for D8** (PyPI and GitHub repository search, 2026-11-13): `oikos` is taken on
-PyPI by a small economics library, so the package would be `oikos-engine` (free) with the
-command `oikos`, the same pattern as `pinax-tracker` and `ergasterion-factory`. GitHub has
-about 600 repositories with "oikos" in the name, none large (the biggest has 31 stars).
-`pantheon` is a GitHub repository name, not a package, so the busy PyPI name does not
-matter. Names rejected for clashing with large tools in the same space: Telos (an AI
-"deep context" framework), Argo (Argo CD), Nous (an AI research group), Mnemosyne (an AI
-memory tool), Kybernetes (the word Kubernetes comes from).
+**Name checks for D8** (PyPI and GitHub repository search, 2026-11-13):
+
+- **Kanon.** `kanon` is taken on PyPI, so the package is `kanon-engine` (free) with the
+  command `kanon`, the same pattern as `pinax-tracker` and `ergasterion-factory`. About
+  1,200 GitHub repositories have "kanon" in the name; the largest has 71 stars, and
+  nothing notable is in the AI-agent space. Fit: Koine-OS calls a specification "a
+  measurement surface", which is what a kanon is. Watch: some people may type "canon".
+- **Pantheon** is a GitHub repository name, not a package, so the busy PyPI name does not
+  matter.
+- **Considered on the way:** Oikos (chosen, then replaced); Athena (clashes with Amazon
+  Athena and several AI-agent projects with almost the same pitch); Parthenon (too long);
+  Mentor, Glaux, Stoa, Hodos, Skopos, Biblos (viable, not chosen).
+- **Rejected for clashing with tools in the same space:** Telos, Argo, Nous, Mnemosyne,
+  Kybernetes, Metis, Noema, Sophia, Sophos, Pragma, Nomos, Praxis, Ethos.
 
 **Still open (none blocks Phase 1):**
 
 - **Repository name.** This repository is still `Bwalker01/Mercatus`. Renaming it to
-  `oikos` is done in GitHub's repository settings, and only you can do it.
+  `kanon` is done in GitHub's repository settings, and only you can do it.
 - **Upstream contact.** Pinax, AutoBuild and Ergasterion would be listed as marketplace
   tools pointing at their PyPI releases, with credit. They are MIT-licensed, so no
   permission is needed, but letting the author know is worth considering. Needed by
@@ -765,15 +774,18 @@ memory tool), Kybernetes (the word Kubernetes comes from).
 | Too many gates slow you down | Not yet measured | Major and minor split (5.2) set per project; one-file gate summaries; revisit at the first four-weekly review |
 | Skills do not trigger | Koine reports about 70% auto-invocation in Claude Code (author's figure) | Plans name every agent; `verify` checks the named reviewers ran |
 | Review rounds cost money | AutoBuild built usage meters, which suggests a real cost | Section 8: free checks first, round limits, model per role, budgets that pause work, cost shown everywhere |
-| GitHub and the repository disagree | Two trackers drift apart (Koine discipline 1) | Pinax is the source of truth; GitHub is written by Oikos and only approvals and chosen fields are read back |
+| GitHub and the repository disagree | Two trackers drift apart (Koine discipline 1) | Pinax is the source of truth; GitHub is written by Kanon and only approvals and chosen fields are read back |
 | Actions minutes used up | Private repositories have a monthly allowance | Nothing runs in Actions by default; the optional workflow runs once per pull request, Linux, 5-minute limit, no model calls |
-| Oikos's GitHub actions appear as you | It uses your `gh` login | Reviewer notes are labelled as AI; Oikos never approves; a separate GitHub App or bot account is an option for groups |
+| Kanon's GitHub actions appear as you | It uses your `gh` login | Reviewer notes are labelled as AI; Kanon never approves; a separate GitHub App or bot account is an option for groups |
 | Documentation overload | Koine: "It will not produce thirty skills on day one" | Blank slate with four roles; specialists only on need |
 
 ---
 
 ## 13. Revision history
 
+- **Revision 4 (2026-11-13).** MODIFIED engine name Oikos → Kanon (D8 revised by the owner);
+  plan folder renamed to match. Reason: owner wanted a short common Greek word closer
+  to the project's purpose.
 - **Revision 3 (2026-11-13).** MODIFIED names: engine Mercatus → Oikos, marketplace →
   Pantheon (D8); plan folder renamed to match. ADDED section 6.5 (naming entries),
   section 7 (optional GitHub mode: Projects, branches, pull requests, zero Actions minutes

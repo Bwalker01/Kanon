@@ -15,7 +15,8 @@ aliases:
 | Where | What |
 |---|---|
 | [status/dashboard.md](status/dashboard.md) | Current state, open gates, next steps. Read first. |
-| [decisions/](decisions/INDEX.md) | Decision records (ADR-001 to ADR-010) |
+| [decisions/](decisions/INDEX.md) | Decision records (ADR-001 to ADR-011) |
+| [standards/](standards/INDEX.md) | Standards every agent follows: conduct and writing |
 | [requirements/](requirements/INDEX.md) | Refined, approved requirements |
 | [features/](features/INDEX.md) | Features: documentation of record |
 | [builds/](builds/INDEX.md) | Builds and releases |

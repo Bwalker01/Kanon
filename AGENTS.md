@@ -24,12 +24,16 @@ its own method. Read this file first, then [the dashboard](docs/status/dashboard
    instructions and no access to the creator's conversation.
 4. **Never record an approval.** Only the owner approves major gates (ADR-004). Prepare a
    `gate.md` summary and stop.
-5. **Archive, never delete.** Superseded files move to `docs/archive/` with a note saying
+5. **Open everything the owner needs at a gate.** When asking for approval, send
+   `gate.md` and every file it asks the owner to approve or links to, rendered for
+   reading in the owner's app (in Claude Code: send them as rendered files). Send files
+   from their current paths, never from paths that have since moved.
+6. **Archive, never delete.** Superseded files move to `docs/archive/` with a note saying
    when, why and what replaced them.
-6. **Frontmatter on every document:** `name`, `description`, `type`, `tags`, `aliases`.
+7. **Frontmatter on every document:** `name`, `description`, `type`, `tags`, `aliases`.
    List every new document in its folder's `INDEX.md`.
-7. **Commit messages start with ADDED, MODIFIED or REMOVED** and give a one-line reason.
-8. **Append to `docs/daily/<today>.md`** what was done; never edit earlier entries.
-9. **Ask, do not guess.** If information is missing, stop and ask the owner.
-10. **Be economical.** Read summaries before full files; run free checks before asking for
+8. **Commit messages start with ADDED, MODIFIED or REMOVED** and give a one-line reason.
+9. **Append to `docs/daily/<today>.md`** what was done; never edit earlier entries.
+10. **Ask, do not guess.** If information is missing, stop and ask the owner.
+11. **Be economical.** Read summaries before full files; run free checks before asking for
     a model review; do not repeat a check on unchanged material.

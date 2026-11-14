@@ -19,3 +19,4 @@ folders are never deleted or cleaned up; they are the audit trail.
 | [2026-11-13-kanon-foundation](2026-11-13-kanon-foundation/plan.md) | Research and foundation plan (revision 4) | Approved |
 | [2026-11-13-phase-0-foundation](2026-11-13-phase-0-foundation/plan.md) | Phase 0: decision records and repository layout | **Awaiting owner at gate** |
 | [2026-11-13-phase-1-context-loop-gates](2026-11-13-phase-1-context-loop-gates/plan.md) | Phase 1 slice: `kanon init`, the loop, gates and `kanon verify` | **Awaiting owner at gate** |
+| [2026-11-14-agent-conduct](2026-11-14-agent-conduct/plan.md) | Agent conduct and writing standard, ADR-011, `AGENTS.md` rewrite | **Awaiting owner at the Phase 0 gate** |

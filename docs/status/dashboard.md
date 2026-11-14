@@ -2,7 +2,7 @@
 name: Status dashboard
 description: Current state of Kanon, open gates, blockers and next steps; read first in every session
 type: dashboard
-updated: 2026-11-13
+updated: 2026-11-14
 tags:
   - type/dashboard
   - project/kanon
@@ -19,7 +19,7 @@ aliases:
 
 | Gate | What to decide | Where |
 |---|---|---|
-| Phase 0 | Approve the decision records, the two amendments, the repository layout and the Phase 1 slice; answer the Phase 1 owner inputs | [gate.md](../../plans/2026-11-13-phase-0-foundation/gate.md) |
+| Phase 0 | Approve the decision records (ADR-001 to ADR-011), the two amendments, the repository layout, the conduct and writing standard and the Phase 1 slice. Rename the repository to `kanon`. | [gate.md](../../plans/2026-11-13-phase-0-foundation/gate.md) |
 
 ## Active work
 
@@ -31,6 +31,7 @@ None.
 
 ## Recent significant changes
 
+- 2026-11-14: conduct and writing standard and ADR-011 added; `AGENTS.md` rewritten to follow it; Phase 1 inputs answered.
 - 2026-11-13: foundation plan approved (revision 4).
 - 2026-11-13: ten decision records written; this repository laid out as Kanon's first instance.
 - 2026-11-13: probe found that in-repo approvals can be forged; two decisions amended.

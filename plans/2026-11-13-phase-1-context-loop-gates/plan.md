@@ -61,17 +61,20 @@ explicitly). How much the loop costs per step (measured in P1-07, not assumed).
 **Acceptance and rollback.** Phase 1 is done when P1-08 passes. Everything is on the
 working branch until the owner approves; rollback is not merging it.
 
-## 2. Owner inputs (answer once, with approval)
+## 2. Owner inputs
 
-| # | Input | Default if you say nothing |
+Asked as questions on 2026-11-14 rather than left for the gate (ADR-011); the record is in
+[questions.md](questions.md).
+
+| # | Input | Answer |
 |---|---|---|
-| O1 | Your approver identity, written `role@host` like Pinax actors | `owner@<your machine name>` |
-| O2 | Copyright holder name in `LICENSE` | `Bwalker01` (as written in Phase 0) |
-| O3 | Rename the GitHub repository from `Mercatus` to `kanon`? Only you can do this, in GitHub settings | Not renamed; revisit at Phase 4 |
-| O4 | **Permission to use independent reviewer subagents in this session.** The method requires a reviewer separate from the builder; in Claude Code that is a subagent with read-only tools. This session does not start subagents unless you ask. | Without it, reviews fall back to you, which makes every item a gate |
-| O5 | Review round limit | 3 (ADR-010) |
-| O6 | The requirement to run end to end in P1-08 | A `kanon status` command that prints the dashboard summary and open gates |
-| O7 | Packaging tool for development | `uv` (AutoBuild's precedent); plain `pip` also works |
+| O1 | Your approver identity, written `role@host` like Pinax actors | Default: `owner@<your machine name>` |
+| O2 | Copyright holder name in `LICENSE` | Default: `Bwalker01` |
+| O3 | Rename the GitHub repository from `Mercatus` to `kanon` | **Rename now** (owner does it in GitHub settings; references updated after) |
+| O4 | Independent reviewer subagents in this session | **Allowed** |
+| O5 | Review round limit | **3** |
+| O6 | The requirement(s) to run end to end in P1-08 | **Both:** `kanon status` (dashboard summary and open gates), then `kanon questions` (open questions across plan folders) |
+| O7 | Packaging tool for development | Default: `uv` |
 
 ## 3. Next slice, in full
 
@@ -93,14 +96,16 @@ is checked (designed so a wrong result fails), and when to stop and ask.
 ### P1-02 Templates and the frontmatter schema
 
 - **Delivers:** templates for requirement, feature, build, fix, idea, decision, plan,
-  draft, review, gate, approval, daily log, dashboard and INDEX; one schema saying which
-  frontmatter fields each document type requires.
+  draft, review, gate, approval, questions log, daily log, dashboard and INDEX; one schema
+  saying which frontmatter fields each document type requires; a person profile (level,
+  the person's own description, areas they know well) in the `kanon.toml` template
+  (ADR-011).
 - **Depends on:** P1-01.
 - **Declared paths:** `src/kanon/templates/**`, `src/kanon/schema.py`, `tests/**`.
 - **Acceptance:** every template validates against the schema; for each required field, a
   test removes it and the validation fails naming that field; the review template contains
   the verdict values `pass`, `correct`, `escalate`, `park` and a blocking flag per finding
-  (AutoBuild's rules).
+  (AutoBuild's rules); every template passes the writing check from P1-04.
 - **Stop and ask if:** a document type needs a field not in Koine's minimum set plus the
   type-specific ones above.
 
@@ -108,8 +113,10 @@ is checked (designed so a wrong result fails), and when to stop and ask.
 
 - **Delivers:** a command that lays out a repository as in foundation plan section 3.1:
   `AGENTS.md` (or a marked Kanon section appended to an existing one), `CLAUDE.md`
-  importing it, `docs/**` with INDEX files, `plans/INDEX.md`, `kanon.toml`, and the Claude
-  Code files from P1-06.
+  importing it, `docs/**` with INDEX files, `docs/standards/conduct-and-writing.md`,
+  `plans/INDEX.md`, `kanon.toml`, and the Claude Code files from P1-06. It asks the person
+  running it the technical-level question (ADR-011) and writes their profile; with
+  `--non-interactive` it records the level as unset and agents ask at first contact.
 - **Depends on:** P1-02 (P1-06 for the Claude Code files; init ships without them until
   P1-06 lands).
 - **Declared paths:** `src/kanon/init.py`, `src/kanon/templates/**`, `tests/**`.
@@ -126,8 +133,11 @@ is checked (designed so a wrong result fails), and when to stop and ask.
   Pantheon: plan committed before its first draft (from Git history); every draft has a
   review by a role other than its creator; every major-gate output has a valid approval;
   loops over the round limit were escalated; frontmatter present and valid; every
-  document listed in its folder's INDEX. Clear messages naming file and rule. A Git
-  pre-commit hook that runs it, installed by `init`.
+  document listed in its folder's INDEX; the writing check from the conduct and writing
+  standard (em and en dashes, the listed phrases; the standard itself is exempt from the
+  phrase list); a question first raised in a `gate.md` that is not in the plan folder's
+  `questions.md`. Clear messages naming file, line and rule. A Git pre-commit hook that
+  runs it, installed by `init`.
 - **Depends on:** P1-02.
 - **Declared paths:** `src/kanon/verify/**`, `src/kanon/hooks/**`, `tests/**`.
 - **Acceptance:** a fixture repository that follows every rule passes. For **each** rule, a
@@ -160,14 +170,20 @@ is checked (designed so a wrong result fails), and when to stop and ask.
   Clio, context keeper Mnemon) in `src/kanon/prompts/`; thin Claude Code wrappers in Agent
   Skills format; the reviewer as a Claude Code subagent with read-only tools that receives
   the specification, the draft or diff and check results, and never the creator's
-  conversation.
+  conversation. Every role prompt carries the conduct and writing standard and reads the
+  person's profile. The reviewer runs a writing review on prose documents against the
+  standard's reviewer list. The coordinator asks questions as gaps appear and logs them in
+  `questions.md`; it suggests a profile change when the conversation shows a mismatch and
+  never makes one without the person's confirmation.
 - **Depends on:** P1-02.
 - **Declared paths:** `src/kanon/prompts/**`, `src/kanon/templates/claude/**`, `tests/**`.
 - **Acceptance:** every skill passes the Agent Skills naming rules (lowercase, hyphens,
   at most 64 characters, matches its folder); every wrapper is at most 30 lines and
   points at its prompt by path (Koine's rule); every generator names its paired reviewer;
-  the reviewer definition grants no write tools. Each check has a test that fails when
-  the rule is broken.
+  the reviewer definition grants no write tools; every role prompt references the conduct
+  standard by path rather than copying it; the reviewer's writing review fails a test
+  document seeded with three listed patterns and passes a clean one. Each check has a test
+  that fails when the rule is broken.
 - **Stop and ask if:** Claude Code cannot keep a subagent from seeing the parent
   conversation.
 
@@ -187,14 +203,17 @@ is checked (designed so a wrong result fails), and when to stop and ask.
 
 ### P1-08 One requirement, end to end, in this repository
 
-- **Delivers:** the requirement from O6, carried through the whole loop with Kanon itself.
+- **Delivers:** the two requirements from O6, each carried through the whole loop with
+  Kanon itself: `kanon status` first, then `kanon questions`. The second run is compared
+  with the first for rounds, questions and tokens.
 - **Depends on:** P1-03 to P1-07.
 - **Declared paths:** whatever the approved plan for O6 declares, plus `docs/**` and
   `plans/**`.
 - **Acceptance (Phase 1 "done when"):** the plan folder contains, in committed order: the
   requirement, its approval, the plan, its approval, draft or code, at least one review by
   the reviewer subagent, a correction if the review asked for one, the documentation
-  update, the final approval, and `usage.md`. `kanon verify` passes. Removing any one of
+  update, the final approval, `questions.md` with every question asked during the run, and
+  `usage.md`. `kanon verify` passes, including the writing check on every new document. Removing any one of
   those files makes `kanon verify` fail. An attempt by the assistant to approve its own
   gate is refused.
 - **Stop and ask if:** the loop does not converge within the round limit; the owner then
@@ -202,7 +221,7 @@ is checked (designed so a wrong result fails), and when to stop and ask.
 
 **Order:** P1-01 → (P1-02, P1-07) → (P1-03, P1-04, P1-06) → P1-05 → P1-08.
 
-**Gates in this slice:** the owner approves the O6 requirement, its plan, and its final
+**Gates in this slice:** for each O6 requirement, the owner approves the requirement, its plan, and its final
 output (P1-08); the build documentation for P1-01 to P1-07 is approved as one gate before
 P1-08 starts, keeping gates few (ADR-004, ADR-009 cost rules).
 

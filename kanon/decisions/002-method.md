@@ -1,13 +1,13 @@
 ---
 type: decision
-status: proposed
+status: accepted
 updated: 2026-11-16
 ---
 
 # ADR-002: Method: the Koine Loop
 
 > **Decision:** Every significant output is planned, created, independently reviewed and revised, for at most three rounds, before a person approves it at a gate.
-> **Status:** Proposed. Awaiting owner approval (see `kanon/REVIEW.md`).
+> **Status:** Accepted by the owner, 2026-11-16 (R-1).
 
 ## Context
 

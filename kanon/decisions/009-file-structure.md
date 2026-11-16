@@ -1,13 +1,13 @@
 ---
 type: decision
-status: proposed
+status: accepted
 updated: 2026-11-16
 ---
 
 # ADR-009: File Structure
 
 > **Decision:** All Kanon files live in one `kanon/` folder, each piece of work is a single file, and records that duplicate Git history are not kept.
-> **Status:** Proposed. Awaiting owner approval (see `kanon/REVIEW.md`).
+> **Status:** Accepted by the owner, 2026-11-16 (R-1).
 
 ## Context
 

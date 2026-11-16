@@ -1,13 +1,13 @@
 ---
 type: decision
-status: proposed
+status: accepted
 updated: 2026-11-16
 ---
 
 # ADR-001: Scope and Purpose
 
 > **Decision:** Kanon turns a person's requirements into delivered, documented work through specialist agents and tools. It is proven on its own repository first.
-> **Status:** Proposed. Awaiting owner approval (see `kanon/REVIEW.md`).
+> **Status:** Accepted by the owner, 2026-11-16 (R-1).
 
 ## Context
 

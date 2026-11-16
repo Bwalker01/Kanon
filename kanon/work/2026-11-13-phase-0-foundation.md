@@ -1,6 +1,6 @@
 ---
 type: work
-status: awaiting-approval
+status: complete
 updated: 2026-11-16
 ---
 
@@ -8,7 +8,7 @@ updated: 2026-11-16
 
 > **Summary:** Research, the decisions that define Kanon, the conduct standard and this
 > repository's layout. Restructured on 2026-11-16 at the owner's request.
-> **Decision needed:** Approve the decisions and layout (R-1 in `kanon/REVIEW.md`).
+> **Decision:** Approved by the owner on 2026-11-16 (R-1).
 
 ## 1. Outputs
 
@@ -51,8 +51,8 @@ updated: 2026-11-16
 
 | Item | Decision | Date | Basis |
 |---|---|---|---|
-| Research and foundation plan, revision 4 | Approved | 2026-11-13 | Owner instruction "begin phase 0" (recorded by the assistant; confirmed by approving R-1) |
-| Decisions and layout | Pending | | |
+| Research and foundation plan, revision 4 | Approved | 2026-11-13 | Owner instruction "begin phase 0" (transcribed by the assistant; confirmed by R-1) |
+| Decisions ADR-001 to ADR-009, conduct standard and layout | Approved | 2026-11-16 | Owner in chat: "R-1: All 9 decisions approved". Transcribed by the assistant; applies to commit `314a276` |
 
 ## 6. Cost
 

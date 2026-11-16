@@ -1,13 +1,13 @@
 ---
 type: decision
-status: proposed
+status: accepted
 updated: 2026-11-16
 ---
 
 # ADR-005: Assistants and Technology
 
 > **Decision:** Claude Code is supported first; the method stays assistant-neutral. Kanon is a Python 3.11+ package under the MIT licence.
-> **Status:** Proposed. Awaiting owner approval (see `kanon/REVIEW.md`).
+> **Status:** Accepted by the owner, 2026-11-16 (R-1).
 
 ## Context
 

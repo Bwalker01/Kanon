@@ -6,15 +6,14 @@ updated: 2026-11-16
 
 # Project Status
 
-> **Summary:** Phase 0 complete and awaiting approval. Phase 1 planned. Two items in
-> `kanon/REVIEW.md`.
+> **Summary:** Phase 0 approved. Phase 1 in progress. Nothing awaiting a decision.
 
 ## 1. Phases
 
 | Phase | Scope | State |
 |---|---|---|
-| 0 | Foundation: decisions, standard, layout | Awaiting approval (R-1) |
-| 1 | Core engine: `kanon` command, review loop, approvals, verification | Planned (R-2) |
+| 0 | Foundation: decisions, standard, layout | Approved 2026-11-16 |
+| 1 | Core engine: `kanon` command, review loop, approvals, verification | In progress (plan approved 2026-11-16) |
 | 2 | Pinax tickets, specialist roster, optional GitHub Project board | Not started |
 | 3 | Engine mode, AutoBuild, branches and pull requests | Not started |
 | 4 | Pantheon marketplace | Not started |
@@ -24,6 +23,7 @@ updated: 2026-11-16
 
 | Date | Change |
 |---|---|
+| 2026-11-16 | Phase 0 decisions and Phase 1 plan approved by the owner |
 | 2026-11-16 | Restructured to the `kanon/` layout (ADR-009); decisions condensed from eleven to nine |
 | 2026-11-15 | Repository renamed to `Bwalker01/Kanon` by the owner |
 | 2026-11-14 | Conduct and writing standard adopted (ADR-008) |

@@ -1,13 +1,13 @@
 ---
 type: decision
-status: proposed
+status: accepted
 updated: 2026-11-16
 ---
 
 # ADR-003: Human Approval
 
 > **Decision:** A person approves every major output from a single review list. Approvals are tamper-evident locally and tamper-proof only through a separate identity.
-> **Status:** Proposed. Awaiting owner approval (see `kanon/REVIEW.md`).
+> **Status:** Accepted by the owner, 2026-11-16 (R-1).
 
 ## Context
 

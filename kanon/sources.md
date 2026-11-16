@@ -61,3 +61,10 @@ Chosen in a question: engine **Kanon**.
 
 Chosen in questions: a single `kanon/` folder; one file per piece of work; daily log, per-folder
 indexes, tags and aliases dropped; sources kept; Phase 0 restructured before approval.
+
+## 8. Approvals (2026-11-16)
+
+> R-1:
+> All 9 decisions approved
+> R-2:
+> Approved.

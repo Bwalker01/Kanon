@@ -1,13 +1,13 @@
 ---
 type: decision
-status: proposed
+status: accepted
 updated: 2026-11-16
 ---
 
 # ADR-008: Agent Conduct and Writing
 
 > **Decision:** Agents ask early, challenge weak proposals, stay realistic and match each person's technical level. Documents are concise, professional and free of AI-writing patterns.
-> **Status:** Proposed. Awaiting owner approval (see `kanon/REVIEW.md`).
+> **Status:** Accepted by the owner, 2026-11-16 (R-1).
 
 ## Context
 

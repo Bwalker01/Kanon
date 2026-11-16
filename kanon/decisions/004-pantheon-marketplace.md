@@ -1,13 +1,13 @@
 ---
 type: decision
-status: proposed
+status: accepted
 updated: 2026-11-16
 ---
 
 # ADR-004: Pantheon Marketplace
 
 > **Decision:** Agents and tools are held in one central Git-based marketplace, the Pantheon, which accepts submissions and from which projects pull what they need.
-> **Status:** Proposed. Awaiting owner approval (see `kanon/REVIEW.md`).
+> **Status:** Accepted by the owner, 2026-11-16 (R-1).
 
 ## Context
 

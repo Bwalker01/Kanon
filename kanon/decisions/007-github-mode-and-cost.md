@@ -1,13 +1,13 @@
 ---
 type: decision
-status: proposed
+status: accepted
 updated: 2026-11-16
 ---
 
 # ADR-007: GitHub Mode and Cost Control
 
 > **Decision:** GitHub Projects, branches and pull requests form an optional layer over the repository. Tokens and Actions minutes are spent only where they add value.
-> **Status:** Proposed. Awaiting owner approval (see `kanon/REVIEW.md`).
+> **Status:** Accepted by the owner, 2026-11-16 (R-1).
 
 ## Context
 

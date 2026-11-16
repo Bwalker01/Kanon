@@ -10,7 +10,9 @@ updated: 2026-11-16
 > repository's layout. Restructured on 2026-11-16 at the owner's request.
 > **Decision:** Approved by the owner on 2026-11-16 (R-1).
 
-## 1. Outputs
+## 1. Plan
+
+Outputs of Phase 0, as delivered.
 
 | Output | Location |
 |---|---|

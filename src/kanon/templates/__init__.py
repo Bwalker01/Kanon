@@ -7,7 +7,7 @@ from string import Template
 
 TEMPLATE_NAMES = (
     "work.md", "decision.md", "review.md", "status.md", "doc.md", "learnings.md",
-    "conduct-and-writing.md", "agents-section.md",
+    "conduct-and-writing.md", "agents-section.md", "sources.md",
 )
 
 

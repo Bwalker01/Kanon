@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from kanon.schema import PERSON_LEVELS
-from kanon.settings import Person, render_settings
+from kanon.settings import Person, render_settings, validate_settings
 from kanon.templates import render
 
 START, END = "<!-- kanon:start -->", "<!-- kanon:end -->"
@@ -27,21 +27,30 @@ class InitResult:
     created: list[str] = field(default_factory=list)
     kept: list[str] = field(default_factory=list)
     updated: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
 
 
-def is_git_repo(root: Path) -> bool:
-    result = subprocess.run(["git", "rev-parse", "--is-inside-work-tree"], cwd=root,
+def repo_root(path: Path) -> Path | None:
+    """The top level of the Git repository containing path, or None."""
+    result = subprocess.run(["git", "rev-parse", "--show-toplevel"], cwd=path,
                             capture_output=True, text=True)
-    return result.returncode == 0 and result.stdout.strip() == "true"
+    return Path(result.stdout.strip()) if result.returncode == 0 and result.stdout.strip() else None
+
+
+def has_settings(root: Path) -> bool:
+    return (root / "kanon" / "kanon.toml").exists()
 
 
 def ask_level(read: Callable[[str], str] = input) -> tuple[str, str]:
     """Ask the technical-level question. Returns (level, description in the person's words)."""
-    answer = read(LEVEL_QUESTION).strip()
-    if answer not in {"1", "2", "3", "4"}:
+    try:
+        answer = read(LEVEL_QUESTION).strip()
+        if answer not in {"1", "2", "3", "4"}:
+            return "", ""
+        level = PERSON_LEVELS[int(answer) - 1]
+        description = read("Anything to add about your background (Enter to skip): ").strip()
+    except EOFError:  # no input available: treat as skipped
         return "", ""
-    level = PERSON_LEVELS[int(answer) - 1]
-    description = read("Anything to add about your background (Enter to skip): ").strip()
     return level, description
 
 
@@ -61,8 +70,17 @@ def _ensure_agents(root: Path, result: InitResult) -> None:
     if not path.exists():
         path.write_text(f"# Agent Instructions\n\n{section}", encoding="utf-8")
         result.created.append("AGENTS.md")
-    elif START in path.read_text(encoding="utf-8"):
+        return
+    text = path.read_text(encoding="utf-8")
+    has_start, has_end = START in text, END in text
+    if has_start and has_end and text.index(START) < text.index(END):
         result.kept.append("AGENTS.md")
+    elif has_start or has_end:
+        result.kept.append("AGENTS.md")
+        result.warnings.append(
+            f"AGENTS.md has an incomplete Kanon section; it needs both {START} and {END}. "
+            "Remove the partial markers and run kanon init again."
+        )
     else:
         existing = path.read_text(encoding="utf-8")
         path.write_text(existing.rstrip("\n") + "\n\n" + section, encoding="utf-8")
@@ -82,9 +100,15 @@ def _ensure_claude(root: Path, result: InitResult) -> None:
         result.updated.append("CLAUDE.md")
 
 
-def init(root: Path, person: Person, today: dt.date | None = None) -> InitResult:
-    if not is_git_repo(root):
-        raise RuntimeError(f"{root} is not a Git repository; run 'git init' first")
+def init(path: Path, person: Person, today: dt.date | None = None) -> InitResult:
+    """Lay out the repository containing path. Raises before writing anything if inputs are invalid."""
+    root = repo_root(path)
+    if root is None:
+        raise RuntimeError(f"{path} is not inside a Git repository; run 'git init' first")
+    settings = render_settings(person)
+    problems = validate_settings(settings)
+    if problems:
+        raise ValueError("; ".join(p.message for p in problems))
     date = (today or dt.date.today()).isoformat()
     result = InitResult()
     files = {
@@ -92,10 +116,11 @@ def init(root: Path, person: Person, today: dt.date | None = None) -> InitResult
         "kanon/STATUS.md": render("status.md", date=date),
         "kanon/docs/conduct-and-writing.md": render("conduct-and-writing.md", date=date),
         "kanon/docs/learnings.md": render("learnings.md", date=date),
+        "kanon/sources.md": render("sources.md", date=date),
         "kanon/decisions/.gitkeep": "",
         "kanon/work/.gitkeep": "",
         "kanon/archive/.gitkeep": "",
-        "kanon/kanon.toml": render_settings(person),
+        "kanon/kanon.toml": settings,
     }
     for rel, content in files.items():
         folder = (root / rel).parent

@@ -17,7 +17,7 @@ PERSON = Person("owner", "Ada", "developer", "Writes Python daily.", "owner@lapt
 EXPECTED = sorted([
     "AGENTS.md", "CLAUDE.md", "kanon/REVIEW.md", "kanon/STATUS.md", "kanon/kanon.toml",
     "kanon/docs/conduct-and-writing.md", "kanon/docs/learnings.md",
-    "kanon/decisions/.gitkeep", "kanon/work/.gitkeep", "kanon/archive/.gitkeep",
+    "kanon/decisions/.gitkeep", "kanon/work/.gitkeep", "kanon/archive/.gitkeep", "kanon/sources.md",
 ])
 
 
@@ -73,7 +73,7 @@ def test_existing_files_are_never_overwritten(repo):
 
 
 def test_refuses_a_directory_that_is_not_a_git_repository(tmp_path):
-    with pytest.raises(RuntimeError, match="not a Git repository"):
+    with pytest.raises(RuntimeError, match="not inside a Git repository"):
         kinit.init(tmp_path, PERSON, TODAY)
     assert files_in(tmp_path) == []
 
@@ -124,3 +124,44 @@ def test_no_placeholder_in_a_folder_that_already_has_content(repo):
     (repo / "kanon/decisions/001-x.md").write_text("x")
     kinit.init(repo, PERSON, TODAY)
     assert not (repo / "kanon/decisions/.gitkeep").exists()
+
+
+def test_run_from_a_subdirectory_lays_out_the_repository_root(repo):
+    (repo / "sub").mkdir()
+    kinit.init(repo / "sub", PERSON, TODAY)
+    assert (repo / "kanon/kanon.toml").exists() and (repo / "AGENTS.md").exists()
+    assert not (repo / "sub/kanon").exists() and not (repo / "sub/AGENTS.md").exists()
+
+
+def test_incomplete_agents_section_is_reported_not_ignored(repo):
+    (repo / "AGENTS.md").write_text(f"# Mine\n{kinit.START}\n")
+    result = kinit.init(repo, PERSON, TODAY)
+    assert (repo / "AGENTS.md").read_text() == f"# Mine\n{kinit.START}\n"
+    assert result.warnings and "incomplete Kanon section" in result.warnings[0]
+
+
+def test_invalid_approver_is_refused_before_writing(repo):
+    with pytest.raises(ValueError, match="role@host"):
+        kinit.init(repo, Person("owner", "Ada", "", "", "just me"), TODAY)
+    assert files_in(repo) == []
+
+
+def test_level_question_treats_closed_input_as_skip():
+    def closed(_):
+        raise EOFError
+    assert kinit.ask_level(closed) == ("", "")
+
+
+def test_cli_does_not_ask_outside_a_repository(tmp_path, monkeypatch, capsys):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr("builtins.input", lambda _: pytest.fail("asked a question"))
+    assert main(["init"]) == 2
+    assert "not inside a Git repository" in capsys.readouterr().out
+
+
+def test_cli_keeps_an_existing_profile_without_asking(repo, monkeypatch, capsys):
+    monkeypatch.chdir(repo)
+    assert main(["init", "--non-interactive", "--approver", "owner@laptop"]) == 0
+    monkeypatch.setattr("builtins.input", lambda _: pytest.fail("asked a question"))
+    assert main(["init", "--approver", "owner@laptop"]) == 0
+    assert "Profile kept" in capsys.readouterr().out

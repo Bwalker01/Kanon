@@ -43,26 +43,35 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def run_init(args) -> int:
+    root = init_module.repo_root(Path.cwd())
+    if root is None:
+        print("kanon init: not inside a Git repository; run 'git init' first")
+        return 2
     level, description = args.level or "", args.description
-    if not args.level and not args.non_interactive:
+    existing = init_module.has_settings(root)
+    if not existing and not args.level and not args.non_interactive:
         level, description = init_module.ask_level()
     approver = args.approver or f"owner@{socket.gethostname().split('.')[0]}"
     person = Person(args.person_id, args.name or getpass.getuser(), level, description, approver)
     try:
-        result = init_module.init(Path.cwd(), person)
+        result = init_module.init(root, person)
     except (RuntimeError, ValueError) as error:
         print(f"kanon init: {error}")
         return 2
     for label, items in (("Created", result.created), ("Updated", result.updated), ("Kept", result.kept)):
         for item in items:
             print(f"{label:8} {item}")
-    if not level:
+    for warning in result.warnings:
+        print(f"Warning  {warning}")
+    if existing:
+        print("Profile kept; change it in kanon/kanon.toml.")
+    elif not level:
         print("Technical level not set; agents will ask at first contact.")
     return 0
 
 
 def run_usage(args) -> int:
-    repo = Path.cwd()
+    repo = init_module.repo_root(Path.cwd()) or Path.cwd()
     try:
         since = usage.parse_time(args.since, repo) if args.since else None
         until = usage.parse_time(args.until, repo) if args.until else None

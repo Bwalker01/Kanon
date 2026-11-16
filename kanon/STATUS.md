@@ -1,0 +1,39 @@
+---
+type: status
+status: current
+updated: 2026-11-16
+---
+
+# Project Status
+
+> **Summary:** Phase 0 complete and awaiting approval. Phase 1 planned. Two items in
+> `kanon/REVIEW.md`.
+
+## 1. Phases
+
+| Phase | Scope | State |
+|---|---|---|
+| 0 | Foundation: decisions, standard, layout | Awaiting approval (R-1) |
+| 1 | Core engine: `kanon` command, review loop, approvals, verification | Planned (R-2) |
+| 2 | Pinax tickets, specialist roster, optional GitHub Project board | Not started |
+| 3 | Engine mode, AutoBuild, branches and pull requests | Not started |
+| 4 | Pantheon marketplace | Not started |
+| 5 | First outside project; other assistants | Not started |
+
+## 2. Recent Changes
+
+| Date | Change |
+|---|---|
+| 2026-11-16 | Restructured to the `kanon/` layout (ADR-009); decisions condensed from eleven to nine |
+| 2026-11-15 | Repository renamed to `Bwalker01/Kanon` by the owner |
+| 2026-11-14 | Conduct and writing standard adopted (ADR-008) |
+| 2026-11-13 | Research and foundation plan approved; Phase 0 started |
+
+## 3. Register
+
+| Item | Location or state |
+|---|---|
+| Engine | Kanon, this repository |
+| Marketplace | Pantheon, not yet created (Phase 4) |
+| Tracker | Pinax, not yet installed (Phase 2) |
+| Working branch | `claude/stoic-knuth-mud2jv` |

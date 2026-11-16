@@ -34,6 +34,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     commands.add_parser("verify", help="run Kanon's mechanical checks on this repository")
 
+    new = commands.add_parser("new", help="create a work file from the template")
+    new.add_argument("topic", help="short topic, used in the file name and title")
+
     use = commands.add_parser("usage", help="token usage and estimated cost for a time window")
     use.add_argument("--since", help="start: ISO timestamp or git reference (commit time)")
     use.add_argument("--until", help="end: ISO timestamp or git reference (commit time)")
@@ -69,6 +72,16 @@ def run_init(args) -> int:
         print("Profile kept; change it in kanon/kanon.toml.")
     elif not level:
         print("Technical level not set; agents will ask at first contact.")
+    return 0
+
+
+def run_new(args) -> int:
+    try:
+        target = init_module.new_work(Path.cwd(), args.topic)
+    except (RuntimeError, ValueError, FileExistsError) as error:
+        print(f"kanon new: {error}")
+        return 2
+    print(f"Created  {target.relative_to(init_module.repo_root(Path.cwd()))}")
     return 0
 
 
@@ -112,6 +125,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
     if args.command == "init":
         return run_init(args)
+    if args.command == "new":
+        return run_new(args)
     if args.command == "verify":
         return run_verify()
     if args.command == "usage":

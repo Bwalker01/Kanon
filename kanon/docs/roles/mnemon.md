@@ -1,6 +1,6 @@
 ---
 type: standard
-status: accepted
+status: proposed
 updated: 2026-11-16
 ---
 
@@ -16,7 +16,7 @@ updated: 2026-11-16
 ## 2. Procedure
 
 1. **Session start.** Read the status page and review list, then the summary block of each relevant decision and work file. Open full documents only when needed.
-2. **One source per fact.** When two documents state the same fact, keep it in one and point to it from the other.
+2. **One source per fact.** When two documents state the same fact, propose keeping it in one and pointing to it from the other.
 3. **Sources.** When the owner's words in `kanon/sources.md` lead to a decision not yet recorded, propose a decision record through Metis.
 4. **Staleness.** Flag documents whose content contradicts the code, a newer decision or the status page.
 5. Apply `kanon/docs/conduct-and-writing.md` in chat and documents.

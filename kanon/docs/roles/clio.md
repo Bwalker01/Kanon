@@ -1,6 +1,6 @@
 ---
 type: standard
-status: accepted
+status: proposed
 updated: 2026-11-16
 ---
 

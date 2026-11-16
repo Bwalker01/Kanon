@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import re
 import subprocess
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -132,7 +133,29 @@ def init(path: Path, person: Person, today: dt.date | None = None) -> InitResult
         _write_new(root, rel, content, result)
     _ensure_agents(root, result)
     _ensure_claude(root, result)
-    hook = install_hook(root)
-    if hook:
+    hook, written = install_hook(root)
+    if written:
         result.created.append(".git/hooks/pre-commit")
+    else:
+        result.warnings.append(f"an existing pre-commit hook was kept at {hook}; it does not run kanon verify "
+                               "unless you add it")
     return result
+
+
+def new_work(path: Path, topic: str, today: dt.date | None = None) -> Path:
+    """Create kanon/work/YYYY-MM-DD-<topic>.md from the template. Never overwrites."""
+    root = repo_root(path)
+    if root is None:
+        raise RuntimeError(f"{path} is not inside a Git repository")
+    slug = re.sub(r"[^a-z0-9]+", "-", topic.lower()).strip("-")
+    if not slug:
+        raise ValueError("the topic needs at least one letter or digit")
+    date = (today or dt.date.today()).isoformat()
+    target = root / "kanon" / "work" / f"{date}-{slug}.md"
+    if target.exists():
+        raise FileExistsError(f"{target.relative_to(root)} already exists")
+    title = topic.strip()[:1].upper() + topic.strip()[1:]
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(render("work.md", date=date, title=title, summary="To be written with the plan."),
+                      encoding="utf-8")
+    return target

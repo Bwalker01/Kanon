@@ -63,9 +63,29 @@ def normalise(text: str) -> str:
     return text.lstrip("\ufeff").replace("\r\n", "\n").replace("\r", "\n")
 
 
+_FENCE = re.compile(r"^[ \t]*(```|~~~)")
+
+
+def strip_fences(lines: list[str]) -> tuple[list[str], int | None]:
+    """Blank fenced code blocks (``` or ~~~). Returns the lines and the index of an unclosed fence."""
+    out, opener, opened_at = [], None, None
+    for index, line in enumerate(lines):
+        match = _FENCE.match(line)
+        if opener is None and match:
+            opener, opened_at = match.group(1), index
+            out.append("")
+        elif opener is not None:
+            if match and match.group(1) == opener:
+                opener = None
+            out.append("")
+        else:
+            out.append(line)
+    return out, (opened_at if opener is not None else None)
+
+
 def _without_fences(body: str) -> str:
-    """Remove fenced code blocks so headings or markers inside them are not counted."""
-    return re.sub(r"^[ \t]*```.*?^[ \t]*```[^\n]*$", "", body, flags=re.MULTILINE | re.DOTALL)
+    """Body text with fenced code blocks blanked, so their contents are not read as structure."""
+    return "\n".join(strip_fences(body.split("\n"))[0])
 
 
 def split_frontmatter(text: str) -> tuple[dict | None, str]:

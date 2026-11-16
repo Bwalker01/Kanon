@@ -50,9 +50,9 @@ Outputs of Phase 0, as delivered.
 
 ## 4. Review
 
-- **Independent review:** none. Kanon's reviewer is built in Phase 1. The owner may request a
-  reviewer subagent before deciding.
-- **Mechanical checks:** frontmatter, links, dashes and listed phrases pass on all files.
+| Round | Items | Reviewer | Verdict | Blocking | Outcome |
+|---|---|---|---|---|---|
+| 1 | Phase 0 outputs | Owner (R-1) | pass | None | Approved 2026-11-16. No independent reviewer existed; mechanical checks passed |
 
 ## 5. Decision
 

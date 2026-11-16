@@ -108,7 +108,7 @@ def only(repo, rule, fragment):
     ("| Creator | Builder |\n", "", "loop", "Creator and a Reviewer"),
     ("| Creator | Builder |", "| Creator | Kritos |", "loop", "must be different"),
     ("| 1 | Example |", "| 4 | Example |", "loop", "exceeds the limit of 3"),
-    ("| Example | Approved by owner |", "Pending.", "approval", "no decision is recorded"),
+    ("| Item | Decision |\n|---|---|\n| Example | Approved by owner |", "Pending.", "approval", "no decision is recorded"),
 ])
 def test_each_rule_fails_alone_and_names_itself(repo, old, new, rule, fragment):
     edit(repo, WORK, old, new)
@@ -126,13 +126,13 @@ def test_review_without_an_earlier_plan_fails(tmp_path):
     kinit.init(tmp_path, PERSON, dt.date(2026, 11, 16))
     (tmp_path / WORK).write_text(REVIEWED)
     commit(tmp_path, "plan and review together")
-    only(tmp_path, "loop", "plan first")
+    only(tmp_path, "loop", "not committed on its own")
 
 
 def test_an_accepted_exception_covers_only_its_finding(tmp_path):
     test_review_without_an_earlier_plan_fails(tmp_path)
     with (tmp_path / "kanon/kanon.toml").open("a") as f:
-        f.write(f'\n[[verify.exceptions]]\npath = "{WORK}"\nrule = "loop"\ncontains = "plan first"\nreason = "Record written after the work."\n')
+        f.write(f'\n[[verify.exceptions]]\npath = "{WORK}"\nrule = "loop"\ncontains = "not committed on its own"\nreason = "Record written after the work."\n')
     open_, covered = kv.verify_with_exceptions(tmp_path)
     assert open_ == [] and len(covered) == 1
     edit(tmp_path, WORK, "A file", "A seamless file")
@@ -142,12 +142,12 @@ def test_an_accepted_exception_covers_only_its_finding(tmp_path):
 def test_an_incomplete_exception_is_itself_a_problem(repo):
     with (repo / "kanon/kanon.toml").open("a") as f:
         f.write('\n[[verify.exceptions]]\npath = "x"\nrule = "loop"\n')
-    only(repo, "settings", "needs path, rule, contains and reason")
+    only(repo, "settings", "needs path, rule, reason")
 
 
 def test_open_question_in_review_list_fails(repo):
     edit(repo, "kanon/REVIEW.md", "Nothing is awaiting a decision.", "Nothing is awaiting a decision.\n\nShould we use Postgres?")
-    only(repo, "questions", "open question")
+    only(repo, "questions", "question in the review list")
 
 
 def test_code_fences_are_ignored(repo):
@@ -197,3 +197,127 @@ def test_cli_exit_codes(repo, monkeypatch, capsys):
     edit(repo, WORK, "A file", "A seamless file")
     assert main(["verify"]) == 1
     assert "1 problem(s)" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("old,new,rule,fragment", [
+    ("## 4. Decision", "## 4. Decisions", "sections", "missing section 'Decision'"),
+    ("> **Summary:** An example piece of work.", "> An example piece of work.", "summary", "missing summary block"),
+    ("status: complete", "status: done", "frontmatter", "status 'done'"),
+    ("updated: 2026-11-16", "updated: 2026-02-30", "frontmatter", "unreadable"),
+    ("| 1 | Example |", "| 1a | Example |", "loop", "round '1a'"),
+    ("| 1 | Example | Kritos | pass | None | Accepted |",
+     "| 1 | Example | Kritos | pass | None | Accepted |\n\nNot yet reviewed. Round 9 pending.", "loop", ""),
+    ("## 2. Questions", "~~~\nA seamless thing.\n~~~\n\n## 2. Questions", None, None),
+    ("## 2. Questions", "```\nnever closed\n\n## 2. Questions", "layout", "never closed"),
+])
+def test_more_rules_fail_alone(repo, old, new, rule, fragment):
+    edit(repo, WORK, old, new)
+    found = rules(repo)
+    if rule is None:
+        assert found == []
+    elif fragment == "":
+        assert found == [], found  # placeholder text inside a real review no longer hides anything
+    else:
+        assert any(r == rule and fragment in m for _, r, m in found), found
+
+
+def test_rounds_hidden_by_placeholder_text_are_still_counted(repo):
+    edit(repo, WORK, "| 1 | Example | Kritos | pass | None | Accepted |",
+         "| 9 | Example | Kritos | pass | None | Accepted |\n\nNot yet reviewed. Round 10 pending.")
+    only(repo, "loop", "round 9 exceeds the limit of 3")
+
+
+def test_group_round_limit_applies_to_lettered_groups(repo):
+    edit(repo, WORK, "| Reviewer | Kritos (independent) |", "| Reviewer | Kritos (independent) |\n| Group round limit | 2 |")
+    edit(repo, WORK, "| 1 | Example |", "| B3 | Example |")
+    only(repo, "loop", "round B3 exceeds the limit of 2")
+
+
+def test_a_bare_template_plan_does_not_count_as_a_plan(tmp_path):
+    git(tmp_path, "init", "-q")
+    kinit.init(tmp_path, PERSON, dt.date(2026, 11, 16))
+    path = kinit.new_work(tmp_path, "example", dt.date(2026, 11, 16))
+    commit(tmp_path, "empty template")
+    (tmp_path / "src.py").write_text("x = 1\n")
+    path.write_text(REVIEWED)
+    commit(tmp_path, "plan, build and review together")
+    found = rules(tmp_path)
+    assert any("not committed on its own" in m for _, _, m in found), found
+
+
+def test_plan_committed_with_build_files_fails(tmp_path):
+    git(tmp_path, "init", "-q")
+    kinit.init(tmp_path, PERSON, dt.date(2026, 11, 16))
+    (tmp_path / WORK).write_text(PLAN_ONLY)
+    (tmp_path / "src.py").write_text("x = 1\n")
+    commit(tmp_path, "plan and build together")
+    (tmp_path / WORK).write_text(REVIEWED)
+    commit(tmp_path, "review")
+    only(tmp_path, "loop", "not committed on its own")
+
+
+@pytest.mark.parametrize("doc_type,limit", [("decision", 60), ("standard", 150)])
+def test_length_limits_are_exact(repo, doc_type, limit):
+    marker = "> **Decision:** x." if doc_type == "decision" else "> **Summary:** x."
+    sections = "## Context\n\n## Decision\n\n## Basis\n\n## Consequences\n" if doc_type == "decision" else ""
+    head = f"---\ntype: {doc_type}\nstatus: proposed\nupdated: 2026-11-16\n---\n\n# Title\n\n{marker}\n\n{sections}"
+    filler = limit - len(head.splitlines())
+    path = repo / f"kanon/docs/{doc_type}-limit.md"
+    path.write_text(head + "- point\n" * filler)
+    assert rules(repo) == []
+    path.write_text(head + "- point\n" * (filler + 1))
+    only(repo, "length", f"limit for a {doc_type} is {limit}")
+
+
+def test_sources_type_outside_its_path_is_a_finding(repo):
+    (repo / "kanon/docs/notes.md").write_text(
+        "---\ntype: sources\nstatus: reference\nupdated: 2026-11-16\n---\n\n# Notes\n\n> **Summary:** x.\n\nA seamless thing.\n")
+    found = rules(repo)
+    assert any(r == "layout" and "only allowed at kanon/sources.md" in m for _, r, m in found)
+    assert any(r == "writing" for _, r, _ in found)
+
+
+def test_conduct_exemption_is_by_exact_path(repo):
+    (repo / "kanon/work/my-conduct-and-writing.md").write_text(PLAN_ONLY.replace("A file", "A seamless file"))
+    assert any(r == "writing" for _, r, _ in rules(repo))
+
+
+def test_question_in_a_table_cell_is_found(repo):
+    edit(repo, "kanon/REVIEW.md", "Nothing is awaiting a decision.", "Nothing is awaiting a decision.\n\n| R-3 | Use Postgres? |")
+    only(repo, "questions", "question in the review list")
+
+
+def test_unused_exception_is_reported(repo):
+    with (repo / "kanon/kanon.toml").open("a") as f:
+        f.write('\n[[verify.exceptions]]\npath = "kanon/x.md"\nrule = "loop"\ncontains = "something long"\nreason = "r"\n')
+    only(repo, "settings", "matches nothing")
+
+
+def test_short_exception_match_is_refused(repo):
+    with (repo / "kanon/kanon.toml").open("a") as f:
+        f.write(f'\n[[verify.exceptions]]\npath = "{WORK}"\nrule = "loop"\ncontains = "e"\nreason = "r"\n')
+    only(repo, "settings", "at least 8 characters")
+
+
+def test_root_instruction_files_get_the_writing_check(repo):
+    edit(repo, "AGENTS.md", "## Kanon", "## Kanon — notes")
+    only(repo, "writing", "dash")
+
+
+def test_new_work_creates_a_valid_file_once(tmp_path):
+    git(tmp_path, "init", "-q")
+    kinit.init(tmp_path, PERSON, dt.date(2026, 11, 16))
+    path = kinit.new_work(tmp_path, "Add caching", dt.date(2026, 11, 16))
+    assert path.name == "2026-11-16-add-caching.md"
+    assert "# Add caching" in path.read_text()
+    with pytest.raises(FileExistsError):
+        kinit.new_work(tmp_path, "add caching", dt.date(2026, 11, 16))
+
+
+def test_existing_hook_is_reported(tmp_path):
+    git(tmp_path, "init", "-q")
+    hook = tmp_path / ".git/hooks/pre-commit"
+    hook.parent.mkdir(parents=True, exist_ok=True)
+    hook.write_text("#!/bin/sh\n")
+    result = kinit.init(tmp_path, PERSON, dt.date(2026, 11, 16))
+    assert any("existing pre-commit hook was kept" in w for w in result.warnings)

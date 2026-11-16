@@ -1,6 +1,6 @@
 ---
 type: standard
-status: accepted
+status: proposed
 updated: 2026-11-16
 ---
 
@@ -34,7 +34,9 @@ Fail a document for any of these (from `kanon/docs/conduct-and-writing.md`, sect
 - Scattered bold emphasis; openers such as "Consider" or "Put simply".
 - Corporate abstractions where a specific term exists.
 - Unsourced generalisations, or a point repeated.
-- A missing or misplaced summary block, or an informal tone.
+- A summary block that does not state what the document is, its status and any decision required.
+- A title not in title case, or an informal tone.
+- A claim without a source, a test, or a label marking it as an assessment.
 
 ## 4. Output
 
@@ -44,5 +46,11 @@ Return exactly:
 - **Findings:** a table of ID, Blocking (yes or no), Location, Finding, Evidence, Required change.
 - **Checks run:** commands and results.
 
-A finding is blocking only if the output should not be accepted as it stands. `correct` and
-`escalate` need at least one blocking finding; `pass` carries non-blocking findings only.
+| Verdict | Meaning |
+|---|---|
+| `pass` | Accept. Non-blocking findings only. |
+| `correct` | The creator can fix the blocking findings; review again. |
+| `escalate` | A blocking finding needs the owner's decision, not a code change. |
+| `park` | Stop the work; it cannot proceed as specified. |
+
+A finding is blocking only if the output should not be accepted as it stands.

@@ -184,3 +184,6 @@ def test_this_repository_matches_its_templates():
         assert text == render(src, date=date), dest
     for dest, src in CLAUDE_FILES.items():
         assert (ROOT / dest).read_text() == render(src), dest
+    conduct = (ROOT / "kanon/docs/conduct-and-writing.md").read_text()
+    date = next(l.split(": ")[1] for l in conduct.splitlines() if l.startswith("updated:"))
+    assert conduct == render("conduct-and-writing.md", date=date)

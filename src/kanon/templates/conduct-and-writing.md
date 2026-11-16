@@ -39,7 +39,7 @@ explain what the person already knows; when understanding is uncertain, ask.
 Every document follows this structure:
 
 1. Frontmatter: `type`, `status`, `updated`.
-2. A title in title case.
+2. A title in title case (checked by the reviewer, not mechanically).
 3. A summary block of no more than three lines stating what the document is, its status and any decision required.
 4. Numbered or clearly named sections with short, descriptive headings.
 5. Tables and bullet points in preference to paragraphs.

@@ -121,7 +121,8 @@ def _read_replies(files: list[Path]) -> tuple[dict[str, _Reply], int]:
             except ValueError:
                 unreadable += 1
                 continue
-            session = str(entry.get("sessionId") or path.stem)
+            fallback = path.parent.parent.name if path.parent.name == "subagents" else path.stem
+            session = str(entry.get("sessionId") or fallback)
             if message_id not in replies or when < replies[message_id].when:
                 replies[message_id] = _Reply(when, session, usage)
     return replies, unreadable
@@ -135,15 +136,20 @@ def _totals(replies: dict[str, _Reply], since, until) -> Totals:
     return totals
 
 
-def _cost_points(main_files: list[Path]) -> dict[str, list[tuple[dt.datetime, float, bool]]]:
-    """Claude Code's cumulative estimate per session: (time, total USD, unknown-model flag)."""
+def _cost_points(main_files: list[Path]):
+    """Claude Code's cumulative estimate per session, and the times each session was active.
+
+    Returns ({session: [(time, total USD, unknown-model flag)]}, {session: [entry times]}).
+    """
     sessions: dict[str, list[tuple[dt.datetime, float, bool]]] = {}
+    activity: dict[str, list[dt.datetime]] = {}
     for path in main_files:
         last_seen: dt.datetime | None = None
         for entry in _entries(path):
             if isinstance(entry.get("timestamp"), str):
                 try:
                     last_seen = parse_time(entry["timestamp"])
+                    activity.setdefault(str(entry.get("sessionId") or path.stem), []).append(last_seen)
                 except ValueError:
                     pass
             if entry.get("type") == "cost-state" and isinstance(entry.get("totalCostUSD"), (int, float)):
@@ -153,7 +159,7 @@ def _cost_points(main_files: list[Path]) -> dict[str, list[tuple[dt.datetime, fl
                     sessions.setdefault(session, []).append((last_seen, float(entry["totalCostUSD"]), unknown))
     for points in sessions.values():
         points.sort(key=lambda p: p[0])
-    return sessions
+    return sessions, activity
 
 
 @dataclass(frozen=True)
@@ -168,22 +174,29 @@ def _cost(main_files, replies: dict[str, _Reply], since, until, notes: list[str]
     The window is widened to the nearest estimate records, so a complete figure is an upper
     bound. Replies after a session's last record are not yet costed: the figure is incomplete.
     """
-    sessions = _cost_points(main_files)
+    sessions, activity = _cost_points(main_files)
     in_window = [r for r in replies.values() if _in_window(r.when, since, until)]
     if not sessions:
         return Cost(None, "unknown")
-    total, incomplete, unknown_model = 0.0, 0, False
+    total, incomplete, unknown_model, decreased = 0.0, 0, False, False
     for session, points in sessions.items():
+        if not any(_in_window(when, since, until) for when in activity.get(session, [])):
+            continue  # the session did nothing in this window, so it adds nothing
         start = [p for p in points if since is not None and p[0] <= since]
         start_cost = start[-1][1] if start else 0.0
         after = [p for p in points if until is not None and p[0] >= until]
         end = after[0] if after else points[-1]
         used = [p for p in points if (not start or p[0] >= start[-1][0]) and p[0] <= end[0]]
         unknown_model = unknown_model or any(p[2] for p in used)
-        total += max(end[1] - start_cost, 0.0)
+        if end[1] < start_cost:
+            decreased = True
+        total += end[1] - start_cost
         incomplete += sum(1 for r in in_window if r.session == session and r.when > points[-1][0])
     known = set(sessions)
     incomplete += sum(1 for r in in_window if r.session not in known and not r.session.startswith("agent-"))
+    if decreased:
+        notes.append("Claude Code's running cost estimate went down during the window; cost unavailable")
+        return Cost(None, "unknown")
     if unknown_model:
         notes.append("Claude Code reports a model with unknown pricing; cost unavailable")
         return Cost(None, "unknown")

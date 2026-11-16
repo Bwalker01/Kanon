@@ -93,7 +93,7 @@ def test_record_appends_rows_to_the_cost_section(tmp_path):
     text = work.read_text()
     cost = text[text.index("## 5. Cost"):]
     assert cost.count(usage.COST_HEADER) == 1
-    assert "| Step A | 3,552 | 700 | 13,037 | 1,492,401 | at most $20.11 |" in cost
+    assert "| Step A | 3,552 | 700 | 13,037 | 1,492,401 | incomplete: $20.11 so far |" in cost
     assert cost.index("Step A") < cost.index("Step B")
 
 
@@ -201,3 +201,35 @@ def test_record_places_rows_inside_the_table_before_trailing_text(tmp_path):
     lines = work.read_text().splitlines()
     row_b = next(n for n, l in enumerate(lines) if l.startswith("| B"))
     assert lines[row_b - 1].startswith("| A") and row_b < lines.index("Note: trailing.")
+
+
+def test_a_session_after_the_window_adds_no_cost(tmp_path):
+    write_log(tmp_path / "a.jsonl", [mark("2026-01-01T09:00:00Z", "a"), cost(1, "a"),
+                                     reply("a1", "2026-01-01T09:30:00Z", 5, "a"),
+                                     mark("2026-01-01T09:45:00Z", "a"), cost(2, "a")])
+    write_log(tmp_path / "b.jsonl", [mark("2026-01-02T09:00:00Z", "b"), cost(50, "b")])
+    rep = usage.report(tmp_path, t("2026-01-01T08:00:00Z"), t("2026-01-01T10:00:00Z"))
+    assert rep.cost_usd == 2.0
+    assert usage.report(tmp_path, t("2025-12-31T00:00:00Z"), t("2025-12-31T01:00:00Z")).cost_usd == 0.0
+
+
+def test_a_falling_running_total_makes_cost_unavailable(tmp_path):
+    write_log(tmp_path / "s.jsonl", [mark("2026-01-01T09:00:00Z"), cost(5),
+                                     reply("r1", "2026-01-01T09:30:00Z", 5),
+                                     mark("2026-01-01T10:00:00Z"), cost(1)])
+    rep = usage.report(tmp_path, t("2026-01-01T09:10:00Z"))
+    assert rep.cost_usd is None and any("went down" in n for n in rep.notes)
+
+
+def test_subagent_without_session_id_belongs_to_its_parent_session(tmp_path):
+    write_log(tmp_path / "s.jsonl", [mark("2026-01-01T09:00:00Z"), cost(1)])
+    sub = reply("x1", "2026-01-01T09:30:00Z", 5)
+    del sub["sessionId"]
+    write_log(tmp_path / "s" / "subagents" / "agent-1.jsonl", [sub])
+    rep = usage.report(tmp_path, t("2026-01-01T08:00:00Z"))
+    assert rep.cost_bound == "incomplete"
+
+
+def test_cli_usage_resolves_git_refs_from_a_subdirectory(monkeypatch, capsys):
+    monkeypatch.chdir(Path(__file__).resolve().parent)
+    assert main(["usage", "--logs", str(LOGS), "--since", "HEAD"]) == 0

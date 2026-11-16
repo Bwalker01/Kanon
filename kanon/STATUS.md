@@ -23,6 +23,7 @@ updated: 2026-11-16
 
 | Date | Change |
 |---|---|
+| 2026-11-16 | P1-01 (package) and P1-02 (schema and templates) complete; reviewed in 3 rounds, passed |
 | 2026-11-16 | Phase 0 decisions and Phase 1 plan approved by the owner |
 | 2026-11-16 | Restructured to the `kanon/` layout (ADR-009); decisions condensed from eleven to nine |
 | 2026-11-15 | Repository renamed to `Bwalker01/Kanon` by the owner |

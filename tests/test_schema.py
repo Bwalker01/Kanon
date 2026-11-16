@@ -120,3 +120,22 @@ def test_frontmatter_closing_at_end_of_file():
 def test_datetime_is_not_a_date():
     text = render("doc.md", **VALUES).replace("updated: 2026-11-16", "updated: 2026-11-16 10:00:00")
     assert any("'updated' must be a date" in str(p) for p in validate(text))
+
+
+@pytest.mark.parametrize("updated", ["2026-02-30", "2026-13-45"])
+def test_impossible_date_is_reported_not_raised(updated):
+    text = render("doc.md", **VALUES).replace("updated: 2026-11-16", f"updated: {updated}")
+    assert [p.rule for p in validate(text)] == ["frontmatter"]
+
+
+def test_deeply_nested_frontmatter_is_reported_not_raised():
+    text = "---\na: " + "[" * 5000 + "\n---\n# T\n"
+    assert [p.rule for p in validate(text)] == ["frontmatter"]
+
+
+def test_alias_expansion_does_not_flood_messages():
+    aliases = "a: &a [x,x,x,x,x,x,x,x,x,x]\n" + "".join(
+        f"{c}: &{c} [*{p},*{p},*{p},*{p},*{p},*{p},*{p},*{p},*{p},*{p}]\n" for p, c in zip("abcde", "bcdef")
+    )
+    text = "---\ntype: work\n" + aliases + "status: *f\nupdated: 2026-11-16\n---\n# T\n"
+    assert all(len(str(p)) < 200 for p in validate(text))

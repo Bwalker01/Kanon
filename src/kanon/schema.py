@@ -71,7 +71,7 @@ def split_frontmatter(text: str) -> tuple[dict | None, str]:
         return None, text
     try:
         data = yaml.safe_load(match.group(1)) or {}
-    except yaml.YAMLError:
+    except (yaml.YAMLError, ValueError, RecursionError):
         return None, text[match.end():]
     return (data if isinstance(data, dict) else None), text[match.end():]
 
@@ -90,7 +90,8 @@ def validate(text: str) -> list[Problem]:
     raw_type = meta.get("type")
     doc_type = DOC_TYPES.get(raw_type) if isinstance(raw_type, str) else None
     if "type" in meta and doc_type is None:
-        problems.append(Problem("frontmatter", f"unknown type '{raw_type}'"))
+        shown = raw_type if isinstance(raw_type, str) else f"<{type(raw_type).__name__}>"
+        problems.append(Problem("frontmatter", f"unknown type '{shown[:60]}'"))
     updated = meta.get("updated")
     if "updated" in meta and (not isinstance(updated, dt.date) or isinstance(updated, dt.datetime)):
         problems.append(Problem("frontmatter", "field 'updated' must be a date (YYYY-MM-DD)"))
@@ -100,9 +101,8 @@ def validate(text: str) -> list[Problem]:
     status = meta.get("status")
     if "status" in meta and (not isinstance(status, str) or status not in doc_type.statuses):
         allowed = ", ".join(doc_type.statuses)
-        problems.append(
-            Problem("frontmatter", f"status '{meta['status']}' is not one of: {allowed}")
-        )
+        shown = status if isinstance(status, str) else f"<{type(status).__name__}>"
+        problems.append(Problem("frontmatter", f"status '{shown[:60]}' is not one of: {allowed}"))
     if doc_type.summary_marker not in body:
         problems.append(Problem("summary", f"missing summary block starting '{doc_type.summary_marker}'"))
 

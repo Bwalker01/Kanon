@@ -84,3 +84,39 @@ def test_settings_template_has_a_valid_person_profile():
 def test_unknown_template_is_refused():
     with pytest.raises(KeyError):
         render("memo.md", **VALUES)
+
+
+@pytest.mark.parametrize(
+    "replacement",
+    ["status: [planning", "type: [work]", "status: {a: 1}", "type:\n  - work"],
+)
+def test_malformed_frontmatter_is_reported_not_raised(replacement):
+    text = render("work.md", **VALUES)
+    field = replacement.split(":")[0]
+    broken = "\n".join(replacement if l.startswith(f"{field}:") else l for l in text.splitlines())
+    problems = validate(broken)
+    assert problems and all(p.rule in ("frontmatter", "summary", "sections") for p in problems)
+    assert any(p.rule == "frontmatter" for p in problems)
+
+
+@pytest.mark.parametrize(
+    "transform",
+    [
+        lambda t: t.replace("\n", "\r\n"),
+        lambda t: "﻿" + t,
+        lambda t: t.replace("---\n", "--- \n", 2),
+    ],
+    ids=["crlf", "bom", "trailing-space"],
+)
+def test_frontmatter_tolerates_windows_and_editor_variants(transform):
+    assert validate(transform(render("work.md", **VALUES))) == []
+
+
+def test_frontmatter_closing_at_end_of_file():
+    text = "---\ntype: review-list\nstatus: current\nupdated: 2026-11-16\n---"
+    assert [p.rule for p in validate(text)] == ["summary"]
+
+
+def test_datetime_is_not_a_date():
+    text = render("doc.md", **VALUES).replace("updated: 2026-11-16", "updated: 2026-11-16 10:00:00")
+    assert any("'updated' must be a date" in str(p) for p in validate(text))

@@ -45,7 +45,7 @@ DOC_TYPES: dict[str, DocType] = {
 
 PERSON_LEVELS = ("new-to-software", "some-experience", "developer", "specialist")
 
-_FRONTMATTER = re.compile(r"\A---\n(.*?)\n---\n", re.DOTALL)
+_FRONTMATTER = re.compile(r"\A---[ \t]*\n(.*?)\n---[ \t]*(?:\n|\Z)", re.DOTALL)
 _HEADING = re.compile(r"^## (?:\d+\.\s+)?(.+?)\s*$", re.MULTILINE)
 
 
@@ -58,11 +58,21 @@ class Problem:
         return f"[{self.rule}] {self.message}"
 
 
+def normalise(text: str) -> str:
+    """Strip a UTF-8 byte order mark and convert CRLF and CR line endings to LF."""
+    return text.lstrip("\ufeff").replace("\r\n", "\n").replace("\r", "\n")
+
+
 def split_frontmatter(text: str) -> tuple[dict | None, str]:
+    """Return (frontmatter, body). Frontmatter is None when absent, unparseable or not a mapping."""
+    text = normalise(text)
     match = _FRONTMATTER.match(text)
     if not match:
         return None, text
-    data = yaml.safe_load(match.group(1)) or {}
+    try:
+        data = yaml.safe_load(match.group(1)) or {}
+    except yaml.YAMLError:
+        return None, text[match.end():]
     return (data if isinstance(data, dict) else None), text[match.end():]
 
 
@@ -77,15 +87,18 @@ def validate(text: str) -> list[Problem]:
         for key in REQUIRED_FRONTMATTER
         if key not in meta
     ]
-    doc_type = DOC_TYPES.get(meta.get("type"))
+    raw_type = meta.get("type")
+    doc_type = DOC_TYPES.get(raw_type) if isinstance(raw_type, str) else None
     if "type" in meta and doc_type is None:
-        problems.append(Problem("frontmatter", f"unknown type '{meta['type']}'"))
-    if "updated" in meta and not isinstance(meta["updated"], dt.date):
+        problems.append(Problem("frontmatter", f"unknown type '{raw_type}'"))
+    updated = meta.get("updated")
+    if "updated" in meta and (not isinstance(updated, dt.date) or isinstance(updated, dt.datetime)):
         problems.append(Problem("frontmatter", "field 'updated' must be a date (YYYY-MM-DD)"))
     if doc_type is None:
         return problems
 
-    if "status" in meta and meta["status"] not in doc_type.statuses:
+    status = meta.get("status")
+    if "status" in meta and (not isinstance(status, str) or status not in doc_type.statuses):
         allowed = ", ".join(doc_type.statuses)
         problems.append(
             Problem("frontmatter", f"status '{meta['status']}' is not one of: {allowed}")

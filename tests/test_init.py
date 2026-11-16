@@ -38,7 +38,8 @@ def snapshot(root):
 def test_init_creates_exactly_the_expected_files(repo):
     result = kinit.init(repo, PERSON, TODAY)
     assert files_in(repo) == EXPECTED
-    assert sorted(result.created) == EXPECTED
+    assert sorted(result.created) == sorted(EXPECTED + [".git/hooks/pre-commit"])
+    assert (repo / ".git/hooks/pre-commit").stat().st_mode & 0o111
 
 
 def test_every_created_document_is_valid(repo):

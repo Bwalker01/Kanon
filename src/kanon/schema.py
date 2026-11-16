@@ -63,6 +63,11 @@ def normalise(text: str) -> str:
     return text.lstrip("\ufeff").replace("\r\n", "\n").replace("\r", "\n")
 
 
+def _without_fences(body: str) -> str:
+    """Remove fenced code blocks so headings or markers inside them are not counted."""
+    return re.sub(r"^[ \t]*```.*?^[ \t]*```[^\n]*$", "", body, flags=re.MULTILINE | re.DOTALL)
+
+
 def split_frontmatter(text: str) -> tuple[dict | None, str]:
     """Return (frontmatter, body). Frontmatter is None when absent, unparseable or not a mapping."""
     text = normalise(text)
@@ -103,6 +108,7 @@ def validate(text: str) -> list[Problem]:
         allowed = ", ".join(doc_type.statuses)
         shown = status if isinstance(status, str) else f"<{type(status).__name__}>"
         problems.append(Problem("frontmatter", f"status '{shown[:60]}' is not one of: {allowed}"))
+    body = _without_fences(body)
     if doc_type.summary_marker not in body:
         problems.append(Problem("summary", f"missing summary block starting '{doc_type.summary_marker}'"))
 

@@ -16,6 +16,7 @@ updated: $date
 | Output | |
 | Inputs | |
 | Acceptance | |
+| Creator | |
 | Reviewer | Kritos (independent) |
 
 ## 2. Questions

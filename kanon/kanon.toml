@@ -4,3 +4,9 @@
 format = 1
 review_round_limit = 3
 
+
+[[verify.exceptions]]
+path = "kanon/work/2026-11-13-phase-0-foundation.md"
+rule = "loop"
+contains = "plan first"
+reason = "The Phase 0 record was written after the work, during the 2026-11-16 restructure."

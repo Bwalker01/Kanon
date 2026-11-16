@@ -12,6 +12,11 @@ updated: 2026-11-16
 
 ## 1. Plan
 
+| Role | Who |
+|---|---|
+| Creator | Claude Code (builder session) |
+| Reviewer | Owner (no independent reviewer existed in Phase 0) |
+
 Outputs of Phase 0, as delivered.
 
 | Output | Location |

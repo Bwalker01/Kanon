@@ -11,6 +11,7 @@ from pathlib import Path
 from kanon.schema import PERSON_LEVELS
 from kanon.settings import Person, render_settings, validate_settings
 from kanon.templates import render
+from kanon.verify import install_hook
 
 START, END = "<!-- kanon:start -->", "<!-- kanon:end -->"
 
@@ -129,4 +130,7 @@ def init(path: Path, person: Person, today: dt.date | None = None) -> InitResult
         _write_new(root, rel, content, result)
     _ensure_agents(root, result)
     _ensure_claude(root, result)
+    hook = install_hook(root)
+    if hook:
+        result.created.append(".git/hooks/pre-commit")
     return result

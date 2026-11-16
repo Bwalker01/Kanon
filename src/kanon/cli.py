@@ -11,7 +11,7 @@ from pathlib import Path
 import getpass
 import socket
 
-from kanon import __version__, usage
+from kanon import __version__, usage, verify
 from kanon import init as init_module
 from kanon.settings import Person
 
@@ -31,6 +31,8 @@ def build_parser() -> argparse.ArgumentParser:
     ini.add_argument("--level", choices=init_module.PERSON_LEVELS, help="technical level (skips the question)")
     ini.add_argument("--description", default="", help="background in the person's own words")
     ini.add_argument("--non-interactive", action="store_true", help="ask nothing; level stays unset")
+
+    commands.add_parser("verify", help="run Kanon's mechanical checks on this repository")
 
     use = commands.add_parser("usage", help="token usage and estimated cost for a time window")
     use.add_argument("--since", help="start: ISO timestamp or git reference (commit time)")
@@ -70,6 +72,20 @@ def run_init(args) -> int:
     return 0
 
 
+def run_verify() -> int:
+    root = init_module.repo_root(Path.cwd())
+    if root is None:
+        print("kanon verify: not inside a Git repository")
+        return 2
+    findings, covered = verify.verify_with_exceptions(root)
+    for finding in findings:
+        print(finding)
+    for finding, exception in covered:
+        print(f"accepted exception: {finding} (reason: {exception.reason})")
+    print(f"kanon verify: {len(findings)} problem(s)" if findings else "kanon verify: all checks passed")
+    return 1 if findings else 0
+
+
 def run_usage(args) -> int:
     repo = init_module.repo_root(Path.cwd()) or Path.cwd()
     try:
@@ -96,6 +112,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
     if args.command == "init":
         return run_init(args)
+    if args.command == "verify":
+        return run_verify()
     if args.command == "usage":
         return run_usage(args)
     return 0

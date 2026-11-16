@@ -10,7 +10,7 @@ from pathlib import Path
 
 from kanon.schema import PERSON_LEVELS
 from kanon.settings import Person, render_settings, validate_settings
-from kanon.templates import render
+from kanon.templates import CLAUDE_FILES, ROLE_FILES, render
 from kanon.verify import install_hook
 
 START, END = "<!-- kanon:start -->", "<!-- kanon:end -->"
@@ -122,6 +122,8 @@ def init(path: Path, person: Person, today: dt.date | None = None) -> InitResult
         "kanon/work/.gitkeep": "",
         "kanon/archive/.gitkeep": "",
         "kanon/kanon.toml": settings,
+        **{dest: render(src, date=date) for dest, src in ROLE_FILES.items()},
+        **{dest: render(src) for dest, src in CLAUDE_FILES.items()},
     }
     for rel, content in files.items():
         folder = (root / rel).parent

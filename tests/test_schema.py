@@ -14,7 +14,7 @@ VALUES = dict(
     person_description="Writes Python daily.",
     approver="owner@laptop",
 )
-MARKDOWN = [n for n in TEMPLATE_NAMES if n.endswith(".md") and n != "agents-section.md"]
+MARKDOWN = [n for n in TEMPLATE_NAMES if n.endswith(".md") and n != "agents-section.md" and not n.startswith("claude/")]
 
 
 @pytest.mark.parametrize("name", MARKDOWN)

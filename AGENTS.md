@@ -26,6 +26,10 @@ This project uses Kanon. At the start of every session, read `kanon/STATUS.md` a
 Follow `kanon/docs/conduct-and-writing.md` in chat and documents. Pitch explanations at the
 level in each person's profile.
 
+Roles, in `kanon/docs/roles/`: Metis coordinates (skill `metis-coordinator`), Kritos reviews
+(subagent `kritos-reviewer`), Clio records (skill `clio-scribe`), Mnemon keeps context
+(skill `mnemon-context`).
+
 1. **Plan first.** Create the work file with its Plan section before producing anything significant.
 2. **Ask early.** Ask when information is missing; record the question and answer in the work file.
 3. **Challenge.** Raise flaws, costs and simpler options before acting, with evidence. The person decides.

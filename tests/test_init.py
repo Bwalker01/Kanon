@@ -18,6 +18,10 @@ EXPECTED = sorted([
     "AGENTS.md", "CLAUDE.md", "kanon/REVIEW.md", "kanon/STATUS.md", "kanon/kanon.toml",
     "kanon/docs/conduct-and-writing.md", "kanon/docs/learnings.md",
     "kanon/decisions/.gitkeep", "kanon/work/.gitkeep", "kanon/archive/.gitkeep", "kanon/sources.md",
+    "kanon/docs/roles/metis.md", "kanon/docs/roles/kritos.md", "kanon/docs/roles/clio.md",
+    "kanon/docs/roles/mnemon.md", ".claude/skills/metis-coordinator/SKILL.md",
+    ".claude/skills/clio-scribe/SKILL.md", ".claude/skills/mnemon-context/SKILL.md",
+    ".claude/agents/kritos-reviewer.md",
 ])
 
 
@@ -166,3 +170,17 @@ def test_cli_keeps_an_existing_profile_without_asking(repo, monkeypatch, capsys)
     monkeypatch.setattr("builtins.input", lambda _: pytest.fail("asked a question"))
     assert main(["init", "--approver", "owner@laptop"]) == 0
     assert "Profile kept" in capsys.readouterr().out
+
+
+def test_this_repository_matches_its_templates():
+    """Instance copies of the AGENTS.md section and role prompts must not drift from the templates."""
+    agents = (ROOT / "AGENTS.md").read_text()
+    section = agents[agents.index(kinit.START):agents.index(kinit.END) + len(kinit.END)] + "\n"
+    assert section == render("agents-section.md")
+    from kanon.templates import CLAUDE_FILES, ROLE_FILES
+    for dest, src in ROLE_FILES.items():
+        text = (ROOT / dest).read_text()
+        date = next(l.split(": ")[1] for l in text.splitlines() if l.startswith("updated:"))
+        assert text == render(src, date=date), dest
+    for dest, src in CLAUDE_FILES.items():
+        assert (ROOT / dest).read_text() == render(src), dest

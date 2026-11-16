@@ -8,11 +8,24 @@ from string import Template
 TEMPLATE_NAMES = (
     "work.md", "decision.md", "review.md", "status.md", "doc.md", "learnings.md",
     "conduct-and-writing.md", "agents-section.md", "sources.md",
+    "roles/metis.md", "roles/kritos.md", "roles/clio.md", "roles/mnemon.md",
+    "claude/skills/metis-coordinator/SKILL.md", "claude/skills/clio-scribe/SKILL.md",
+    "claude/skills/mnemon-context/SKILL.md", "claude/agents/kritos-reviewer.md",
 )
+ROLE_FILES = {f"kanon/docs/roles/{r}.md": f"roles/{r}.md" for r in ("metis", "kritos", "clio", "mnemon")}
+CLAUDE_FILES = {
+    ".claude/skills/metis-coordinator/SKILL.md": "claude/skills/metis-coordinator/SKILL.md",
+    ".claude/skills/clio-scribe/SKILL.md": "claude/skills/clio-scribe/SKILL.md",
+    ".claude/skills/mnemon-context/SKILL.md": "claude/skills/mnemon-context/SKILL.md",
+    ".claude/agents/kritos-reviewer.md": "claude/agents/kritos-reviewer.md",
+}
 
 
 def render(name: str, **values: str) -> str:
     if name not in TEMPLATE_NAMES:
         raise KeyError(f"unknown template '{name}'")
-    text = files(__package__).joinpath(name).read_text(encoding="utf-8")
+    resource = files(__package__)
+    for part in name.split("/"):
+        resource = resource.joinpath(part)
+    text = resource.read_text(encoding="utf-8")
     return Template(text).substitute(values)

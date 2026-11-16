@@ -58,6 +58,11 @@ Outputs of Phase 0, as delivered.
 
 ## 6. Cost
 
-Session total measured 2026-11-15 (all research, planning and Phase 0), from the Claude Code session
-log: 356,378 output tokens; 1,857,478 cache-write tokens; 53,902,041 cache-read tokens;
-501 uncached input tokens. Not separated by step; per-step reporting starts in Phase 1.
+| Measure | Value | Source |
+|---|---|---|
+| Output tokens | 174,241 | Session log, deduplicated by message |
+| Cache writes / reads | 1,366,710 / 30,671,400 | Session log, deduplicated by message |
+| Estimated cost | about $19.36 | Claude Code's own running estimate (`cost-state`), API-equivalent; subscription billing differs |
+
+**Correction (2026-11-16):** figures recorded earlier (356,378 output tokens) double-counted
+replies that the log splits across several entries. Corrected above.

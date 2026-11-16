@@ -7,7 +7,7 @@ updated: 2026-11-16
 # Conduct and Writing Standard
 
 > **Summary:** How every Kanon agent works with people and how it writes. Documents are
-> checked strictly; chat follows the same principles as guidance. Basis: ADR-008.
+> checked strictly; chat follows the same principles as guidance. Change it by decision record.
 
 ## 1. Working with People
 
@@ -21,7 +21,7 @@ updated: 2026-11-16
 
 ## 2. Technical Level
 
-Each person has a profile in `kanon.toml`. It is set by one question at setup and changed only
+Each person has a profile in `kanon/kanon.toml`. It is set by one question at setup and changed only
 with the person's confirmation when the conversation suggests a mismatch.
 
 | Level | Approach |

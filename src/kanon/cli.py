@@ -8,7 +8,12 @@ from collections.abc import Sequence
 import json
 from pathlib import Path
 
+import getpass
+import socket
+
 from kanon import __version__, usage
+from kanon import init as init_module
+from kanon.settings import Person
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -19,6 +24,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--version", action="version", version=f"kanon {__version__}")
     commands = parser.add_subparsers(dest="command", metavar="<command>")
 
+    ini = commands.add_parser("init", help="prepare this Git repository for Kanon")
+    ini.add_argument("--person-id", default="owner", help="profile id (default: owner)")
+    ini.add_argument("--name", default="", help="the person's name")
+    ini.add_argument("--approver", help="approver identity, role@host (default: owner@<this machine>)")
+    ini.add_argument("--level", choices=init_module.PERSON_LEVELS, help="technical level (skips the question)")
+    ini.add_argument("--description", default="", help="background in the person's own words")
+    ini.add_argument("--non-interactive", action="store_true", help="ask nothing; level stays unset")
+
     use = commands.add_parser("usage", help="token usage and estimated cost for a time window")
     use.add_argument("--since", help="start: ISO timestamp or git reference (commit time)")
     use.add_argument("--until", help="end: ISO timestamp or git reference (commit time)")
@@ -27,6 +40,25 @@ def build_parser() -> argparse.ArgumentParser:
     use.add_argument("--record", type=Path, metavar="WORK_FILE", help="append a row to this work file's Cost section")
     use.add_argument("--label", help="row label used with --record")
     return parser
+
+
+def run_init(args) -> int:
+    level, description = args.level or "", args.description
+    if not args.level and not args.non_interactive:
+        level, description = init_module.ask_level()
+    approver = args.approver or f"owner@{socket.gethostname().split('.')[0]}"
+    person = Person(args.person_id, args.name or getpass.getuser(), level, description, approver)
+    try:
+        result = init_module.init(Path.cwd(), person)
+    except (RuntimeError, ValueError) as error:
+        print(f"kanon init: {error}")
+        return 2
+    for label, items in (("Created", result.created), ("Updated", result.updated), ("Kept", result.kept)):
+        for item in items:
+            print(f"{label:8} {item}")
+    if not level:
+        print("Technical level not set; agents will ask at first contact.")
+    return 0
 
 
 def run_usage(args) -> int:
@@ -53,6 +85,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command is None:
         parser.print_help()
         return 0
+    if args.command == "init":
+        return run_init(args)
     if args.command == "usage":
         return run_usage(args)
     return 0

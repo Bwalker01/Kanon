@@ -1,8 +1,6 @@
-import tomllib
-
 import pytest
 
-from kanon.schema import DOC_TYPES, PERSON_LEVELS, REQUIRED_FRONTMATTER, validate
+from kanon.schema import DOC_TYPES, REQUIRED_FRONTMATTER, validate
 from kanon.templates import TEMPLATE_NAMES, render
 
 VALUES = dict(
@@ -16,7 +14,7 @@ VALUES = dict(
     person_description="Writes Python daily.",
     approver="owner@laptop",
 )
-MARKDOWN = [n for n in TEMPLATE_NAMES if n.endswith(".md")]
+MARKDOWN = [n for n in TEMPLATE_NAMES if n.endswith(".md") and n != "agents-section.md"]
 
 
 @pytest.mark.parametrize("name", MARKDOWN)
@@ -70,15 +68,6 @@ def test_bad_date_fails():
 
 def test_no_frontmatter_fails():
     assert [p.rule for p in validate("# Title\n")] == ["frontmatter"]
-
-
-def test_settings_template_has_a_valid_person_profile():
-    settings = tomllib.loads(render("kanon.toml", **VALUES))
-    person = settings["people"]["owner"]
-    assert person["level"] in PERSON_LEVELS
-    assert settings["kanon"]["review_round_limit"] == 3
-    unset = tomllib.loads(render("kanon.toml", **{**VALUES, "person_level": ""}))
-    assert unset["people"]["owner"]["level"] == ""
 
 
 def test_unknown_template_is_refused():

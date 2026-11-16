@@ -1,0 +1,6 @@
+# Kanon settings. See kanon/docs/conduct-and-writing.md for how profiles are used.
+
+[kanon]
+format = 1
+review_round_limit = 3
+

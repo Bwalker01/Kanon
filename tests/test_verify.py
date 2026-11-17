@@ -321,3 +321,14 @@ def test_existing_hook_is_reported(tmp_path):
     hook.write_text("#!/bin/sh\n")
     result = kinit.init(tmp_path, PERSON, dt.date(2026, 11, 16))
     assert any("existing pre-commit hook was kept" in w for w in result.warnings)
+
+
+def test_an_outdated_kanon_hook_is_updated_but_others_are_not(tmp_path):
+    git(tmp_path, "init", "-q")
+    hook = tmp_path / ".git/hooks/pre-commit"
+    hook.parent.mkdir(parents=True, exist_ok=True)
+    hook.write_text("#!/bin/sh\n# Installed by kanon init. Old version.\nexit 0\n")
+    result = kinit.init(tmp_path, PERSON, dt.date(2026, 11, 16))
+    assert hook.read_text() == kv.HOOK and ".git/hooks/pre-commit" in result.updated
+    result = kinit.init(tmp_path, PERSON, dt.date(2026, 11, 16))
+    assert ".git/hooks/pre-commit" in result.kept

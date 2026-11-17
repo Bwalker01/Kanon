@@ -133,9 +133,14 @@ def init(path: Path, person: Person, today: dt.date | None = None) -> InitResult
         _write_new(root, rel, content, result)
     _ensure_agents(root, result)
     _ensure_claude(root, result)
+    existed = Path(subprocess.run(["git", "rev-parse", "--git-path", "hooks/pre-commit"], cwd=root,
+                                  capture_output=True, text=True).stdout.strip() or "x")
+    existed = (root / existed).exists()
     hook, written = install_hook(root)
     if written:
-        result.created.append(".git/hooks/pre-commit")
+        (result.updated if existed else result.created).append(".git/hooks/pre-commit")
+    elif "# Installed by kanon init." in Path(hook).read_text(encoding="utf-8", errors="replace") if Path(hook).exists() else False:
+        result.kept.append(".git/hooks/pre-commit")
     else:
         result.warnings.append(f"an existing pre-commit hook was kept at {hook}; it does not run kanon verify "
                                "unless you add it")

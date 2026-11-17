@@ -376,8 +376,12 @@ def install_hook(root: Path) -> tuple[str, bool]:
     result = subprocess.run(["git", "rev-parse", "--git-path", "hooks/pre-commit"], cwd=root,
                             capture_output=True, text=True)
     hook = (root / result.stdout.strip()).resolve()
-    if result.returncode != 0 or hook.exists():
+    if result.returncode != 0:
         return str(hook), False
+    if hook.exists():
+        current = hook.read_text(encoding="utf-8", errors="replace")
+        if "# Installed by kanon init." not in current or current == HOOK:
+            return str(hook), False  # someone else's hook, or already current
     hook.parent.mkdir(parents=True, exist_ok=True)
     hook.write_text(HOOK, encoding="utf-8")
     hook.chmod(0o755)

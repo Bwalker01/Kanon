@@ -13,9 +13,9 @@ updated: 2026-11-16
 | Phase | Scope | State |
 |---|---|---|
 | 0 | Foundation: decisions, standard, layout | Approved 2026-11-16 |
-| 1 | Core engine: `kanon` command, review loop, approvals, verification | In progress (plan approved 2026-11-16) |
-| 2 | Pinax tickets, specialist roster, optional GitHub Project board | Not started |
-| 3 | Engine mode, AutoBuild, branches and pull requests | Not started |
+| 1 | Core engine: `kanon` command, review loop, approvals, verification, branches and pull requests | In progress |
+| 2 | Pinax tickets, specialist roster, GitHub Project board | Not started |
+| 3 | Engine mode, AutoBuild | Not started |
 | 4 | Pantheon marketplace | Not started |
 | 5 | First outside project; other assistants | Not started |
 
@@ -23,6 +23,8 @@ updated: 2026-11-16
 
 | Date | Change |
 |---|---|
+| 2026-11-17 | Branches and pull requests moved into Phase 1 (owner); Kanon will use a GitHub App |
+| 2026-11-16 | P1-03, P1-04, P1-06, P1-07 complete; groups A and B reviewed |
 | 2026-11-16 | P1-01 (package) and P1-02 (schema and templates) complete; reviewed in 3 rounds, passed |
 | 2026-11-16 | Phase 0 decisions and Phase 1 plan approved by the owner |
 | 2026-11-16 | Restructured to the `kanon/` layout (ADR-009); decisions condensed from eleven to nine |

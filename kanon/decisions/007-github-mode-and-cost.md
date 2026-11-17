@@ -30,4 +30,4 @@ updated: 2026-11-16
 
 ## Consequences
 
-- Project board in Phase 2; branches, pull requests and Kanon's identity in Phase 3.
+- Branches, pull requests and Kanon's identity (a GitHub App) in Phase 1; the Project board in Phase 2 (owner, 2026-11-17).

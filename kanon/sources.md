@@ -68,3 +68,10 @@ indexes, tags and aliases dropped; sources kept; Phase 0 restructured before app
 > All 9 decisions approved
 > R-2:
 > Approved.
+
+## 9. Phase Order (2026-11-17)
+
+> phases 2 and 3 seem out of order. the branches and pull requests should be a basis created earlier, preferably rolled into this current phase 1 building. the github project board wouldn't be viable until after the branches and prs were sorted anyway
+
+Chosen in questions: Kanon's GitHub identity is a GitHub App; the revised order is approved; the
+Phase 1 work file's plan-first exception is accepted.

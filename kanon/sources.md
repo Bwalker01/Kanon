@@ -75,3 +75,9 @@ indexes, tags and aliases dropped; sources kept; Phase 0 restructured before app
 
 Chosen in questions: Kanon's GitHub identity is a GitHub App; the revised order is approved; the
 Phase 1 work file's plan-first exception is accepted.
+
+## 10. Agent Files and Profiles (2026-11-17)
+
+> yes do add it. any necessary information for the claude file to run the engine should be imported into it. identify and split out the agent instructions into specific ones for me and the behavioural standard for Kanon itself
+
+> this will need to be sorted for when the project goes ahead too, as each individual user in a repo that's using Kanon will need their own profile. these would all risk overlapping/overwriting when teams push to remote. all agent files will need to be added to gitignore, even when this project is imported in live environments. figure out a way this can be optimised and best done for when this exists in real environments and how that can apply here too.

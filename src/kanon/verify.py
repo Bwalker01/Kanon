@@ -219,7 +219,9 @@ def _check_rounds(rel, offset, lines, review, limit, group_limit) -> list[Findin
             highest[group] = (number, row)
     for group, (number, row) in highest.items():
         cap = group_limit if group and group_limit else limit
-        escalated = re.search(r"escalat|owner decides", " ".join(row), re.IGNORECASE)
+        verdict = row[3].strip("` ").lower() if len(row) > 3 else ""
+        outcome = row[-1].strip().lower()
+        escalated = verdict == "escalate" or outcome.startswith("owner decides") or " owner decides" in outcome
         if number > cap and not escalated:
             findings.append(Finding(rel, offset + review[0], "loop",
                                     f"review round {group}{number} exceeds the limit of {cap} without escalation"))

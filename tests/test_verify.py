@@ -332,3 +332,38 @@ def test_an_outdated_kanon_hook_is_updated_but_others_are_not(tmp_path):
     assert hook.read_text() == kv.HOOK and ".git/hooks/pre-commit" in result.updated
     result = kinit.init(tmp_path, PERSON, dt.date(2026, 11, 16))
     assert ".git/hooks/pre-commit" in result.kept
+
+
+def test_a_quote_before_the_summary_marker_fails(repo):
+    edit(repo, WORK, "> **Summary:** An example piece of work.", "> Note.\n> **Summary:** An example piece of work.")
+    only(repo, "layout", "must come directly after the title")
+
+
+def test_an_empty_output_row_means_the_plan_is_not_filled(tmp_path):
+    git(tmp_path, "init", "-q")
+    kinit.init(tmp_path, PERSON, dt.date(2026, 11, 16))
+    (tmp_path / WORK).write_text(PLAN_ONLY.replace("| Output | A file |", "| Output | |"))
+    commit(tmp_path, "plan without an output")
+    (tmp_path / "src.py").write_text("x = 1\n")
+    (tmp_path / WORK).write_text(REVIEWED)
+    commit(tmp_path, "output, build and review together")
+    only(tmp_path, "loop", "not committed on its own")
+
+
+def test_archive_exemption_is_only_for_the_top_level_archive(repo):
+    (repo / "kanon/docs/archive").mkdir()
+    (repo / "kanon/docs/archive/x.md").write_text(
+        "---\ntype: doc\nstatus: draft\nupdated: 2026-11-16\n---\n\n# X\n\n> **Summary:** x.\n\nA seamless thing.\n")
+    only(repo, "writing", "seamless")
+
+
+def test_negated_escalation_does_not_lift_the_round_limit(repo):
+    edit(repo, WORK, "| 1 | Example | Kritos | pass | None | Accepted |",
+         "| 7 | Example | Kritos | pass | None | Fixed; no escalation needed |")
+    only(repo, "loop", "round 7 exceeds")
+
+
+def test_new_work_requires_kanon_init(tmp_path):
+    git(tmp_path, "init", "-q")
+    with pytest.raises(RuntimeError, match="run kanon init first"):
+        kinit.new_work(tmp_path, "x")

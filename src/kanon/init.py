@@ -152,6 +152,8 @@ def new_work(path: Path, topic: str, today: dt.date | None = None) -> Path:
     root = repo_root(path)
     if root is None:
         raise RuntimeError(f"{path} is not inside a Git repository")
+    if not has_settings(root):
+        raise RuntimeError("Kanon is not set up in this repository; run kanon init first")
     slug = re.sub(r"[^a-z0-9]+", "-", topic.lower()).strip("-")
     if not slug:
         raise ValueError("the topic needs at least one letter or digit")

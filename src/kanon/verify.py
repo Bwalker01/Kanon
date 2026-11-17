@@ -371,13 +371,19 @@ exit 0
 """
 
 
-def install_hook(root: Path) -> tuple[str, bool]:
-    """Install the pre-commit hook unless one exists. Returns (hook path, whether it was written)."""
+def hook_location(root: Path) -> str:
+    """Path of the repository's pre-commit hook (it may not exist yet)."""
     result = subprocess.run(["git", "rev-parse", "--git-path", "hooks/pre-commit"], cwd=root,
-                            capture_output=True, text=True)
-    hook = (root / result.stdout.strip()).resolve()
-    if result.returncode != 0:
-        return str(hook), False
+                            capture_output=True, text=True, check=True)
+    return str((root / result.stdout.strip()).resolve())
+
+
+def install_hook(root: Path) -> tuple[str, bool]:
+    """Install or update Kanon's pre-commit hook; never replace someone else's.
+
+    Returns (hook path, whether it was written).
+    """
+    hook = Path(hook_location(root))
     if hook.exists():
         current = hook.read_text(encoding="utf-8", errors="replace")
         if "# Installed by kanon init." not in current or current == HOOK:

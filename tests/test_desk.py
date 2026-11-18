@@ -261,3 +261,30 @@ def test_every_displayed_field_is_escaped(repo, monkeypatch):
     commit(repo, f"ADDED: {payload}")
     desk.write(repo)
     assert payload not in (repo / "kanon/local/desk.html").read_text()
+
+
+def test_attributes_chips_and_paths_are_escaped():  # K-240
+    bad = '"><b>x</b>'
+    page = desk.render_html(desk.Desk(
+        person="ada-dev", branch=bad, generated="now",
+        decisions=[desk.Decision(id=bad, work=bad, title=bad, summary=bad, needed=bad)],
+        actions=[desk.Action(id=bad, work=bad, work_title=bad, title=bad, assignee="ada-dev",
+                             blocks=[bad], done=False, steps=[bad])],
+        reviews=[desk.LateReview(work=bad, work_title=bad, round=bad, outcome=bad)],
+        work=[desk.Work(path=bad, title=bad, status=bad, summary=bad)], recent=[bad], notes=[bad]))
+    assert bad not in page and "<b>x" not in page
+    assert page.count("&quot;&gt;&lt;b&gt;x") >= 12  # every field, attributes included
+
+
+def test_leads_cut_at_a_word_with_an_ellipsis_and_markdown_is_rendered():  # K-243, K-244
+    assert desk._lead("alpha beta gamma delta", 12) == "alpha beta…"
+    assert desk._lead("**bold** and `code`", 50) == "bold and code"
+    assert desk._inline("**x** and `kanon profile` <i>") == \
+        "<strong>x</strong> and <code>kanon profile</code> &lt;i&gt;"
+
+
+def test_waiting_items_outrank_a_remembered_tab():  # K-246
+    empty = desk.Desk("ada-dev", "main", "now", [], [], [], [], [], [])
+    assert "show(!false&&saved" in desk.render_html(empty)
+    waiting = desk.Desk("ada-dev", "main", "now", [desk.Decision("w", "w.md", "T", "S", "N")], [], [], [], [], [])
+    assert "show(!true&&saved" in desk.render_html(waiting)

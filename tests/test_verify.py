@@ -386,3 +386,12 @@ def test_actions_tables_are_checked(repo, table, fragment):
 def test_question_on_a_continuation_line_of_decision_needed_fails(repo):
     edit(repo, WORK, "> **Decision needed:** None yet.", "> **Decision needed:** Choose a store.\n> Postgres or SQLite?")
     only(repo, "questions", "Decision needed")
+
+
+def test_a_row_with_the_wrong_cell_count_is_reported_on_its_own_line(repo):  # K-241
+    table = "| ID | Action | Assignee | Blocks | Done |\n|---|---|---|---|---|\n| A-1 | `a|b` | ada-dev | | no |"
+    edit(repo, WORK, "## 3. Review", f"## 3. Actions\n\n{table}\n\n## 3. Review")
+    lines = (repo / WORK).read_text().splitlines()
+    row = next(i for i, l in enumerate(lines, 1) if l.startswith("| A-1 |"))
+    found = [f for f in kv.verify(repo) if f.rule == "actions" and "wrong number of cells" in f.message]
+    assert found and found[0].line == row

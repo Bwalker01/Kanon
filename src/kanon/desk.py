@@ -260,6 +260,22 @@ def render_status(desk: Desk) -> str:
     return "\n".join(out) + "\n"
 
 
+def _inline(text: str) -> str:
+    """Escaped text with Markdown `**bold**` and `code` shown as such (K-244)."""
+    out = html.escape(text)
+    out = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", out)
+    return re.sub(r"`([^`]+)`", r"<code>\1</code>", out)
+
+
+def _lead(text: str, limit: int) -> str:
+    """Plain, escaped text cut at a word boundary with an ellipsis (K-243)."""
+    plain = text.replace("**", "").replace("`", "")
+    if len(plain) > limit:
+        cut = plain[:limit].rsplit(" ", 1)[0] if " " in plain[:limit] else plain[:limit]
+        plain = cut.rstrip(" ,;:.") + "\u2026"
+    return html.escape(plain)
+
+
 def _reply_box(text: str, label: str) -> str:
     e = html.escape
     return (f'<div class="reply"><input class="reply-text" readonly value="{e(text)}" aria-label="{e(label)}">'
@@ -280,7 +296,7 @@ def render_html(desk: Desk) -> str:
 
     decide = "".join(_card(
         "decision", chip("Decision", "accent"), d.title, e(d.needed),
-        f'<p>{e(d.summary)}</p><p class="path">{e(d.work)}</p>'
+        f'<p>{_inline(d.summary)}</p><p class="path">{e(d.work)}</p>'
         f'<h4>Reply</h4>{_reply_box(f"approve {d.id}", "Approve reply")}'
         f'{_reply_box(f"changes {d.id}: ", "Request changes reply")}')
         for d in desk.decisions) or '<p class="empty">Nothing to decide.</p>'
@@ -298,20 +314,21 @@ def render_html(desk: Desk) -> str:
                     f'<h4>When done, reply</h4>{_reply_box(a.reply, "Done reply")}', "tracked")
     do = do or '<p class="empty">Nothing to do.</p>'
 
-    later = "".join(_card("review", chip(f"Round {r.round}"), r.work_title, e(r.outcome[:90]),
-                          f'<p>{e(r.outcome)}</p><p class="path">{e(r.work)}</p>')
+    later = "".join(_card("review", chip(f"Round {r.round}"), r.work_title, _lead(r.outcome, 90),
+                          f'<p>{_inline(r.outcome)}</p><p class="path">{e(r.work)}</p>')
                     for r in desk.reviews) or '<p class="empty">Nothing waiting.</p>'
 
-    work = "".join(_card("work", chip(w.status, "muted"), w.title, e(w.summary[:110]),
-                         f'<p>{e(w.summary)}</p><p class="path">{e(w.path)}</p>')
+    work = "".join(_card("work", chip(w.status, "muted"), w.title, _lead(w.summary, 110),
+                         f'<p>{_inline(w.summary)}</p><p class="path">{e(w.path)}</p>')
                    for w in desk.work) or '<p class="empty">No open work.</p>'
     recent = "".join(f"<li>{e(r)}</li>" for r in desk.recent) or '<li class="empty">None.</li>'
-    notes = "".join(f'<p class="note">{e(n)}</p>' for n in desk.notes)
+    notes = "".join(f'<p class="note">{_inline(n)}</p>' for n in desk.notes)
 
     tabs = [("decide", "Decide", len(desk.decisions), decide), ("do", "Do", len(desk.actions), do),
             ("later", "Review later", len(desk.reviews), later),
             ("status", "Status", len(desk.work), work + f'<h3>Recent changes</h3><ul class="recent">{recent}</ul>')]
     first = next((t[0] for t in tabs if t[2]), "status")
+    urgent = "true" if first in ("decide", "do") else "false"  # waiting items outrank a remembered tab (K-246)
     tab_buttons = "".join(
         f'<button type="button" role="tab" class="tab" id="tab-{k}" aria-controls="panel-{k}" data-tab="{k}">'
         f'{e(label)}<span class="badge{" zero" if n == 0 else ""}">{n}</span></button>'
@@ -385,7 +402,7 @@ background:var(--card);color:var(--accent)}}.btn.primary{{background:var(--accen
   tabs.forEach(function(t){{t.addEventListener('click',function(){{show(t.dataset.tab)}});
     t.addEventListener('keydown',function(ev){{var list=Array.prototype.slice.call(tabs);var i=list.indexOf(t);
       if(ev.key==='ArrowRight'||ev.key==='ArrowLeft'){{var n=list[(i+(ev.key==='ArrowRight'?1:list.length-1))%list.length];n.focus();show(n.dataset.tab)}}}});}});
-  var saved=store.get('kanon-desk:tab');show(saved&&document.getElementById('panel-'+saved)?saved:'{first}');
+  var saved=store.get('kanon-desk:tab');show(!{urgent}&&saved&&document.getElementById('panel-'+saved)?saved:'{first}');
   function progress(card){{var boxes=card.querySelectorAll('input[type=checkbox]');var done=0;
     boxes.forEach(function(b){{if(b.checked)done++}});
     var bar=card.querySelector('.bar span');if(bar)bar.style.width=(boxes.length?Math.round(100*done/boxes.length):0)+'%';

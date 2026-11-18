@@ -1,13 +1,13 @@
 ---
 type: work
-status: complete
+status: awaiting-approval
 updated: 2026-11-18
 ---
 
 # Destructive Command Guard
 
 > **Summary:** Block agent commands that delete shared locations, after a reviewer's cleanup deleted `/tmp` and with it the session's commit-signing helper.
-> **Decision needed:** None. Approved by the owner on 2026-11-18.
+> **Decision needed:** Approve the round 3 fixes (94796b5), made after the approval of `be4dbe8`; no reviewer has checked them.
 
 ## 1. Plan
 

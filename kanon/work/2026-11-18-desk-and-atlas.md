@@ -1,13 +1,13 @@
 ---
 type: work
-status: in-progress
+status: awaiting-approval
 updated: 2026-11-18
 ---
 
 # Desk and Atlas
 
 > **Summary:** Replace the committed review list and status page with a generated, per-person Desk, maintained by a new role, Atlas, so parallel branches never conflict.
-> **Decision:** Design approved by the owner on 2026-11-18 (R-1). Build in progress.
+> **Decision needed:** Approve the built result, including the round 3 fixes (6d1de19) that no reviewer has checked.
 
 ## 1. Plan
 

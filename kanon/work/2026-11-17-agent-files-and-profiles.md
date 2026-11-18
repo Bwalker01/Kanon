@@ -1,13 +1,13 @@
 ---
 type: work
-status: in-progress
+status: awaiting-approval
 updated: 2026-11-18
 ---
 
 # Agent Files and Profiles
 
 > **Summary:** Keep every Kanon-generated agent file and every personal profile out of Git, so teams never overwrite each other and nothing personal is published.
-> **Decision:** Design approved by the owner on 2026-11-18 (R-1). Build in progress.
+> **Decision needed:** Approve the built result, including the round 3 fixes (b1080ee) that no reviewer has checked.
 
 ## 1. Plan
 

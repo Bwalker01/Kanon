@@ -99,3 +99,9 @@ Chosen in questions: roadmap committed, status generated; the Desk as a self-con
 > R-1 approved. actions all complete
 
 The owner also reported the A-5 test session: the setup script is safe and valid, but that session had no Kanon checkout, so the real install was not proven; `uv` may not be on the PATH before the script adds `~/.local/bin`.
+
+## 13. Commit Signing (2026-11-18)
+
+> identify the cause of the commit signing error and ensure it doesn't happen again
+
+Chosen in a question before this: commit unsigned until the signing helper returns.

@@ -367,3 +367,22 @@ def test_new_work_requires_kanon_init(tmp_path):
     git(tmp_path, "init", "-q")
     with pytest.raises(RuntimeError, match="run kanon init first"):
         kinit.new_work(tmp_path, "x")
+
+
+@pytest.mark.parametrize("table,fragment", [
+    ("| ID | Action | Assignee | Done |\n|---|---|---|---|\n| A-1 | x | ada-dev | no |", "lacks column(s): blocks"),
+    ("| ID | Action | Assignee | Blocks | Done |\n|---|---|---|---|---|\n| A-1 | x | not valid! | | no |", "GitHub username"),
+    ("| ID | Action | Assignee | Blocks | Done |\n|---|---|---|---|---|\n| A-1 | x | ada-dev | | maybe |", "yes or no"),
+    ("| ID | Action | Assignee | Blocks | Done |\n|---|---|---|---|---|\n| A-1 | x | ada-dev | A-9 | no |", "unknown action 'A-9'"),
+    ("| ID | Action | Assignee | Blocks | Done |\n|---|---|---|---|---|\n| A-1 | `a|b` | ada-dev | | no |", "wrong number of cells"),
+    ("| ID | Action | Assignee | Blocks | Done |\n|---|---|---|---|---|\n| A-1 | x | ada-dev | | no |\n\n### A-7: Stray", "match no row"),
+])
+def test_actions_tables_are_checked(repo, table, fragment):
+    edit(repo, WORK, "## 3. Review", f"## 3. Actions\n\n{table}\n\n## 3. Review")
+    found = [m for _, r, m in rules(repo) if r == "actions"]
+    assert any(fragment in m for m in found), found
+
+
+def test_question_on_a_continuation_line_of_decision_needed_fails(repo):
+    edit(repo, WORK, "> **Decision needed:** None yet.", "> **Decision needed:** Choose a store.\n> Postgres or SQLite?")
+    only(repo, "questions", "Decision needed")

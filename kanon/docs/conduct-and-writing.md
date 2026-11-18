@@ -46,7 +46,7 @@ Every document follows this structure:
 
 | Document | Length limit |
 |---|---|
-| Review list entry | 3 lines |
+| "Decision needed" line | 3 lines |
 | Decision record | 60 lines |
 | Work file summary | 3 lines |
 | Standard or guide | 150 lines |

@@ -91,7 +91,9 @@ Atlas holds what rests on the person's shoulders. A thirteenth archetype, extend
 
 ## 3. Review
 
-Not yet reviewed.
+| Round | Items | Reviewer | Verdict | Blocking | Outcome |
+|---|---|---|---|---|---|
+| 1 | Build and migration | Kritos (`kritos-reviewer` agent) | correct | K-77, K-79 to K-82 | All fixed with tests or records; non-blocking K-78, K-83 to K-90 fixed; K-80 was already resolved (profile updated and synced) |
 
 ## 4. Decision
 

@@ -22,7 +22,7 @@ updated: 2026-11-16
 - **Cause:** One folder per piece of work, separate draft and review files, daily logs and an
   index in every folder.
 - **Rule:** Records that duplicate Git history are not kept. Each piece of work is one file.
-  Everything awaiting a decision appears in `REVIEW.md`. See ADR-009.
+  Everything awaiting the person appears on their generated Desk. See ADR-009 and ADR-011.
 
 ## L-001: Local Approvals Can Be Forged (2026-11-13)
 

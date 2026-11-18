@@ -141,7 +141,9 @@ def sync(root: Path) -> SyncResult:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(content, encoding="utf-8")
         result.written.append(rel)
-    if (root / "kanon/kanon.toml").exists():
+    if ".gitignore" in result.refused:
+        result.notes.append("the Desk was not rebuilt: it would not be ignored by Git until .gitignore is fixed")
+    elif (root / "kanon/kanon.toml").exists():
         from kanon import desk
         desk.write(root)
         result.written += list(desk.OUTPUTS)

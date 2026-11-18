@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import datetime as dt
 import html
-import json
 import re
 import subprocess
 import tomllib
@@ -21,6 +20,15 @@ from kanon.verify import _body, _sections, _table
 LOCAL = "kanon/local"
 OUTPUTS = (f"{LOCAL}/DESK.md", f"{LOCAL}/desk.html", f"{LOCAL}/STATUS.md")
 CLOSED = ("complete", "parked")
+
+
+def slug(rel: str) -> str:
+    """Stable short name for a work file: its file name without the date or extension."""
+    name = Path(rel).stem
+    return re.sub(r"^\d{4}-\d{2}-\d{2}-", "", name)
+
+
+DONE_WORDS = ("yes", "done", "true")
 
 
 @dataclass
@@ -42,6 +50,14 @@ class Action:
     blocks: list[str]
     done: bool
     steps: list[str] = field(default_factory=list)
+
+    @property
+    def assignees(self) -> list[str]:
+        return [a.lstrip("@").lower() for a in _split(self.assignee)]
+
+    @property
+    def reply(self) -> str:
+        return f"done {slug(self.work)} {self.id}"
 
 
 @dataclass
@@ -116,18 +132,18 @@ def parse_work(rel: str, text: str) -> tuple[Work, Decision | None, list[Action]
     if span:
         block = lines[span[0]:span[1]]
         rows = _table(block)
-        if rows and rows[0][0].lower() == "id":
+        if rows and "id" in [h.lower() for h in rows[0]]:
             header = [h.lower() for h in rows[0]]
             col = {name: header.index(name) for name in ("id", "action", "assignee", "blocks", "done") if name in header}
             for row in rows[1:]:
                 get = lambda key: row[col[key]] if key in col and col[key] < len(row) else ""  # noqa: E731
                 actions.append(Action(get("id"), rel, title, get("action"), get("assignee"),
-                                      _split(get("blocks")), get("done").lower() in ("yes", "done", "true")))
+                                      _split(get("blocks")), get("done").lower().startswith(DONE_WORDS)))
         current = None
         for line in block:
-            heading = re.match(r"^### ([A-Za-z]+-\d+)\b", line)
-            if heading:
-                current = next((a for a in actions if a.id == heading.group(1)), None)
+            if line.startswith("#"):
+                heading = re.match(r"^### ([A-Za-z]+-\d+)\b", line)
+                current = next((a for a in actions if heading and a.id == heading.group(1)), None)
                 continue
             step = re.match(r"^\s*\d+\.\s+(.*)", line)
             if current and step:
@@ -196,11 +212,12 @@ def build(root: Path, today: dt.datetime | None = None) -> Desk:
             work.append(w)
         if d and may_approve:
             decisions.append(d)
-        actions += [a for a in acts if not a.done and (not github or a.assignee.lower() == github)]
+        actions += [a for a in acts if not a.done and (
+            not github or github in a.assignees or (not a.assignees and may_approve))]
         if may_approve:
             reviews += revs
-    for number, decision in enumerate(decisions, 1):
-        decision.id = f"R-{number}"
+    for decision in decisions:
+        decision.id = slug(decision.work)
     recent = [l for l in _git(root, "log", "-n", "40", "--format=%as %s").splitlines()
               if re.match(r"^\S+ (ADDED|MODIFIED|REMOVED):", l)][:12]
     when = (today or dt.datetime.now()).strftime("%Y-%m-%d %H:%M")
@@ -217,12 +234,13 @@ def render_markdown(desk: Desk) -> str:
            f"{len(desk.reviews)} late reviews on branch `{desk.branch}`. Generated {desk.generated}; "
            "never edit or commit this file.", ""]
     out += ["## Decide", ""]
-    out += [f"- **{d.id}:** {d.title}. {d.needed} Read `{d.work}`. Reply `{d.id} approve` or `{d.id} changes: ...`."
+    out += [f"- **{d.title}:** {d.needed} Read `{d.work}`. Reply `approve {d.id}` or `changes {d.id}: ...`."
             for d in desk.decisions] or ["Nothing to decide."]
     out += ["", "## Do", ""]
     for a in desk.actions:
         out.append(f"### {a.id}: {a.title}")
-        out.append(f"From `{a.work}`." + (f" Blocks {', '.join(a.blocks)}." if a.blocks else ""))
+        out.append(f"From `{a.work}`." + (f" Blocks {', '.join(a.blocks)}." if a.blocks else "")
+                   + f" When done, reply `{a.reply}`.")
         out += [f"{n}. {s}" for n, s in enumerate(a.steps, 1)] + [""]
     if not desk.actions:
         out += ["Nothing to do.", ""]
@@ -245,11 +263,11 @@ def render_status(desk: Desk) -> str:
 def render_html(desk: Desk) -> str:
     e = html.escape
     decide = "".join(
-        f'<article class="card"><header><span class="tag">{e(d.id)}</span><h3>{e(d.title)}</h3></header>'
+        f'<article class="card"><header><h3>{e(d.title)}</h3></header>'
         f'<p>{e(d.needed)}</p><details><summary>Read</summary><p>{e(d.summary)}</p>'
         f'<p class="path">{e(d.work)}</p></details>'
-        f'<div class="row"><button data-copy="{e(d.id)} approve">Copy: {e(d.id)} approve</button>'
-        f'<button data-copy="{e(d.id)} changes: ">Copy: {e(d.id)} changes</button></div></article>'
+        f'<div class="row"><button data-copy="approve {e(d.id)}">Copy: approve {e(d.id)}</button>'
+        f'<button data-copy="changes {e(d.id)}: ">Copy: changes {e(d.id)}</button></div></article>'
         for d in desk.decisions) or '<p class="empty">Nothing to decide.</p>'
     do = ""
     for a in desk.actions:
@@ -261,7 +279,7 @@ def render_html(desk: Desk) -> str:
         do += (f'<article class="card action" data-action="{e(key)}"><header><span class="tag">{e(a.id)}</span>'
                f'<h3>{e(a.title)}</h3>{blocks}</header><div class="bar"><span></span></div>'
                f'<ol>{steps}</ol><p class="path">{e(a.work)}</p>'
-               f'<div class="row"><button data-copy="{e(a.id)} done">Copy: {e(a.id)} done</button></div></article>')
+               f'<div class="row"><button data-copy="{e(a.reply)}">Copy: {e(a.reply)}</button></div></article>')
     do = do or '<p class="empty">Nothing to do.</p>'
     later = "".join(f'<li><strong>{e(r.work_title)}</strong>, round {e(r.round)}: {e(r.outcome)}</li>'
                     for r in desk.reviews) or '<li class="empty">Nothing waiting.</li>'
@@ -269,7 +287,6 @@ def render_html(desk: Desk) -> str:
                    for w in desk.work) or '<li class="empty">None.</li>'
     recent = "".join(f"<li>{e(r)}</li>" for r in desk.recent) or '<li class="empty">None.</li>'
     notes = "".join(f'<p class="note">{e(n)}</p>' for n in desk.notes)
-    data = e(json.dumps({"branch": desk.branch}))
     return f"""<!doctype html>
 <!-- Generated by kanon desk. Do not edit or commit. -->
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
@@ -295,7 +312,6 @@ button.ok{{color:var(--done);border-color:var(--done)}}ul{{padding-left:1.1rem}}
 <h2>Do ({len(desk.actions)})</h2>{do}
 <h2>Review later ({len(desk.reviews)})</h2><ul>{later}</ul>
 <h2>Status</h2><ul>{work}</ul><h3>Recent changes</h3><ul>{recent}</ul>
-<script type="application/json" id="desk-data">{data}</script>
 <script>
 (function(){{
   var store={{get:function(k){{try{{return localStorage.getItem(k)}}catch(e){{return null}}}},set:function(k,v){{try{{localStorage.setItem(k,v)}}catch(e){{}}}}}};

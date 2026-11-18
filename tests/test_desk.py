@@ -97,7 +97,7 @@ def test_desk_lists_only_this_persons_open_actions_in_dependency_order(repo):
 def test_awaiting_approval_becomes_a_decision_for_approvers_only(repo, monkeypatch):
     (repo / "kanon/work/2026-11-18-plan.md").write_text(work_file("Plan", status="awaiting-approval", needed="Approve the plan."))
     built = desk.build(repo)
-    assert [(d.id, d.needed) for d in built.decisions] == [("R-1", "Approve the plan.")]
+    assert [(d.id, d.needed) for d in built.decisions] == [("plan", "Approve the plan.")]
     monkeypatch.setenv("KANON_PROFILE", json.dumps({"github": "outsider"}))
     assert desk.build(repo).decisions == []
 
@@ -123,8 +123,8 @@ def test_desk_page_loads_nothing_external_and_escapes_text(repo):
     (repo / "kanon/work/2026-11-18-setup.md").write_text(work_file("Setup <script>", ACTIONS))
     desk.write(repo)
     page = (repo / "kanon/local/desk.html").read_text()
-    assert not re.search(r'(src|href)\s*=\s*["\']?https?:', page)
-    assert "<script>alert" not in page and "Setup &lt;script&gt;" in page
+    assert not re.search(r'(src|href)\s*=\s*["\']?(https?:)?//|url\(', page)
+    assert "Setup &lt;script&gt;" in page
 
 
 def test_two_branches_add_work_and_merge_without_conflict(repo):
@@ -148,3 +148,53 @@ def test_without_a_profile_everything_is_shown_with_a_note(repo, monkeypatch):
     (repo / "kanon/work/2026-11-18-setup.md").write_text(work_file("Setup", ACTIONS))
     built = desk.build(repo)
     assert len(built.actions) == 3 and any("showing every person's items" in n for n in built.notes)
+
+
+def test_every_untrusted_field_is_escaped(repo, monkeypatch):
+    payload = '<img src=x onerror=alert(1)>'
+    actions = ACTIONS.replace("Open the pull request.", payload).replace("Protect main", payload)
+    text = work_file("Plan", actions, status="awaiting-approval", needed=payload)
+    (repo / "kanon/work/2026-11-18-plan.md").write_text(text)
+    desk.write(repo)
+    page = (repo / "kanon/local/desk.html").read_text()
+    assert payload not in page and page.count("&lt;img src=x onerror=alert(1)&gt;") >= 3
+
+
+def test_replies_name_the_work_file_so_they_are_unambiguous(repo):
+    (repo / "kanon/work/2026-11-18-one.md").write_text(work_file("One", ACTIONS))
+    (repo / "kanon/work/2026-11-18-two.md").write_text(work_file("Two", ACTIONS))
+    replies = [a.reply for a in desk.build(repo).actions]
+    assert len(replies) == len(set(replies)) == 4 and "done one A-1" in replies
+
+
+def test_actions_parse_in_any_column_order_with_flexible_cells(repo):
+    table = """| Action | ID | Done | Assignee | Blocks |
+|---|---|---|---|---|
+| Unassigned | A-1 | no | | |
+| At sign | A-2 | no | @Ada-Dev | |
+| Pair | A-3 | no | bo-dev, ada-dev | |
+| Dated | A-4 | Done 2026-11-18 | ada-dev | |
+
+### A-2: At sign
+
+1. Real step.
+
+### Notes
+
+1. Not a step.
+"""
+    (repo / "kanon/work/2026-11-18-x.md").write_text(work_file("X", table))
+    built = desk.build(repo)
+    assert sorted(a.id for a in built.actions) == ["A-1", "A-2", "A-3"]
+    assert next(a for a in built.actions if a.id == "A-2").steps == ["Real step."]
+
+
+def test_cycles_keep_every_action(repo):
+    table = """| ID | Action | Assignee | Blocks | Done |
+|---|---|---|---|---|
+| A-1 | One | ada-dev | A-2 | no |
+| A-2 | Two | ada-dev | A-1 | no |
+| A-3 | Three | ada-dev | | no |
+"""
+    (repo / "kanon/work/2026-11-18-c.md").write_text(work_file("C", table))
+    assert sorted(a.id for a in desk.build(repo).actions) == ["A-1", "A-2", "A-3"]

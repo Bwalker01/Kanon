@@ -269,9 +269,65 @@ def changed_files(root: Path, commit: str) -> list[str]:
 def check_decision_needed(rel: str, text: str) -> list[Finding]:
     """A pending decision states what to decide; open questions belong in the Questions section."""
     _, lines, offset = _body(text)
-    return [Finding(rel, offset + i, "questions",
-                    "question in the 'Decision needed' line; ask it during the work and record it in Questions")
-            for i, line in enumerate(lines) if line.startswith("> **Decision needed:**") and "?" in line]
+    findings, inside = [], False
+    for i, line in enumerate(lines):
+        if line.startswith("> **Decision needed:**"):
+            inside = True
+        elif not line.startswith(">") or line.startswith("> **"):
+            inside = False
+        if inside and "?" in line:
+            findings.append(Finding(rel, offset + i, "questions", "question in the 'Decision needed' line; "
+                                    "ask it during the work and record it in Questions"))
+    return findings
+
+
+ACTION_COLUMNS = ("id", "action", "assignee", "blocks", "done")
+
+
+def check_actions(rel: str, text: str) -> list[Finding]:
+    """Actions tables must be readable by the Desk, or actions vanish from it unnoticed."""
+    from kanon.settings import GITHUB_USER
+    _, lines, offset = _body(text)
+    span = _sections(lines).get("Actions")
+    if not span:
+        return []
+    where = offset + span[0]
+    raw = [l for l in lines[span[0]:span[1]] if l.startswith("|")]
+    rows = _table(lines[span[0]:span[1]])
+    if not rows:
+        return [Finding(rel, where, "actions", "Actions section has no table")]
+    header = [h.lower() for h in rows[0]]
+    missing = [c for c in ACTION_COLUMNS if c not in header]
+    if missing:
+        return [Finding(rel, where, "actions", f"Actions table lacks column(s): {', '.join(missing)}")]
+    findings, ids = [], []
+    width = raw[0].count("|")
+    for line in raw[2:]:
+        if line.count("|") != width:
+            findings.append(Finding(rel, where, "actions", f"row has the wrong number of cells: {line.strip()[:40]}"))
+    for row in rows[1:]:
+        if len(row) != len(header):
+            continue
+        cell = dict(zip(header, row))
+        ids.append(cell["id"])
+        if not re.fullmatch(r"[A-Za-z]+-\d+", cell["id"]):
+            findings.append(Finding(rel, where, "actions", f"action ID '{cell['id']}' is not like A-1"))
+        names = [a.strip(" `@") for a in re.split(r"[,;]", cell["assignee"]) if a.strip(" `@")]
+        if not names or not all(GITHUB_USER.match(n) for n in names):
+            findings.append(Finding(rel, where, "actions", f"{cell['id']}: assignee must be GitHub username(s)"))
+        if cell["done"].lower() not in ("yes", "no"):
+            findings.append(Finding(rel, where, "actions", f"{cell['id']}: Done must be yes or no"))
+    for row in rows[1:]:
+        if len(row) == len(header):
+            cell = dict(zip(header, row))
+            for target in [t.strip(" `") for t in re.split(r"[,;]", cell["blocks"]) if t.strip(" `-")]:
+                if target not in ids:
+                    findings.append(Finding(rel, where, "actions", f"{cell['id']} blocks unknown action '{target}'"))
+    for i, line in enumerate(lines[span[0]:span[1]]):
+        heading = re.match(r"^### ([A-Za-z]+-\d+)\b", line)
+        if heading and heading.group(1) not in ids:
+            findings.append(Finding(rel, offset + span[0] + i, "actions", f"steps for '{heading.group(1)}' match no row"))
+    return findings
 
 
 # ---------------------------------------------------------------- exceptions
@@ -357,6 +413,7 @@ def _verify(root: Path) -> tuple[list[Finding], dict]:
             findings += check_work_file(rel, text, limit, lambda rel=rel: history_of(root, rel),
                                         lambda commit: changed_files(root, commit))
             findings += check_decision_needed(rel, text)
+            findings += check_actions(rel, text)
 
     # Hand-written instruction files are checked; generated ones are checked through their sources.
     from kanon.sync import GENERATED, is_generated
@@ -381,6 +438,7 @@ if grep -q '^name = "kanon-engine"' pyproject.toml 2>/dev/null && command -v uv 
   exec uv run --quiet kanon verify
 fi
 if command -v kanon >/dev/null 2>&1; then exec kanon verify; fi
+if command -v uv >/dev/null 2>&1 && uv run --quiet kanon --version >/dev/null 2>&1; then exec uv run --quiet kanon verify; fi
 echo "kanon is not installed; kanon verify skipped"
 exit 0
 """

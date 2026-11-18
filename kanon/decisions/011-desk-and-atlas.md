@@ -31,4 +31,5 @@ updated: 2026-11-18
 
 - ADR-003: the "one list" is the generated Desk, built from work files.
 - ADR-009: `REVIEW.md` and `STATUS.md` leave the layout; `kanon/local/` and the roadmap join it.
-- The Desk page keeps ticks in the browser only; decisions still return through chat or `kanon approve`.
+- ADR-008: chat points to the Desk.
+- The Desk page keeps ticks in the browser only; decisions return through chat (and `kanon approve`, planned in P1-05).

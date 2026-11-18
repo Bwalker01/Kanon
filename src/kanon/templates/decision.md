@@ -7,7 +7,7 @@ updated: $date
 # ADR-$number: $title
 
 > **Decision:** $summary
-> **Status:** Proposed. Awaiting owner approval (see the Desk).
+> **Status:** Proposed. Awaiting owner approval through the work file that proposes it.
 
 ## Context
 

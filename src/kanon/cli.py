@@ -110,6 +110,11 @@ def run_desk() -> int:
         print("kanon desk: Kanon is not set up here; run kanon init first")
         return 2
     from kanon import desk as desk_module
+    try:
+        sync_module.ensure_gitignore(root)
+    except ValueError as error:
+        print(f"kanon desk: {error}")
+        return 2
     result = desk_module.write(root)
     print(f"Desk for {result.person} on {result.branch}: {len(result.decisions)} decisions, "
           f"{len(result.actions)} actions, {len(result.reviews)} late reviews.")

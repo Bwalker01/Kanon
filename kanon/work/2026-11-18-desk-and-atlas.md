@@ -1,13 +1,13 @@
 ---
 type: work
-status: awaiting-approval
+status: in-progress
 updated: 2026-11-18
 ---
 
 # Desk and Atlas
 
 > **Summary:** Replace the committed review list and status page with a generated, per-person Desk, maintained by a new role, Atlas, so parallel branches never conflict.
-> **Decision needed:** Approve this design (R-1 in `kanon/REVIEW.md`; it replaces the earlier R-1).
+> **Decision:** Design approved by the owner on 2026-11-18 (R-1). Build in progress.
 
 ## 1. Plan
 
@@ -95,7 +95,9 @@ Not yet reviewed.
 
 ## 4. Decision
 
-Pending.
+| Item | Decision | Date | Basis |
+|---|---|---|---|
+| Design | Approved | 2026-11-18 | Owner in chat: "R-1 approved." Transcribed by the assistant; applies to commit `2708b3a` |
 
 ## 5. Cost
 

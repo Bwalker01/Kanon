@@ -95,3 +95,7 @@ Phase 1 work file's plan-first exception is accepted.
 > could Atlas be an agent archetype extension to koine's existing ones that manages the review and actions required by the user, managing the DESK.md file that gives these steps in an ordered, structured, and easily interactable file? it may require the DESK being expanded out into something more than an md file so that reviews can be more interactive, and actions can be more visually helpful
 
 Chosen in questions: roadmap committed, status generated; the Desk as a self-contained page with no server.
+
+> R-1 approved. actions all complete
+
+The owner also reported the A-5 test session: the setup script is safe and valid, but that session had no Kanon checkout, so the real install was not proven; `uv` may not be on the PATH before the script adds `~/.local/bin`.

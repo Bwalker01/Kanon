@@ -83,3 +83,7 @@ Phase 1 work file's plan-first exception is accepted.
 > this will need to be sorted for when the project goes ahead too, as each individual user in a repo that's using Kanon will need their own profile. these would all risk overlapping/overwriting when teams push to remote. all agent files will need to be added to gitignore, even when this project is imported in live environments. figure out a way this can be optimised and best done for when this exists in real environments and how that can apply here too.
 
 > R-1 approve
+
+## 11. Owner Actions (2026-11-18)
+
+> give me everything that needs doing on my side, and make sure that its reflected easily and kept up to date in the project in some way to make it easier to do

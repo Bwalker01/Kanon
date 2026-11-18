@@ -250,3 +250,41 @@ def test_this_repository_matches_its_templates():
     conduct = (ROOT / "kanon/docs/conduct-and-writing.md").read_text()
     date = next(l.split(": ")[1] for l in conduct.splitlines() if l.startswith("updated:"))
     assert conduct == render("conduct-and-writing.md", date=date)
+
+
+def test_marker_elsewhere_in_a_file_does_not_make_it_generated(repo):
+    kinit.init(repo, APPROVERS, TODAY)
+    (repo / ".claude/rules/team.md").write_text(f"# Team\n\nA seamless note.\n{ksync.MARKER}\n")
+    (repo / "CLAUDE.md").write_text(f"# Mine\n\nA robust plan.\n{ksync.MARKER}\n")
+    from kanon import verify as kv
+    found = [(f.path, f.rule) for f in kv.verify(repo)]
+    assert (".claude/rules/team.md", "writing") in found and ("CLAUDE.md", "writing") in found
+    (repo / ".claude/rules/kanon.md").write_text(f"# Quoted\n\n{ksync.MARKER}\n")
+    assert ".claude/rules/kanon.md" in ksync.sync(repo).refused
+
+
+def test_damaged_gitignore_block_is_refused_not_rewritten(repo):
+    (repo / ".gitignore").write_text(f"foo\n{ksync.IGNORE_START}\n/x\n")
+    result = ksync.sync(repo)
+    assert ".gitignore" in result.refused
+    assert (repo / ".gitignore").read_text() == f"foo\n{ksync.IGNORE_START}\n/x\n"
+
+
+def test_profile_problems_are_reported_and_blank_env_is_unset(repo, monkeypatch):
+    monkeypatch.setenv("KANON_PROFILE", '{"level": "wizard", "github": "x y"}')
+    notes = ksync.sync(repo).notes
+    assert any("level 'wizard'" in n for n in notes) and any("GitHub username" in n for n in notes)
+    monkeypatch.setenv("KANON_PROFILE", "   ")
+    assert profiles.load() is None
+
+
+def test_profile_folder_is_private():
+    path = profiles.save(profiles.Profile(github="ada-dev"))
+    assert path.parent.stat().st_mode & 0o077 == 0 and path.stat().st_mode & 0o077 == 0
+
+
+def test_a_committed_generated_file_is_a_finding(repo):
+    kinit.init(repo, APPROVERS, TODAY)
+    git(repo, "add", "-f", ".claude/rules/kanon-person.md")
+    from kanon import verify as kv
+    assert any(f.rule == "privacy" and f.path == ".claude/rules/kanon-person.md" for f in kv.verify(repo))

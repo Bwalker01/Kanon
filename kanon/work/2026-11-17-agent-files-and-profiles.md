@@ -81,7 +81,13 @@ updated: 2026-11-18
 
 ## 3. Review
 
-Not yet reviewed.
+| Round | Items | Reviewer | Verdict | Blocking | Outcome |
+|---|---|---|---|---|---|
+| 1 | Build and migration | Kritos (`kritos-reviewer` agent) | correct | K-56, K-57, K-58 | All fixed with tests or records; non-blocking K-59 to K-63, K-65, K-66, K-68, K-69 fixed; K-64 to the owner |
+
+**Deviation from the plan (K-67):** cloud setup scripts cannot read the environment's saved
+variables, so the owner's profile is written by the setup script with `kanon profile` instead of
+coming from `KANON_PROFILE`. Both keep the profile outside the repository.
 
 ## 4. Decision
 

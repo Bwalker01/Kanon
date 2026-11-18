@@ -31,3 +31,4 @@ updated: 2026-11-16
 
 - Kanon can import Pinax and AutoBuild directly.
 - Support for other assistants is scheduled for Phase 5.
+- Root instructions superseded by ADR-010: Kanon's instructions are generated into `.claude/rules/`.

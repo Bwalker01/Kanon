@@ -31,3 +31,4 @@ updated: 2026-11-16
 
 - Departs from Koine-OS conventions on drafts, daily logs and indexes. ADR-002 retains the loop itself.
 - `kanon init` creates this layout from Phase 1.
+- `AGENTS.md` and `CLAUDE.md` superseded by ADR-010: they are not part of Kanon's layout.

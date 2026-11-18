@@ -52,7 +52,7 @@ def _from_data(data: dict, source: str) -> Profile:
 
 def load() -> Profile | None:
     """The person's profile, or None when no source exists. Raises ValueError if a source is unreadable."""
-    inline = os.environ.get("KANON_PROFILE")
+    inline = os.environ.get("KANON_PROFILE", "").strip()
     if inline:
         try:
             data = json.loads(inline) if inline.lstrip().startswith("{") else tomllib.loads(inline)
@@ -105,7 +105,9 @@ def save(profile: Profile, path: Path | None = None) -> Path:
     if problems:
         raise ValueError("; ".join(p.message for p in problems))
     target = path or profile_path()
-    target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text(render(profile), encoding="utf-8")
-    target.chmod(0o600)
+    target.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    descriptor = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+        handle.write(render(profile))
+    os.chmod(target, 0o600)
     return target

@@ -37,6 +37,18 @@ class SyncResult:
     notes: list[str] = field(default_factory=list)
 
 
+def is_generated(text: str) -> bool:
+    """True only when the marker sits at its fixed position: line one, or just after the frontmatter."""
+    lines = text.split("\n")
+    if lines and lines[0] == MARKER:
+        return True
+    if lines and lines[0] == "---":
+        for index in range(1, len(lines)):
+            if lines[index] == "---":
+                return index + 1 < len(lines) and lines[index + 1] == MARKER
+    return False
+
+
 def _mark(text: str) -> str:
     """Insert the marker after any frontmatter, so the file stays valid for its reader."""
     if text.startswith("---\n"):
@@ -83,11 +95,15 @@ def ensure_gitignore(root: Path) -> bool:
     path = root / ".gitignore"
     text = path.read_text(encoding="utf-8") if path.exists() else ""
     block = "\n".join([IGNORE_START, *(f"/{p}" for p in GENERATED), IGNORE_END]) + "\n"
-    if IGNORE_START in text and IGNORE_END in text:
+    starts, ends = text.count(IGNORE_START), text.count(IGNORE_END)
+    if starts == 0 and ends == 0:
+        new = (text.rstrip("\n") + "\n\n" if text.strip() else "") + block
+    elif starts == 1 and ends == 1 and text.index(IGNORE_START) < text.index(IGNORE_END):
         start, end = text.index(IGNORE_START), text.index(IGNORE_END) + len(IGNORE_END)
         new = text[:start] + block.rstrip("\n") + text[end:]
     else:
-        new = (text.rstrip("\n") + "\n\n" if text.strip() else "") + block
+        raise ValueError(".gitignore has a damaged Kanon block (markers missing, repeated or out of order); "
+                         "fix or remove it by hand, then run kanon sync again")
     if new != text:
         path.write_text(new, encoding="utf-8")
         return True
@@ -103,8 +119,14 @@ def sync(root: Path) -> SyncResult:
         result.notes.append(f"profile ignored: {error}")
     if person is None:
         result.notes.append("no profile found; agents will ask at first contact (see `kanon profile`)")
-    if ensure_gitignore(root):
-        result.written.append(".gitignore")
+    else:
+        result.notes += [f"profile problem: {p.message}" for p in profiles.validate(person)]
+    try:
+        if ensure_gitignore(root):
+            result.written.append(".gitignore")
+    except ValueError as error:
+        result.notes.append(str(error))
+        result.refused.append(".gitignore")
     for rel, content in expected_files(root, person).items():
         path = root / rel
         if path.exists():
@@ -112,7 +134,7 @@ def sync(root: Path) -> SyncResult:
             if current == content:
                 result.unchanged.append(rel)
                 continue
-            if MARKER not in current:
+            if not is_generated(current):
                 result.refused.append(rel)
                 continue
         path.parent.mkdir(parents=True, exist_ok=True)

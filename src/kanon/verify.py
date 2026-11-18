@@ -356,14 +356,18 @@ def _verify(root: Path) -> tuple[list[Finding], dict]:
         if rel == "kanon/REVIEW.md":
             findings += check_review_list(rel, text)
 
-    # Hand-written instruction files only: generated ones are checked through their sources.
-    from kanon.sync import MARKER
+    # Hand-written instruction files are checked; generated ones are checked through their sources.
+    from kanon.sync import GENERATED, is_generated
     instruction_files = [root / name for name in ROOT_INSTRUCTIONS[:2]] + sorted((root / ".claude").rglob("*.md"))
     for path in instruction_files:
         if path.is_file():
+            rel = path.relative_to(root).as_posix()
             text = path.read_text(encoding="utf-8")
-            if MARKER not in text:
-                findings += check_writing(path.relative_to(root).as_posix(), text)
+            if not (rel in GENERATED and is_generated(text)):
+                findings += check_writing(rel, text)
+    tracked = set(_git(root, "ls-files", "--", *GENERATED).split())
+    findings += [Finding(rel, 1, "privacy", "generated agent file is committed; remove it with git rm --cached")
+                 for rel in sorted(tracked)]
     return findings, settings
 
 

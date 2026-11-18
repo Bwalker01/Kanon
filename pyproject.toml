@@ -1,0 +1,29 @@
+[project]
+name = "kanon-engine"
+version = "0.1.0.dev0"
+description = "Context engine for AI-assisted projects: one authoritative record, specialist agents, independent review and owner approval."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.11"
+authors = [{ name = "Bwalker01" }]
+dependencies = ["PyYAML>=6.0"]
+
+[project.scripts]
+kanon = "kanon.cli:main"
+
+[project.urls]
+Repository = "https://github.com/Bwalker01/Kanon"
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
+[build-system]
+requires = ["hatchling>=1.26"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/kanon"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

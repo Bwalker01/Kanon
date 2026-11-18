@@ -1,0 +1,21 @@
+# Kanon shared settings. Committed: holds nothing personal.
+# Personal profiles live outside the repository (see `kanon profile --help`).
+
+[kanon]
+format = 2
+review_round_limit = 3
+
+# GitHub usernames of the people who may approve major outputs.
+approvers = ["Bwalker01"]
+
+[[verify.exceptions]]
+path = "kanon/work/2026-11-13-phase-0-foundation.md"
+rule = "loop"
+contains = "not committed on its own"
+reason = "The Phase 0 record was written after the work, during the 2026-11-16 restructure."
+
+[[verify.exceptions]]
+path = "kanon/work/2026-11-16-phase-1-plan.md"
+rule = "loop"
+contains = "not committed on its own"
+reason = "Plan approved by the owner at 7141598 before any code; the Creator and Reviewer rows were added later. Accepted by the owner 2026-11-17."

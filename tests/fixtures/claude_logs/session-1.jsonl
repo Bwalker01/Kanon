@@ -1,0 +1,16 @@
+{"type": "user", "timestamp": "2026-11-16T14:54:00.000Z", "message": {"role": "user", "content": "[removed]"}}
+{"type": "cost-state", "totalCostUSD": 19.36}
+{"type": "assistant", "timestamp": "2026-11-16T14:54:01.198Z", "cwd": "/repo", "message": {"id": "msg_0", "role": "assistant", "model": "claude-opus-5-5", "usage": {"input_tokens": 2, "output_tokens": 1778, "cache_creation_input_tokens": 2614, "cache_read_input_tokens": 364057}, "content": []}}
+{"type": "user", "timestamp": "2026-11-16T14:54:01.369Z", "message": {"role": "user", "content": "[removed]"}}
+{"type": "assistant", "timestamp": "2026-11-16T14:54:03.605Z", "cwd": "/repo", "message": {"id": "msg_1", "role": "assistant", "model": "claude-opus-5-5", "usage": {"input_tokens": 2, "output_tokens": 949, "cache_creation_input_tokens": 3530, "cache_read_input_tokens": 366671}, "content": []}}
+{"type": "assistant", "timestamp": "2026-11-16T14:54:03.608Z", "cwd": "/repo", "message": {"id": "msg_1", "role": "assistant", "model": "claude-opus-5-5", "usage": {"input_tokens": 2, "output_tokens": 949, "cache_creation_input_tokens": 3530, "cache_read_input_tokens": 366671}, "content": []}}
+{"type": "assistant", "timestamp": "2026-11-16T14:54:09.119Z", "cwd": "/repo", "message": {"id": "msg_1", "role": "assistant", "model": "claude-opus-5-5", "usage": {"input_tokens": 2, "output_tokens": 949, "cache_creation_input_tokens": 3530, "cache_read_input_tokens": 366671}, "content": []}}
+{"type": "user", "timestamp": "2026-11-16T14:54:09.274Z", "message": {"role": "user", "content": "[removed]"}}
+{"type": "assistant", "timestamp": "2026-11-16T14:54:10.943Z", "cwd": "/repo", "message": {"id": "msg_2", "role": "assistant", "model": "claude-opus-5-5", "usage": {"input_tokens": 2, "output_tokens": 538, "cache_creation_input_tokens": 1271, "cache_read_input_tokens": 370201}, "content": []}}
+{"type": "assistant", "timestamp": "2026-11-16T14:54:15.445Z", "cwd": "/repo", "message": {"id": "msg_2", "role": "assistant", "model": "claude-opus-5-5", "usage": {"input_tokens": 2, "output_tokens": 538, "cache_creation_input_tokens": 1271, "cache_read_input_tokens": 370201}, "content": []}}
+{"type": "user", "timestamp": "2026-11-16T14:54:18.250Z", "message": {"role": "user", "content": "[removed]"}}
+{"type": "assistant", "timestamp": "2026-11-16T14:54:20.771Z", "cwd": "/repo", "message": {"id": "msg_3", "role": "assistant", "model": "claude-opus-5-5", "usage": {"input_tokens": 2, "output_tokens": 287, "cache_creation_input_tokens": 622, "cache_read_input_tokens": 371472}, "content": []}}
+{"type": "user", "timestamp": "2026-11-16T14:54:21.350Z", "message": {"role": "user", "content": "[removed]"}}
+{"type": "user", "timestamp": "2026-11-16T14:54:21.350Z", "message": {"role": "user", "content": "[removed]"}}
+{"type": "cost-state", "totalCostUSD": 20.11}
+{"type": "assistant", "trunc

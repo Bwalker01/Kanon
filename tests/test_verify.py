@@ -7,9 +7,8 @@ import pytest
 from kanon import init as kinit
 from kanon import verify as kv
 from kanon.cli import main
-from kanon.settings import Person
 
-PERSON = Person("owner", "Ada", "developer", "", "owner@laptop")
+APPROVERS = ["ada-dev"]
 WORK = "kanon/work/2026-11-16-example.md"
 
 PLAN_ONLY = """---
@@ -67,7 +66,7 @@ def commit(repo, message):
 @pytest.fixture
 def repo(tmp_path):
     git(tmp_path, "init", "-q")
-    kinit.init(tmp_path, PERSON, dt.date(2026, 11, 16))
+    kinit.init(tmp_path, APPROVERS, dt.date(2026, 11, 16))
     (tmp_path / WORK).write_text(PLAN_ONLY)
     commit(tmp_path, "plan")
     (tmp_path / WORK).write_text(REVIEWED)
@@ -123,7 +122,7 @@ def test_escalated_rounds_over_the_limit_are_allowed(repo):
 
 def test_review_without_an_earlier_plan_fails(tmp_path):
     git(tmp_path, "init", "-q")
-    kinit.init(tmp_path, PERSON, dt.date(2026, 11, 16))
+    kinit.init(tmp_path, APPROVERS, dt.date(2026, 11, 16))
     (tmp_path / WORK).write_text(REVIEWED)
     commit(tmp_path, "plan and review together")
     only(tmp_path, "loop", "not committed on its own")
@@ -174,8 +173,8 @@ def test_decision_length_limit(repo):
 
 
 def test_invalid_settings_fail(repo):
-    edit(repo, "kanon/kanon.toml", 'level = "developer"', 'level = "wizard"')
-    only(repo, "settings", "level 'wizard'")
+    edit(repo, "kanon/kanon.toml", 'approvers = ["ada-dev"]', 'approvers = ["not valid!"]')
+    only(repo, "settings", "not a valid GitHub username")
 
 
 def test_missing_kanon_folder(tmp_path):
@@ -187,7 +186,7 @@ def test_hook_is_installed_once_and_never_overwritten(tmp_path):
     hook = tmp_path / ".git/hooks/pre-commit"
     hook.parent.mkdir(parents=True, exist_ok=True)
     hook.write_text("#!/bin/sh\necho mine\n")
-    kinit.init(tmp_path, PERSON, dt.date(2026, 11, 16))
+    kinit.init(tmp_path, APPROVERS, dt.date(2026, 11, 16))
     assert hook.read_text() == "#!/bin/sh\necho mine\n"
 
 
@@ -235,7 +234,7 @@ def test_group_round_limit_applies_to_lettered_groups(repo):
 
 def test_a_bare_template_plan_does_not_count_as_a_plan(tmp_path):
     git(tmp_path, "init", "-q")
-    kinit.init(tmp_path, PERSON, dt.date(2026, 11, 16))
+    kinit.init(tmp_path, APPROVERS, dt.date(2026, 11, 16))
     path = kinit.new_work(tmp_path, "example", dt.date(2026, 11, 16))
     commit(tmp_path, "empty template")
     (tmp_path / "src.py").write_text("x = 1\n")
@@ -247,7 +246,7 @@ def test_a_bare_template_plan_does_not_count_as_a_plan(tmp_path):
 
 def test_plan_committed_with_build_files_fails(tmp_path):
     git(tmp_path, "init", "-q")
-    kinit.init(tmp_path, PERSON, dt.date(2026, 11, 16))
+    kinit.init(tmp_path, APPROVERS, dt.date(2026, 11, 16))
     (tmp_path / WORK).write_text(PLAN_ONLY)
     (tmp_path / "src.py").write_text("x = 1\n")
     commit(tmp_path, "plan and build together")
@@ -300,13 +299,13 @@ def test_short_exception_match_is_refused(repo):
 
 
 def test_root_instruction_files_get_the_writing_check(repo):
-    edit(repo, "AGENTS.md", "## Kanon", "## Kanon — notes")
+    (repo / "AGENTS.md").write_text("# Team\n\nA note \u2014 here.\n")
     only(repo, "writing", "dash")
 
 
 def test_new_work_creates_a_valid_file_once(tmp_path):
     git(tmp_path, "init", "-q")
-    kinit.init(tmp_path, PERSON, dt.date(2026, 11, 16))
+    kinit.init(tmp_path, APPROVERS, dt.date(2026, 11, 16))
     path = kinit.new_work(tmp_path, "Add caching", dt.date(2026, 11, 16))
     assert path.name == "2026-11-16-add-caching.md"
     assert "# Add caching" in path.read_text()
@@ -319,7 +318,7 @@ def test_existing_hook_is_reported(tmp_path):
     hook = tmp_path / ".git/hooks/pre-commit"
     hook.parent.mkdir(parents=True, exist_ok=True)
     hook.write_text("#!/bin/sh\n")
-    result = kinit.init(tmp_path, PERSON, dt.date(2026, 11, 16))
+    result = kinit.init(tmp_path, APPROVERS, dt.date(2026, 11, 16))
     assert any("existing pre-commit hook was kept" in w for w in result.warnings)
 
 
@@ -328,9 +327,9 @@ def test_an_outdated_kanon_hook_is_updated_but_others_are_not(tmp_path):
     hook = tmp_path / ".git/hooks/pre-commit"
     hook.parent.mkdir(parents=True, exist_ok=True)
     hook.write_text("#!/bin/sh\n# Installed by kanon init. Old version.\nexit 0\n")
-    result = kinit.init(tmp_path, PERSON, dt.date(2026, 11, 16))
+    result = kinit.init(tmp_path, APPROVERS, dt.date(2026, 11, 16))
     assert hook.read_text() == kv.HOOK and ".git/hooks/pre-commit" in result.updated
-    result = kinit.init(tmp_path, PERSON, dt.date(2026, 11, 16))
+    result = kinit.init(tmp_path, APPROVERS, dt.date(2026, 11, 16))
     assert ".git/hooks/pre-commit" in result.kept
 
 
@@ -341,7 +340,7 @@ def test_a_quote_before_the_summary_marker_fails(repo):
 
 def test_an_empty_output_row_means_the_plan_is_not_filled(tmp_path):
     git(tmp_path, "init", "-q")
-    kinit.init(tmp_path, PERSON, dt.date(2026, 11, 16))
+    kinit.init(tmp_path, APPROVERS, dt.date(2026, 11, 16))
     (tmp_path / WORK).write_text(PLAN_ONLY.replace("| Output | A file |", "| Output | |"))
     commit(tmp_path, "plan without an output")
     (tmp_path / "src.py").write_text("x = 1\n")

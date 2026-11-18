@@ -1,5 +1,5 @@
 ---
-name: mnemon-context
+name: kanon-mnemon
 description: Kanon context keeper. Use at the start of a session, before answering questions about the project's state, or when documents may be stale or contradictory.
 metadata:
   role: Mnemon, Context keeper

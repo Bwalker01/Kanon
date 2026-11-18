@@ -1,4 +1,4 @@
-"""`kanon init`: lay out a repository for Kanon without overwriting anything (P1-03)."""
+"""`kanon init` and `kanon new`: lay out a repository for Kanon without overwriting anything."""
 
 from __future__ import annotations
 
@@ -10,11 +10,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from kanon.schema import PERSON_LEVELS
-from kanon.settings import Person, render_settings, validate_settings
-from kanon.templates import CLAUDE_FILES, ROLE_FILES, render
+from kanon.settings import render_settings, validate_settings
+from kanon.sync import sync
+from kanon.templates import ROLE_FILES, render
 from kanon.verify import hook_location, install_hook
-
-START, END = "<!-- kanon:start -->", "<!-- kanon:end -->"
 
 LEVEL_QUESTION = """How would you describe your technical background?
   1. New to software: has not used Git or a terminal
@@ -43,8 +42,18 @@ def has_settings(root: Path) -> bool:
     return (root / "kanon" / "kanon.toml").exists()
 
 
-def ask_level(read: Callable[[str], str] = input) -> tuple[str, str]:
+def ask(prompt: str, read: Callable[[str], str] | None = None) -> str:
+    """Ask one free-text question; closed input counts as no answer."""
+    read = read or input
+    try:
+        return read(prompt).strip()
+    except EOFError:
+        return ""
+
+
+def ask_level(read: Callable[[str], str] | None = None) -> tuple[str, str]:
     """Ask the technical-level question. Returns (level, description in the person's words)."""
+    read = read or input
     try:
         answer = read(LEVEL_QUESTION).strip()
         if answer not in {"1", "2", "3", "4"}:
@@ -66,51 +75,22 @@ def _write_new(root: Path, rel: str, content: str, result: InitResult) -> None:
     result.created.append(rel)
 
 
-def _ensure_agents(root: Path, result: InitResult) -> None:
-    path = root / "AGENTS.md"
-    section = render("agents-section.md")
-    if not path.exists():
-        path.write_text(f"# Agent Instructions\n\n{section}", encoding="utf-8")
-        result.created.append("AGENTS.md")
-        return
-    text = path.read_text(encoding="utf-8")
-    has_start, has_end = START in text, END in text
-    if has_start and has_end and text.index(START) < text.index(END):
-        result.kept.append("AGENTS.md")
-    elif has_start or has_end:
-        result.kept.append("AGENTS.md")
-        result.warnings.append(
-            f"AGENTS.md has an incomplete Kanon section; it needs both {START} and {END}. "
-            "Remove the partial markers and run kanon init again."
-        )
-    else:
-        existing = path.read_text(encoding="utf-8")
-        path.write_text(existing.rstrip("\n") + "\n\n" + section, encoding="utf-8")
-        result.updated.append("AGENTS.md")
+def init(path: Path, approvers: list[str], today: dt.date | None = None) -> InitResult:
+    """Lay out the repository containing path. Raises before writing anything if inputs are invalid.
 
-
-def _ensure_claude(root: Path, result: InitResult) -> None:
-    path = root / "CLAUDE.md"
-    if not path.exists():
-        path.write_text("@AGENTS.md\n", encoding="utf-8")
-        result.created.append("CLAUDE.md")
-    elif "@AGENTS.md" in path.read_text(encoding="utf-8").split():
-        result.kept.append("CLAUDE.md")
-    else:
-        existing = path.read_text(encoding="utf-8")
-        path.write_text(existing.rstrip("\n") + "\n\n@AGENTS.md\n", encoding="utf-8")
-        result.updated.append("CLAUDE.md")
-
-
-def init(path: Path, person: Person, today: dt.date | None = None) -> InitResult:
-    """Lay out the repository containing path. Raises before writing anything if inputs are invalid."""
+    Writes only shared, committed files under kanon/ and the Kanon block of .gitignore, then runs
+    `kanon sync` for the generated agent files. Never creates or edits AGENTS.md, CLAUDE.md or
+    CLAUDE.local.md.
+    """
     root = repo_root(path)
     if root is None:
         raise RuntimeError(f"{path} is not inside a Git repository; run 'git init' first")
-    settings = render_settings(person)
-    problems = validate_settings(settings)
-    if problems:
-        raise ValueError("; ".join(p.message for p in problems))
+    settings = None
+    if not has_settings(root):
+        settings = render_settings(approvers)
+        problems = validate_settings(settings)
+        if problems:
+            raise ValueError("; ".join(p.message for p in problems))
     date = (today or dt.date.today()).isoformat()
     result = InitResult()
     files = {
@@ -122,17 +102,21 @@ def init(path: Path, person: Person, today: dt.date | None = None) -> InitResult
         "kanon/decisions/.gitkeep": "",
         "kanon/work/.gitkeep": "",
         "kanon/archive/.gitkeep": "",
-        "kanon/kanon.toml": settings,
+        **({"kanon/kanon.toml": settings} if settings else {}),
         **{dest: render(src, date=date) for dest, src in ROLE_FILES.items()},
-        **{dest: render(src) for dest, src in CLAUDE_FILES.items()},
     }
     for rel, content in files.items():
         folder = (root / rel).parent
         if rel.endswith(".gitkeep") and folder.is_dir() and any(folder.iterdir()):
             continue  # the folder already has content to keep it in Git
         _write_new(root, rel, content, result)
-    _ensure_agents(root, result)
-    _ensure_claude(root, result)
+    synced = sync(root)
+    result.created += [f for f in synced.written if not f == ".gitignore"]
+    if ".gitignore" in synced.written:
+        result.updated.append(".gitignore")
+    result.kept += synced.unchanged
+    result.warnings += [f"{f} exists and was not written by Kanon; it was left alone" for f in synced.refused]
+    result.warnings += synced.notes
     hook_path = Path(hook_location(root))
     existed = hook_path.exists()
     hook, written = install_hook(root)

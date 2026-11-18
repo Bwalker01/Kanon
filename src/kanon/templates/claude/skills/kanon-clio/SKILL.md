@@ -1,5 +1,5 @@
 ---
-name: clio-scribe
+name: kanon-clio
 description: Kanon scribe. Use after approved work lands, or when documentation, the status page or learnings need updating.
 metadata:
   role: Clio, Scribe

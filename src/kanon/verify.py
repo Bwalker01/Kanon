@@ -17,7 +17,7 @@ from kanon.settings import validate_settings
 SOURCES_PATH = "kanon/sources.md"
 ARCHIVE_PREFIX = "kanon/archive/"
 CONDUCT_PATH = "kanon/docs/conduct-and-writing.md"
-ROOT_INSTRUCTIONS = ("AGENTS.md", "CLAUDE.md", "README.md")
+ROOT_INSTRUCTIONS = ("AGENTS.md", "CLAUDE.md", "README.md", ".gitignore")
 PHRASES = (
     "let's", "let me", "delve", "leverage", "seamless", "robust", "holistic", "synergy",
     "in summary", "to summarise", "it's worth noting", "interestingly", "notably", "arguably",
@@ -356,10 +356,14 @@ def _verify(root: Path) -> tuple[list[Finding], dict]:
         if rel == "kanon/REVIEW.md":
             findings += check_review_list(rel, text)
 
+    # Hand-written instruction files only: generated ones are checked through their sources.
+    from kanon.sync import MARKER
     instruction_files = [root / name for name in ROOT_INSTRUCTIONS[:2]] + sorted((root / ".claude").rglob("*.md"))
     for path in instruction_files:
         if path.is_file():
-            findings += check_writing(path.relative_to(root).as_posix(), path.read_text(encoding="utf-8"))
+            text = path.read_text(encoding="utf-8")
+            if MARKER not in text:
+                findings += check_writing(path.relative_to(root).as_posix(), text)
     return findings, settings
 
 

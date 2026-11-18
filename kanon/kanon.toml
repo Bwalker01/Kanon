@@ -1,9 +1,12 @@
-# Kanon settings. See kanon/docs/conduct-and-writing.md for how profiles are used.
+# Kanon shared settings. Committed: holds nothing personal.
+# Personal profiles live outside the repository (see `kanon profile --help`).
 
 [kanon]
-format = 1
+format = 2
 review_round_limit = 3
 
+# GitHub usernames of the people who may approve major outputs.
+approvers = ["Bwalker01"]
 
 [[verify.exceptions]]
 path = "kanon/work/2026-11-13-phase-0-foundation.md"

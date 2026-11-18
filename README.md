@@ -22,6 +22,10 @@ Phase 0 (foundation) is complete and awaiting approval. No code has been release
 - Reviews every output independently and requests approval at defined points.
 - Keeps token and CI costs visible and controlled.
 
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). After cloning, run `kanon sync` to generate the agent files.
+
 ## Acknowledgements
 
 Builds on MIT-licensed work by Georgios Antikatzidis:

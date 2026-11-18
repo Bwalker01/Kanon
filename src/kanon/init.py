@@ -143,8 +143,10 @@ def new_work(path: Path, topic: str, today: dt.date | None = None) -> Path:
         raise ValueError("the topic needs at least one letter or digit")
     date = (today or dt.date.today()).isoformat()
     target = root / "kanon" / "work" / f"{date}-{slug}.md"
-    if target.exists():
-        raise FileExistsError(f"{target.relative_to(root)} already exists")
+    clash = sorted((root / "kanon" / "work").glob(f"????-??-??-{slug}.md"))
+    if target.exists() or clash:
+        existing = (clash or [target])[0].relative_to(root)
+        raise FileExistsError(f"{existing} already uses the topic '{slug}'; choose a distinct topic")
     title = topic.strip()[:1].upper() + topic.strip()[1:]
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(render("work.md", date=date, title=title, summary="To be written with the plan."),

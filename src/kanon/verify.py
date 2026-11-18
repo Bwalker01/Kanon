@@ -302,9 +302,11 @@ def check_actions(rel: str, text: str) -> list[Finding]:
         return [Finding(rel, where, "actions", f"Actions table lacks column(s): {', '.join(missing)}")]
     findings, ids = [], []
     width = raw[0].count("|")
-    for line in raw[2:]:
-        if line.count("|") != width:
-            findings.append(Finding(rel, where, "actions", f"row has the wrong number of cells: {line.strip()[:40]}"))
+    for i, line in enumerate(lines[span[0]:span[1]]):
+        if line.startswith("|") and line != raw[0] and not re.fullmatch(r"\|[\s|:-]+\|", line.strip()) \
+                and line.count("|") != width:
+            findings.append(Finding(rel, offset + span[0] + i, "actions",
+                                    f"row has the wrong number of cells: {line.strip()[:40]}"))
     for row in rows[1:]:
         if len(row) != len(header):
             continue
@@ -403,6 +405,14 @@ def _verify(root: Path) -> tuple[list[Finding], dict]:
     limit = settings.get("kanon", {}).get("review_round_limit", 3)
     limit = limit if isinstance(limit, int) and not isinstance(limit, bool) and limit > 0 else 3
 
+    seen_topics: dict[str, str] = {}
+    for path in sorted((kanon / "work").glob("*.md")):
+        topic = re.sub(r"^\d{4}-\d{2}-\d{2}-", "", path.stem)
+        rel = path.relative_to(root).as_posix()
+        if topic in seen_topics:
+            findings.append(Finding(rel, 1, "layout", f"topic '{topic}' is also used by {seen_topics[topic]}; "
+                                                      "replies on the Desk would be ambiguous"))
+        seen_topics.setdefault(topic, rel)
     for path in sorted(kanon.rglob("*.md")):
         rel = path.relative_to(root).as_posix()
         if rel.startswith("kanon/local/"):

@@ -38,7 +38,7 @@ updated: 2026-11-18
 1. Open the App's settings (Developer settings, GitHub Apps, Edit), then Credentials, Key pairs, and generate a key pair.
 2. Store the downloaded key outside every repository with permissions 600.
 3. Under Install App, install on `Bwalker01/Kanon` only.
-3. Confirm: the App appears under the repository's Settings, GitHub Apps.
+4. Confirm: the App appears under the repository's Settings, GitHub Apps.
 
 ### A-2: Merge into main
 

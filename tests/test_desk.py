@@ -198,3 +198,53 @@ def test_cycles_keep_every_action(repo):
 """
     (repo / "kanon/work/2026-11-18-c.md").write_text(work_file("C", table))
     assert sorted(a.id for a in desk.build(repo).actions) == ["A-1", "A-2", "A-3"]
+
+
+def test_the_same_topic_on_two_days_is_refused_and_reported(repo):
+    kinit.new_work(repo, "setup", dt.date(2026, 11, 17))
+    with pytest.raises(FileExistsError, match="already uses the topic 'setup'"):
+        kinit.new_work(repo, "Setup", dt.date(2026, 11, 18))
+    (repo / "kanon/work/2026-11-18-setup.md").write_text(work_file("Setup again"))
+    from kanon import verify as kv
+    assert any(f.rule == "layout" and "topic 'setup'" in f.message for f in kv.verify(repo))
+
+
+def test_desk_is_not_written_when_the_ignore_block_is_damaged(repo):
+    gitignore = repo / ".gitignore"
+    gitignore.write_text(gitignore.read_text().replace(ksync.IGNORE_END, ""))
+    for name in ("DESK.md", "desk.html", "STATUS.md"):
+        target = repo / "kanon/local" / name
+        if target.exists():
+            target.unlink()
+    result = ksync.sync(repo)
+    assert ".gitignore" in result.refused
+    assert not (repo / "kanon/local/DESK.md").exists()
+
+
+def test_kanon_desk_command_guards_the_ignore_entry(repo, monkeypatch, capsys):
+    from kanon.cli import main
+    monkeypatch.chdir(repo)
+    gitignore = repo / ".gitignore"
+    gitignore.write_text("")
+    assert main(["desk"]) == 0
+    assert "/kanon/local/" in gitignore.read_text()
+    gitignore.write_text(ksync.IGNORE_START + "\n")
+    assert main(["desk"]) == 2
+
+
+def test_hook_keeps_the_uv_fallback_for_projects_using_kanon_as_a_dependency():
+    from kanon.verify import HOOK
+    assert "uv run --quiet kanon --version" in HOOK
+
+
+def test_every_displayed_field_is_escaped(repo, monkeypatch):
+    payload = "<b>x</b>"
+    monkeypatch.setenv("KANON_PROFILE", json.dumps({"github": "ada-dev", "name": payload}))
+    text = work_file(payload, ACTIONS.replace("Protect main", payload), status="awaiting-approval",
+                     needed=payload).replace(f"> **Summary:** {payload} summary.", f"> **Summary:** {payload}")
+    text = text.replace("Not yet reviewed.", "| Round | Items | Reviewer | Verdict | Blocking | Outcome |\n"
+                        f"|---|---|---|---|---|---|\n| 2 | x | Kritos | pass | None | {payload} Owner decides at the review point |")
+    (repo / "kanon/work/2026-11-18-plan.md").write_text(text)
+    commit(repo, f"ADDED: {payload}")
+    desk.write(repo)
+    assert payload not in (repo / "kanon/local/desk.html").read_text()

@@ -40,6 +40,21 @@ INCIDENT = ("rm -f /tmp/claude-0/x/scratchpad/probe.py; for d in $(find /tmp -ma
     # K-114: following cd, and pathlib deletions
     "cd / && rm -rf tmp", "cd /tmp && rm -rf claude-0",
     "python3 -c 'import pathlib; pathlib.Path(\"/tmp\").rmdir()'",
+    # K-260: a newline separates commands
+    "cd /home/user/project\n" + INCIDENT, "cd /tmp\nrm -rf claude-0", "echo start\nrm -rf /tmp",
+    "cd /home/user/project && ls\nrm -rf /tmp", "ls |\nxargs rm -rf /tmp",
+    # K-261: commands that run other programs are judged
+    "uv run rm -rf /tmp", "uv run rm -rf /tmp/claude-0", "make -C /tmp clean && rm -rf /tmp",
+    "uv run python - <<'EOF'\nimport shutil\nshutil.rmtree('/tmp')\nEOF",
+    # K-262: a git stage in a pipeline hides nothing
+    "git status | rm -rf /tmp", "git log -1 | xargs rm -rf /tmp", "git ls-files | xargs rm -rf /home/user/project",
+    "bash -c 'git status | rm -rf /tmp'",
+    # K-263: long options and option arguments before -c
+    "bash -o pipefail -c 'rm -rf /tmp'", "bash --norc -c 'rm -rf /tmp'",
+    # K-264: cd inside a subshell or brace group
+    "(cd /tmp && rm -rf claude-0)", "{ cd /tmp && rm -rf claude-0; }",
+    # K-266 and K-267: a doubled slash; git clean with long flags
+    "rm -rf //tmp", "git clean --force -d /tmp",
 ])
 def test_destructive_commands_are_blocked(command):
     assert guard.check(command, CWD, HOME, SCRATCH)
@@ -61,6 +76,12 @@ def test_destructive_commands_are_blocked(command):
     "cd /home/user/project && for f in *.pyc; do rm -f \"$f\"; done",
     "cd /home/user/project && git ls-files -d | xargs git rm -q",
     'D=$(mktemp -d) && rm -rf "$D" && ls /tmp',
+    # A commit message holding deletion words inside quotes
+    "git commit -m 'REMOVED: rm -rf /tmp from the docs'",
+    # K-260: quoted newlines stay inside their argument
+    "git commit -m \"line one\nrm -rf /tmp is described here\"",
+    # K-265: a folder reached by cd is not protected itself
+    "cd build && rm -rf *", "cd /home/user/project/dist && rm -rf ./*",
 ])
 def test_ordinary_commands_are_allowed(command):
     assert guard.check(command, CWD, HOME, SCRATCH) is None

@@ -7,8 +7,8 @@ Written after 2026-11-18, when a reviewer's cleanup loop deleted every result of
 `find /tmp -maxdepth 1 -name 'tmp*'`. `find` includes its starting folder, `/tmp` matched `tmp*`,
 and all of `/tmp` was deleted, including the session's commit-signing helper (learning L-004).
 
-How it decides: the command is split into units at `;`, `&&`, `||` and `&` (a pipeline stays one
-unit), following `cd` from unit to unit. Units that only read (`ls`, `echo`, `git` other than
+How it decides: the command is split into units at `;`, `&&`, `||`, `&` and newlines (a pipeline
+stays one unit, and each of its stages is checked), following `cd` from unit to unit. Units that only read (`ls`, `echo`, `git` other than
 `git clean`, and similar) are ignored. A unit that deletes (rm, rmdir, unlink, shred, find -delete or
 -exec rm, Python deletion calls, git clean) is blocked when one of its paths is a protected location
 or a pattern covering all of one. When loops, command substitution or xargs carry paths between
@@ -34,8 +34,9 @@ DATA_FLOW = re.compile(r"\$\(|`|\bxargs\b|(?:^|[\s;])(?:for|while|until)\s")
 CODE_DELETION = re.compile(r"shutil\.rmtree|os\.(?:remove|rmdir|unlink|removedirs)|fs\.(?:rm|rmdir|unlink)"
                            r"|\.rmdir\(|\.unlink\(|\brmtree\b")
 # Commands that only read or change folder: their arguments are never deletion targets.
-PASSIVE = {"cd", "ls", "echo", "printf", "pwd", "cat", "grep", "head", "tail", "wc", "date", "uv", "pip",
-           "pytest", "make", "mkdir", "touch", "test", "[", "true", "false", "sleep"}
+# Never list a command that runs other programs (uv, make, pip, pytest): `uv run rm` must be judged.
+PASSIVE = {"cd", "ls", "echo", "printf", "pwd", "cat", "grep", "head", "tail", "wc", "date",
+           "mkdir", "touch", "test", "[", "true", "false", "sleep"}
 SYSTEM = {"/", "/tmp", "/private/tmp", "/home", "/root", "/etc", "/usr", "/var", "/opt", "/srv", "/mnt",
           "/bin", "/sbin", "/lib", "/boot", "/dev", "/proc", "/sys", "/Users", "/Volumes"}
 GLOB = re.compile(r"[*?\[{]")
@@ -43,13 +44,25 @@ WILDCARD_ONLY = re.compile(r"^[*?.{},\[\]!]*$")
 
 
 def _tokens(command: str) -> list[str]:
-    lexer = shlex.shlex(command, posix=True, punctuation_chars=";&|()")
+    lexer = shlex.shlex(command, posix=True, punctuation_chars=";&|()\n")
+    lexer.whitespace = " \t\r"  # a newline outside quotes separates commands, as in the shell
     lexer.whitespace_split = True
     lexer.commenters = ""
     try:
-        return list(lexer)
+        raw = list(lexer)
     except ValueError:
-        return command.split()
+        return command.replace("\n", " \n ").split(" ")
+    tokens = []
+    for token in raw:
+        if "\n" in token and not token.strip(";&|()\n"):
+            rest = token.replace("\n", "")
+            if rest:
+                tokens.append(rest)
+            if rest != "|":  # `a |` followed by a newline continues the pipeline
+                tokens.append("\n")
+        else:
+            tokens.append(token)
+    return [t for t in tokens if t]
 
 
 def _units(tokens: list[str]) -> list[list[str]]:
@@ -68,13 +81,30 @@ def _verb(token: str) -> str:
     return os.path.basename(token.strip("'\"\\").lstrip("\\"))
 
 
-def _deletes(unit: list[str], raw: str) -> bool:
-    words = [_verb(t) for t in unit]
-    if words and words[0] == "git":
-        return "clean" in words and any(re.fullmatch(r"-\w*[fx]\w*", t) for t in unit)
-    if any(w in VERBS for w in words) or "-delete" in unit:
-        return True
-    return bool(CODE_DELETION.search(raw))
+def _stages(unit: list[str]) -> list[list[str]]:
+    stages, current = [], []
+    for token in unit:
+        if token == "|":
+            stages.append(current)
+            current = []
+        else:
+            current.append(token)
+    stages.append(current)
+    return stages
+
+
+def _deletes(unit: list[str], raw: str = "") -> bool:
+    """True when any stage of the unit's pipeline deletes (K-262: a git stage hides nothing)."""
+    for stage in _stages(unit):
+        _, word = _first(stage)
+        words = [_verb(t) for t in stage]
+        if word == "git":
+            if "clean" in words and any(re.fullmatch(r"-\w*[fx]\w*", t) or t == "--force" for t in stage):
+                return True
+            continue
+        if any(w in VERBS for w in words) or "-delete" in stage or CODE_DELETION.search(" ".join(stage)):
+            return True
+    return False
 
 
 def resolve(token: str, cwd: str, home: str) -> str | None:
@@ -92,6 +122,7 @@ def resolve(token: str, cwd: str, home: str) -> str | None:
     if "$" in token or "`" in token:
         return None
     path = token if token.startswith("/") else os.path.join(cwd, token)
+    path = re.sub(r"^/+", "/", path)  # normpath keeps a leading `//`
     parts = path.split("/")
     for index, part in enumerate(parts):
         if GLOB.search(part):
@@ -118,27 +149,19 @@ def protected_paths(cwd: str, home: str, extra: list[str]) -> set[str]:
 
 
 def _first(unit: list[str]) -> tuple[int, str]:
-    """Index and name of the unit's command, skipping leading VAR=value assignments."""
+    """Index and name of the unit's command, skipping `(`, `{` and leading VAR=value assignments."""
     for index, token in enumerate(unit):
-        if not re.fullmatch(r"[A-Za-z_]\w*=.*", token):
+        if token not in ("(", "{") and not re.fullmatch(r"[A-Za-z_]\w*=.*", token):
             return index, _verb(token)
     return len(unit), ""
 
 
 def _passive(unit: list[str]) -> bool:
     """True when every stage of the unit's pipeline only reads, so none of its paths is deleted."""
-    stages, current = [], []
-    for token in unit:
-        if token == "|":
-            stages.append(current)
-            current = []
-        else:
-            current.append(token)
-    stages.append(current)
-    for stage in stages:
+    for stage in _stages(unit):
         _, word = _first(stage)
         if word == "git":
-            if _deletes(stage, ""):
+            if _deletes(stage):
                 return False
         elif word not in PASSIVE:
             return False
@@ -151,13 +174,16 @@ def _inner_commands(unit: list[str]) -> list[str]:
     for index, token in enumerate(unit):
         word = _verb(token)
         if word in SHELLS:
-            for j in range(index + 1, len(unit) - 1):
+            j = index + 1
+            while j < len(unit) - 1 and unit[j].startswith(("-", "+")):
                 flag = unit[j]
-                if not flag.startswith("-") or flag.startswith("--"):
-                    break
+                if flag.startswith("--"):
+                    j += 1  # a long option such as --norc (K-263)
+                    continue
                 if "c" in flag[1:]:
                     inner.append(unit[j + 1])
                     break
+                j += 2 if flag[-1] in "oO" else 1  # -o and -O take an argument
         elif word == "eval" and index + 1 < len(unit):
             inner.append(" ".join(unit[index + 1:]))
     return inner
@@ -203,7 +229,7 @@ def check(command: str, cwd: str, home: str, extra: list[str] | None = None, dep
             target = resolve(unit[index + 1], here, home) if index + 1 < len(unit) else home
             if target:
                 here = target
-                protected |= protected_paths(here, home, [])
+                protected |= protected_paths(os.path.dirname(here), home, [])  # parents only (K-265)
             continue
         if not _passive(unit):
             active.append((unit, here))

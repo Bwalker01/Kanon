@@ -258,7 +258,7 @@ def test_a_total_that_drops_and_recovers_is_unavailable(tmp_path):
     assert not any("no cost estimate found" in n for n in rep.notes)
 
 
-def test_incomplete_cost_with_no_estimate_yet_is_not_shown_as_zero(tmp_path):
+def test_incomplete_cost_with_no_estimate_yet_is_not_shown_as_zero(tmp_path):  # K-115
     write_log(tmp_path / "s.jsonl", [mark("2026-01-01T09:00:00Z"), cost(1),
                                      reply("r1", "2026-01-01T09:30:00Z", 5)])
     rep = usage.report(tmp_path, t("2026-01-01T09:10:00Z"))

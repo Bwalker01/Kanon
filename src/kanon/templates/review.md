@@ -4,6 +4,15 @@ status: current
 updated: $date
 ---
 
-# Awaiting Your Decision
+# Awaiting You
 
-> **Summary:** Nothing is awaiting a decision.
+> **Summary:** Nothing is awaiting a decision or an action.
+
+## Decisions
+
+None.
+
+## Actions
+
+| ID | Action | Steps | Needed before |
+|---|---|---|---|

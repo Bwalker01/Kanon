@@ -145,7 +145,7 @@ def test_an_incomplete_exception_is_itself_a_problem(repo):
 
 
 def test_open_question_in_review_list_fails(repo):
-    edit(repo, "kanon/REVIEW.md", "Nothing is awaiting a decision.", "Nothing is awaiting a decision.\n\nShould we use Postgres?")
+    edit(repo, "kanon/REVIEW.md", "## Decisions\n\nNone.", "## Decisions\n\nShould we use Postgres?")
     only(repo, "questions", "question in the review list")
 
 
@@ -282,7 +282,7 @@ def test_conduct_exemption_is_by_exact_path(repo):
 
 
 def test_question_in_a_table_cell_is_found(repo):
-    edit(repo, "kanon/REVIEW.md", "Nothing is awaiting a decision.", "Nothing is awaiting a decision.\n\n| R-3 | Use Postgres? |")
+    edit(repo, "kanon/REVIEW.md", "|---|---|---|---|", "|---|---|---|---|\n| A-1 | Use Postgres? | x | y |")
     only(repo, "questions", "question in the review list")
 
 

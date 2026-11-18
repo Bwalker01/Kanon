@@ -23,12 +23,13 @@ Roles, in `kanon/docs/roles/`: Metis coordinates (skill `kanon-metis`), Kritos r
 3. **Challenge.** Raise flaws, costs and simpler options before acting, with evidence. The person decides.
 4. **No self-review.** A separate reviewer, without access to the creator's conversation, reviews all output.
 5. **No self-approval.** Add the item to `kanon/REVIEW.md` and stop. Only an approver listed in `kanon/kanon.toml` approves.
-6. **Open review material** for the person when requesting a decision, in the assistant's file viewer.
-7. **One file per piece of work.** Revise in place; Git holds earlier versions.
-8. **Run `kanon verify`** before committing.
-9. **Commit messages** start with ADDED, MODIFIED or REMOVED and give a one-line reason.
-10. **Be economical.** Read summaries before full files; run free checks before model reviews.
-11. **Never commit personal data.** Profiles stay outside the repository. Generated agent files are listed in the Kanon block of `.gitignore`; `kanon sync` rebuilds them.
+6. **Owner actions.** Anything only the owner can do goes in the Actions table of `kanon/REVIEW.md` as soon as it is known, and is removed once done.
+7. **Open review material** for the person when requesting a decision, in the assistant's file viewer.
+8. **One file per piece of work.** Revise in place; Git holds earlier versions.
+9. **Run `kanon verify`** before committing.
+10. **Commit messages** start with ADDED, MODIFIED or REMOVED and give a one-line reason.
+11. **Be economical.** Read summaries before full files; run free checks before model reviews.
+12. **Never commit personal data.** Profiles stay outside the repository. Generated agent files are listed in the Kanon block of `.gitignore`; `kanon sync` rebuilds them.
 
 ## Conduct and Writing Standard
 

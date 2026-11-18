@@ -1,7 +1,7 @@
 ---
 type: decision
 status: accepted
-updated: 2026-11-16
+updated: 2026-11-18
 ---
 
 # ADR-003: Human Approval
@@ -18,7 +18,7 @@ updated: 2026-11-16
 
 - **Major outputs (owner approves):** requirements, plans, decisions, documentation of record, marketplace additions or changes, merges and releases.
 - **Minor outputs (reviewer only):** status updates, ticket changes, intermediate work. Listed in `STATUS.md`.
-- **One list:** `kanon/REVIEW.md` holds every item awaiting a decision, two or three lines each, with a link to the section to read.
+- **One list:** `kanon/REVIEW.md` holds every decision awaiting the owner and every action only the owner can take, each with a link to what to read or the steps to follow (owner, 2026-11-18).
 - **Local approvals** record the approver, time, commit and a hash of the approved material; any later change is detected.
 - **Tamper-proof approvals** require the assistant to act under its own identity (ADR-007).
 

@@ -5,7 +5,7 @@ This project uses Kanon. At the start of every session, read `kanon/STATUS.md` a
 
 | Path | Contents |
 |---|---|
-| `kanon/REVIEW.md` | Items awaiting the owner's decision. Nothing else. |
+| `kanon/REVIEW.md` | Decisions awaiting the owner and actions only the owner can take. Nothing else. |
 | `kanon/STATUS.md` | Work in progress, recent changes. |
 | `kanon/decisions/` | Decision records. The source of truth for decisions. |
 | `kanon/work/` | One file per piece of work: Summary, Plan, Questions, Review, Decision, Cost. |

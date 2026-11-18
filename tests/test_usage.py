@@ -149,7 +149,7 @@ def test_replies_after_the_last_estimate_make_the_cost_incomplete(tmp_path):
                                      reply("r1", "2026-01-01T09:30:00Z", 9999)])
     rep = usage.report(tmp_path, t("2026-01-01T09:10:00Z"))
     assert rep.cost_bound == "incomplete"
-    assert usage.cost_text(rep).startswith("incomplete")
+    assert usage.cost_text(rep).startswith(("incomplete", "not yet calculated"))
     assert "at most" not in usage.format_report(rep)
 
 
@@ -233,3 +233,10 @@ def test_subagent_without_session_id_belongs_to_its_parent_session(tmp_path):
 def test_cli_usage_resolves_git_refs_from_a_subdirectory(monkeypatch, capsys):
     monkeypatch.chdir(Path(__file__).resolve().parent)
     assert main(["usage", "--logs", str(LOGS), "--since", "HEAD"]) == 0
+
+
+def test_incomplete_cost_with_no_estimate_yet_is_not_shown_as_zero(tmp_path):
+    write_log(tmp_path / "s.jsonl", [mark("2026-01-01T09:00:00Z"), cost(1),
+                                     reply("r1", "2026-01-01T09:30:00Z", 5)])
+    rep = usage.report(tmp_path, t("2026-01-01T09:10:00Z"))
+    assert "$0.00" not in usage.cost_text(rep) and "not yet calculated" in usage.cost_text(rep)

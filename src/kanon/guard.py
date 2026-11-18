@@ -8,11 +8,12 @@ Written after 2026-11-18, when a reviewer's cleanup loop deleted every result of
 and all of `/tmp` was deleted, including the session's commit-signing helper (learning L-004).
 
 How it decides: the command is split into units at `;`, `&&`, `||` and `&` (a pipeline stays one
-unit). A unit that deletes (rm, rmdir, unlink, shred, find -delete or -exec rm, Python deletion calls,
-git clean) is blocked when one of its paths is a protected location or a pattern covering all of
-one. Loops, command substitution and xargs move data between units, so when they appear with a
-deletion the whole command is treated as one unit. Text after `bash -c`, `sh -c` and `eval` is
-checked as a command of its own.
+unit), following `cd` from unit to unit. Units that only read (`ls`, `echo`, `git` other than
+`git clean`, and similar) are ignored. A unit that deletes (rm, rmdir, unlink, shred, find -delete or
+-exec rm, Python deletion calls, git clean) is blocked when one of its paths is a protected location
+or a pattern covering all of one. When loops, command substitution or xargs carry paths between
+units, the paths of every non-reading unit are judged. Text run by `bash -c` (any flags) or `eval`
+is checked as a command of its own.
 
 Limits: it reads command text only. It cannot see what variables hold, what scripts do, or deletions
 made by other programs, and patterns with literal text (such as `/tmp/tmp*`) are allowed.
@@ -30,7 +31,11 @@ VERBS = {"rm", "rmdir", "unlink", "shred"}
 SEPARATORS = {";", "&&", "||", "&", "\n"}
 SHELLS = {"bash", "sh", "zsh", "dash", "ksh"}
 DATA_FLOW = re.compile(r"\$\(|`|\bxargs\b|(?:^|[\s;])(?:for|while|until)\s")
-CODE_DELETION = re.compile(r"shutil\.rmtree|os\.(?:remove|rmdir|unlink|removedirs)|fs\.(?:rm|rmdir|unlink)")
+CODE_DELETION = re.compile(r"shutil\.rmtree|os\.(?:remove|rmdir|unlink|removedirs)|fs\.(?:rm|rmdir|unlink)"
+                           r"|\.rmdir\(|\.unlink\(|\brmtree\b")
+# Commands that only read or change folder: their arguments are never deletion targets.
+PASSIVE = {"cd", "ls", "echo", "printf", "pwd", "cat", "grep", "head", "tail", "wc", "date", "uv", "pip",
+           "pytest", "make", "mkdir", "touch", "test", "[", "true", "false", "sleep"}
 SYSTEM = {"/", "/tmp", "/private/tmp", "/home", "/root", "/etc", "/usr", "/var", "/opt", "/srv", "/mnt",
           "/bin", "/sbin", "/lib", "/boot", "/dev", "/proc", "/sys", "/Users", "/Volumes"}
 GLOB = re.compile(r"[*?\[{]")
@@ -112,44 +117,69 @@ def protected_paths(cwd: str, home: str, extra: list[str]) -> set[str]:
     return paths
 
 
-def _find_starts(unit: list[str]) -> list[tuple[str, bool]]:
-    """Each `find` start folder in the unit, with whether the find has a name or path filter."""
-    starts = []
+def _first(unit: list[str]) -> tuple[int, str]:
+    """Index and name of the unit's command, skipping leading VAR=value assignments."""
     for index, token in enumerate(unit):
-        if _verb(token) == "find" and index + 1 < len(unit) and not unit[index + 1].startswith("-"):
-            filtered = any(t in ("-name", "-iname", "-path", "-ipath", "-regex", "-iregex") for t in unit[index:])
-            starts.append((unit[index + 1], filtered))
-    return starts
+        if not re.fullmatch(r"[A-Za-z_]\w*=.*", token):
+            return index, _verb(token)
+    return len(unit), ""
 
 
-def _check_unit(unit: list[str], raw: str, cwd: str, home: str, protected: set[str], project: set[str],
-                depth: int) -> str | None:
+def _passive(unit: list[str]) -> bool:
+    """True when every stage of the unit's pipeline only reads, so none of its paths is deleted."""
+    stages, current = [], []
+    for token in unit:
+        if token == "|":
+            stages.append(current)
+            current = []
+        else:
+            current.append(token)
+    stages.append(current)
+    for stage in stages:
+        _, word = _first(stage)
+        if word == "git":
+            if _deletes(stage, ""):
+                return False
+        elif word not in PASSIVE:
+            return False
+    return True
+
+
+def _inner_commands(unit: list[str]) -> list[str]:
+    """Command text run by `bash -c` (with any combined flags such as -lc) or `eval`."""
+    inner = []
     for index, token in enumerate(unit):
         word = _verb(token)
-        inner = None
-        if word in SHELLS and index + 2 < len(unit) and unit[index + 1] == "-c":
-            inner = unit[index + 2]
+        if word in SHELLS:
+            for j in range(index + 1, len(unit) - 1):
+                flag = unit[j]
+                if not flag.startswith("-") or flag.startswith("--"):
+                    break
+                if "c" in flag[1:]:
+                    inner.append(unit[j + 1])
+                    break
         elif word == "eval" and index + 1 < len(unit):
-            inner = " ".join(unit[index + 1:])
-        if inner and depth < 3:
-            reason = check(inner, cwd, home, sorted(project), depth + 1)
-            if reason:
-                return reason
-    if not _deletes(unit, raw):
-        return None
-    judged = set()
-    for start, filtered in _find_starts(unit):
-        folder = resolve(start, cwd, home)
-        if folder in protected and not (filtered and folder in project and folder not in SYSTEM):
-            return f"a deletion fed by `find {start}`, which includes {folder} itself"
-        judged.add(start)
-    quoted = re.findall(r"[\"'](/[^\"'\s]*|~[^\"'\s]*)[\"']", raw)
-    for token in unit + quoted:
-        if _verb(token) in VERBS or token in ("-c", "eval") or _verb(token) == "find" or token in judged:
+            inner.append(" ".join(unit[index + 1:]))
+    return inner
+
+
+def _path_reason(unit: list[str], cwd: str, home: str, protected: set[str], project: set[str]) -> str | None:
+    skip = set()
+    for index, token in enumerate(unit):
+        if _verb(token) == "find" and index + 1 < len(unit) and not unit[index + 1].startswith("-"):
+            start = unit[index + 1]
+            filtered = any(t in ("-name", "-iname", "-path", "-ipath", "-regex", "-iregex") for t in unit[index:])
+            folder = resolve(start, cwd, home)
+            if folder in protected and not (filtered and folder in project and folder not in SYSTEM):
+                return f"a deletion fed by `find {start}`, which includes {folder} itself"
+            skip.add(index + 1)
+    for index, token in enumerate(unit):
+        if index in skip or _verb(token) in VERBS or _verb(token) == "find":
             continue
-        folder = resolve(token, cwd, home)
-        if folder in protected:
-            return f"a deletion that reaches the protected location {folder}"
+        for candidate in [token, *re.findall(r"[\"'](/[^\"'\s]*|~[^\"'\s]*)[\"']", token)]:
+            folder = resolve(candidate, cwd, home)
+            if folder in protected:
+                return f"a deletion that reaches the protected location {folder}"
     return None
 
 
@@ -158,11 +188,32 @@ def check(command: str, cwd: str, home: str, extra: list[str] | None = None, dep
     extra = [e for e in (extra or []) if e]
     protected = protected_paths(cwd, home, extra)
     project = {os.path.normpath(p) for p in [cwd, *extra]}
-    tokens = _tokens(command)
-    units = [tokens] if DATA_FLOW.search(command) else _units(tokens)
+    units = _units(_tokens(command))
     for unit in units:
-        raw = command if len(units) == 1 else " ".join(unit)
-        reason = _check_unit(unit, raw, cwd, home, protected, project, depth)
+        for inner in _inner_commands(unit):
+            if depth < 3:
+                reason = check(inner, cwd, home, extra, depth + 1)
+                if reason:
+                    return reason
+    # Follow `cd` between units; ignore units that only read; note which units delete.
+    active, here = [], cwd
+    for unit in units:
+        index, word = _first(unit)
+        if word == "cd":
+            target = resolve(unit[index + 1], here, home) if index + 1 < len(unit) else home
+            if target:
+                here = target
+                protected |= protected_paths(here, home, [])
+            continue
+        if not _passive(unit):
+            active.append((unit, here))
+    deleting = [(u, c) for u, c in active if _deletes(u, " ".join(u))]
+    if not deleting:
+        return None
+    # Loops, substitution and xargs carry paths between units, so every active unit is judged.
+    targets = active if DATA_FLOW.search(command) else deleting
+    for unit, here in targets:
+        reason = _path_reason(unit, here, home, protected, project)
         if reason:
             return reason
     return None

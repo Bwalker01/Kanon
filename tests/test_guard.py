@@ -30,6 +30,16 @@ INCIDENT = ("rm -f /tmp/claude-0/x/scratchpad/probe.py; for d in $(find /tmp -ma
     # K-103: relative paths and parents of the project
     "rm -rf ..", "rm -rf ../..", "rm -rf /home/user", "rm -rf /home/user/", "rm -rf /opt",
     "find . -delete",
+    # K-110: a git command in front must not hide the deletion
+    "git status; " + INCIDENT, "git status && rm -rf $(echo /tmp)",
+    "git log -1 && for d in /tmp/*/; do rm -rf \"$d\"; done",
+    # K-111: combined or earlier shell flags
+    "bash -lc 'rm -rf /tmp'", "bash -e -c 'rm -rf /tmp'", "sh -xc \"rm -rf /tmp/*\"",
+    # K-113: the find start text reused as a deletion target
+    "find . -name x -print | xargs rm -rf .",
+    # K-114: following cd, and pathlib deletions
+    "cd / && rm -rf tmp", "cd /tmp && rm -rf claude-0",
+    "python3 -c 'import pathlib; pathlib.Path(\"/tmp\").rmdir()'",
 ])
 def test_destructive_commands_are_blocked(command):
     assert guard.check(command, CWD, HOME, SCRATCH)
@@ -45,6 +55,12 @@ def test_destructive_commands_are_blocked(command):
     "rm -rf build && pip install -e .", "git -C /home/user/project rm -q old.md",
     "rm -f /tmp/claude-0/-home-user-project/session/scratchpad/x && ls -d /tmp",
     "for f in *.pyc; do rm \"$f\"; done",
+    # K-112: cd into the project with substitution or loops elsewhere in the command
+    "cd /home/user/project && git rm -q old.md && git commit -m \"$(cat <<'EOF'\nMODIFIED: x\nEOF\n)\"",
+    "cd /home/user/project && rm -rf dist && echo $(date)",
+    "cd /home/user/project && for f in *.pyc; do rm -f \"$f\"; done",
+    "cd /home/user/project && git ls-files -d | xargs git rm -q",
+    'D=$(mktemp -d) && rm -rf "$D" && ls /tmp',
 ])
 def test_ordinary_commands_are_allowed(command):
     assert guard.check(command, CWD, HOME, SCRATCH) is None

@@ -239,6 +239,8 @@ def cost_text(rep: UsageReport) -> str:
     if rep.cost_usd is None:
         return "unavailable"
     if rep.cost_bound == "incomplete":
+        if rep.cost_usd == 0:
+            return "not yet calculated (Claude Code has not updated its estimate)"
         return f"incomplete: ${rep.cost_usd:.2f} so far"
     return f"at most ${rep.cost_usd:.2f}"
 

@@ -45,6 +45,7 @@ including the session's commit-signing helper `/tmp/code-sign`. Evidence: the su
 | Round | Items | Reviewer | Verdict | Blocking | Outcome |
 |---|---|---|---|---|---|
 | 1 | Guard, hook registration, rule | Kritos (`kritos-reviewer` agent) | correct | K-101 to K-105 | All fixed with tests; non-blocking K-106 to K-109 fixed |
+| 2 | Round 1 fixes | Kritos (`kritos-reviewer` agent) | correct | K-110 | K-110 (git in front hid the deletion), K-111 to K-115 fixed with tests after the final round; following `cd` and catching `pathlib` deletions removed two limits. Not independently reviewed. Owner decides at the review point |
 
 ## 4. Decision
 
@@ -52,8 +53,6 @@ Pending.
 
 ## 5. Cost
 
-Recorded when work starts.
-
 | Step | Output (main) | Output (subagents) | Cache writes | Cache reads | Estimated cost |
 |---|---|---|---|---|---|
-| Guard build, review round 1 and fixes | 35,219 | 29,496 | 102,292 | 22,182,324 | incomplete: $0.00 so far |
+| Guard build, review round 1 and fixes | 35,219 | 29,496 | 102,292 | 22,182,324 | not yet calculated |

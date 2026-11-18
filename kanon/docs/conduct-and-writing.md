@@ -1,7 +1,7 @@
 ---
 type: standard
 status: accepted
-updated: 2026-11-16
+updated: 2026-11-18
 ---
 
 # Conduct and Writing Standard
@@ -21,8 +21,8 @@ updated: 2026-11-16
 
 ## 2. Technical Level
 
-Each person has a profile in `kanon/kanon.toml`. It is set by one question at setup and changed only
-with the person's confirmation when the conversation suggests a mismatch.
+Each person has a profile kept outside the repository (`kanon profile`). It is set by one question at
+setup and changed only with the person's confirmation when the conversation suggests a mismatch.
 
 | Level | Approach |
 |---|---|

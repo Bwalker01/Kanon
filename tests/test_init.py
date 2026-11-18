@@ -19,7 +19,7 @@ ROOT = Path(__file__).resolve().parents[1]
 TODAY = dt.date(2026, 11, 16)
 APPROVERS = ["ada-dev"]
 COMMITTED = sorted([
-    "kanon/REVIEW.md", "kanon/STATUS.md", "kanon/kanon.toml", "kanon/sources.md",
+    "kanon/docs/roadmap.md", "kanon/kanon.toml", "kanon/sources.md",
     "kanon/docs/conduct-and-writing.md", "kanon/docs/learnings.md",
     "kanon/decisions/.gitkeep", "kanon/work/.gitkeep", "kanon/archive/.gitkeep",
     *ROLE_FILES, ".gitignore",
@@ -40,8 +40,12 @@ def files_in(root):
     return sorted(str(p.relative_to(root)) for p in root.rglob("*") if p.is_file() and ".git" not in p.parts)
 
 
+def committed_and_generated(root):
+    return [f for f in files_in(root) if not f.startswith("kanon/local/")]
+
+
 def snapshot(root):
-    return {f: (root / f).read_bytes() for f in files_in(root)}
+    return {f: (root / f).read_bytes() for f in committed_and_generated(root)}
 
 
 def untracked_or_changed(repo):
@@ -50,7 +54,8 @@ def untracked_or_changed(repo):
 
 def test_init_writes_shared_files_and_generated_files(repo):
     kinit.init(repo, APPROVERS, TODAY)
-    assert sorted(set(files_in(repo)) - set(ksync.GENERATED)) == COMMITTED
+    assert sorted(set(committed_and_generated(repo)) - set(ksync.GENERATED)) == COMMITTED
+    assert all((repo / p).exists() for p in ("kanon/local/DESK.md", "kanon/local/desk.html", "kanon/local/STATUS.md"))
     assert set(ksync.GENERATED) <= set(files_in(repo))
 
 
@@ -77,7 +82,8 @@ def test_existing_agents_and_claude_files_are_byte_identical(repo):
 def test_every_committed_document_is_valid(repo):
     kinit.init(repo, APPROVERS, TODAY)
     for doc in (repo / "kanon").rglob("*.md"):
-        assert validate(doc.read_text()) == [], doc
+        if "local" not in doc.parts:
+            assert validate(doc.read_text()) == [], doc
     assert validate_settings((repo / "kanon/kanon.toml").read_text()) == []
 
 

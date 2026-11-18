@@ -266,11 +266,12 @@ def changed_files(root: Path, commit: str) -> list[str]:
 
 # ---------------------------------------------------------------- review list
 
-def check_review_list(rel: str, text: str) -> list[Finding]:
+def check_decision_needed(rel: str, text: str) -> list[Finding]:
+    """A pending decision states what to decide; open questions belong in the Questions section."""
     _, lines, offset = _body(text)
     return [Finding(rel, offset + i, "questions",
-                    "question in the review list; ask it during the work and record it in the work file")
-            for i, line in enumerate(lines) if "?" in line]
+                    "question in the 'Decision needed' line; ask it during the work and record it in Questions")
+            for i, line in enumerate(lines) if line.startswith("> **Decision needed:**") and "?" in line]
 
 
 # ---------------------------------------------------------------- exceptions
@@ -348,13 +349,14 @@ def _verify(root: Path) -> tuple[list[Finding], dict]:
 
     for path in sorted(kanon.rglob("*.md")):
         rel = path.relative_to(root).as_posix()
+        if rel.startswith("kanon/local/"):
+            continue  # generated views, never committed
         text = path.read_text(encoding="utf-8")
         findings += check_document(rel, text)
         if rel.startswith("kanon/work/"):
             findings += check_work_file(rel, text, limit, lambda rel=rel: history_of(root, rel),
                                         lambda commit: changed_files(root, commit))
-        if rel == "kanon/REVIEW.md":
-            findings += check_review_list(rel, text)
+            findings += check_decision_needed(rel, text)
 
     # Hand-written instruction files are checked; generated ones are checked through their sources.
     from kanon.sync import GENERATED, is_generated
@@ -365,7 +367,7 @@ def _verify(root: Path) -> tuple[list[Finding], dict]:
             text = path.read_text(encoding="utf-8")
             if not (rel in GENERATED and is_generated(text)):
                 findings += check_writing(rel, text)
-    tracked = set(_git(root, "ls-files", "--", *GENERATED).split())
+    tracked = set(_git(root, "ls-files", "--", *GENERATED, "kanon/local").split())
     findings += [Finding(rel, 1, "privacy", "generated agent file is committed; remove it with git rm --cached")
                  for rel in sorted(tracked)]
     return findings, settings
@@ -374,8 +376,11 @@ def _verify(root: Path) -> tuple[list[Finding], dict]:
 HOOK = """#!/bin/sh
 # Installed by kanon init. Runs Kanon's checks on the working tree before each commit.
 # Limits: it checks files on disk, not only the staged changes; 'git commit --no-verify' skips it.
+# In Kanon's own repository, use the version being developed, never a stale global install.
+if grep -q '^name = "kanon-engine"' pyproject.toml 2>/dev/null && command -v uv >/dev/null 2>&1; then
+  exec uv run --quiet kanon verify
+fi
 if command -v kanon >/dev/null 2>&1; then exec kanon verify; fi
-if command -v uv >/dev/null 2>&1 && uv run --quiet kanon --version >/dev/null 2>&1; then exec uv run --quiet kanon verify; fi
 echo "kanon is not installed; kanon verify skipped"
 exit 0
 """

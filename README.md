@@ -6,12 +6,12 @@ specialist AI agents through an independent review loop with owner approval.
 
 ## Status
 
-Phase 0 (foundation) is complete and awaiting approval. No code has been released yet.
+Phase 1 (core engine) is in progress. Run `kanon desk` to see what waits on you.
 
 | Start here | Purpose |
 |---|---|
-| [kanon/REVIEW.md](kanon/REVIEW.md) | Items awaiting the owner's decision |
-| [kanon/STATUS.md](kanon/STATUS.md) | Phases, progress and recent changes |
+| [kanon/docs/roadmap.md](kanon/docs/roadmap.md) | Phases and their scope |
+| [kanon/work/](kanon/work/) | Work in progress, one file per piece of work |
 | [kanon/decisions/](kanon/decisions/) | Decision records, one page each |
 
 ## Capabilities (planned)

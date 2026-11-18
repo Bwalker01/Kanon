@@ -17,7 +17,7 @@ updated: 2026-11-18
 | Clear questions | One decision per question, with the options, a recommendation and the default. Record each question and answer in the work file. |
 | Candour | Raise flaws, conflicts with decisions, hidden costs and simpler alternatives before starting, with evidence. The person decides; a concern is recorded once and not reopened without new information. |
 | Realism | Distinguish tested results from expectations. State what is uncertain or untested. Never promise what a check cannot guarantee. |
-| Tone in chat | Brief, friendly, professional. No flattery, filler or unnecessary apology. Link to `REVIEW.md` or the relevant section instead of restating documents. |
+| Tone in chat | Brief, friendly, professional. No flattery, filler or unnecessary apology. Link to the Desk or the relevant section instead of restating documents. |
 
 ## 2. Technical Level
 

@@ -144,10 +144,9 @@ def test_an_incomplete_exception_is_itself_a_problem(repo):
     only(repo, "settings", "needs path, rule, reason")
 
 
-def test_open_question_in_review_list_fails(repo):
-    edit(repo, "kanon/REVIEW.md", "## Decisions\n\nNone.", "## Decisions\n\nShould we use Postgres?")
-    only(repo, "questions", "question in the review list")
-
+def test_question_in_decision_needed_line_fails(repo):
+    edit(repo, WORK, "> **Decision needed:** None yet.", "> **Decision needed:** Should we use Postgres?")
+    only(repo, "questions", "Decision needed")
 
 def test_code_fences_are_ignored(repo):
     edit(repo, WORK, "## 2. Questions", "```text\n## 9. Cost\nA seamless — thing?\n```\n\n## 2. Questions")
@@ -281,10 +280,12 @@ def test_conduct_exemption_is_by_exact_path(repo):
     assert any(r == "writing" for _, r, _ in rules(repo))
 
 
-def test_question_in_a_table_cell_is_found(repo):
-    edit(repo, "kanon/REVIEW.md", "|---|---|---|---|", "|---|---|---|---|\n| A-1 | Use Postgres? | x | y |")
-    only(repo, "questions", "question in the review list")
-
+def test_generated_desk_is_never_checked_or_committed(repo):
+    (repo / "kanon/local").mkdir(exist_ok=True)
+    (repo / "kanon/local/DESK.md").write_text("no frontmatter, a seamless \u2014 note")
+    assert rules(repo) == []
+    git(repo, "add", "-f", "kanon/local/DESK.md")
+    only(repo, "privacy", "generated agent file is committed")
 
 def test_unused_exception_is_reported(repo):
     with (repo / "kanon/kanon.toml").open("a") as f:

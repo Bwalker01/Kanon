@@ -10,5 +10,7 @@ dist/
 /.claude/skills/kanon-metis/SKILL.md
 /.claude/skills/kanon-clio/SKILL.md
 /.claude/skills/kanon-mnemon/SKILL.md
+/.claude/skills/kanon-atlas/SKILL.md
 /.claude/agents/kritos-reviewer.md
+/kanon/local/
 # kanon:end

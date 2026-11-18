@@ -29,6 +29,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     commands.add_parser("sync", help="regenerate the agent files Kanon keeps out of Git")
 
+    commands.add_parser("desk", help="rebuild your Desk: decisions, actions and reviews waiting on you")
+
     pro = commands.add_parser("profile", help="show or set your personal profile (stored outside every repository)")
     pro.add_argument("--github", help="your GitHub username")
     pro.add_argument("--name", help="your name")
@@ -100,6 +102,21 @@ def run_sync() -> int:
     for note in result.notes:
         print(f"Note      {note}")
     return 1 if result.refused else 0
+
+
+def run_desk() -> int:
+    root = init_module.repo_root(Path.cwd())
+    if root is None or not init_module.has_settings(root):
+        print("kanon desk: Kanon is not set up here; run kanon init first")
+        return 2
+    from kanon import desk as desk_module
+    result = desk_module.write(root)
+    print(f"Desk for {result.person} on {result.branch}: {len(result.decisions)} decisions, "
+          f"{len(result.actions)} actions, {len(result.reviews)} late reviews.")
+    print("Open kanon/local/desk.html (or kanon/local/DESK.md).")
+    for note in result.notes:
+        print(f"Note  {note}")
+    return 0
 
 
 def run_profile(args) -> int:
@@ -181,6 +198,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return run_init(args)
     if args.command == "sync":
         return run_sync()
+    if args.command == "desk":
+        return run_desk()
     if args.command == "profile":
         return run_profile(args)
     if args.command == "new":

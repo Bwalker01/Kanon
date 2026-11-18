@@ -94,8 +94,7 @@ def init(path: Path, approvers: list[str], today: dt.date | None = None) -> Init
     date = (today or dt.date.today()).isoformat()
     result = InitResult()
     files = {
-        "kanon/REVIEW.md": render("review.md", date=date),
-        "kanon/STATUS.md": render("status.md", date=date),
+        "kanon/docs/roadmap.md": render("roadmap.md", date=date),
         "kanon/docs/conduct-and-writing.md": render("conduct-and-writing.md", date=date),
         "kanon/docs/learnings.md": render("learnings.md", date=date),
         "kanon/sources.md": render("sources.md", date=date),
@@ -111,7 +110,8 @@ def init(path: Path, approvers: list[str], today: dt.date | None = None) -> Init
             continue  # the folder already has content to keep it in Git
         _write_new(root, rel, content, result)
     synced = sync(root)
-    result.created += [f for f in synced.written if not f == ".gitignore"]
+    from kanon.desk import OUTPUTS
+    result.created += [f for f in synced.written if f != ".gitignore" and f not in OUTPUTS]
     if ".gitignore" in synced.written:
         result.updated.append(".gitignore")
     result.kept += synced.unchanged

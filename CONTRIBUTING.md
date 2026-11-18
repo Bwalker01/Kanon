@@ -23,7 +23,7 @@ uv run kanon profile --github <your-github-username> --level developer
 
 ## Working
 
-- Read `kanon/STATUS.md` and `kanon/REVIEW.md` first.
+- Run `kanon desk` and read `kanon/local/DESK.md` and `kanon/local/STATUS.md` first.
 - Run the tests with `uv run pytest -q` and the checks with `uv run kanon verify` before committing.
 - `kanon/sources.md` holds the owner's words verbatim; work from the decision records.
 - Commit messages start with ADDED, MODIFIED or REMOVED and give a one-line reason.

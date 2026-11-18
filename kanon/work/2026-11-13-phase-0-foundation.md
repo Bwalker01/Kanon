@@ -59,7 +59,7 @@ Outputs of Phase 0, as delivered.
 | Item | Decision | Date | Basis |
 |---|---|---|---|
 | Research and foundation plan, revision 4 | Approved | 2026-11-13 | Owner instruction "begin phase 0" (transcribed by the assistant; confirmed by R-1) |
-| Decisions ADR-001 to ADR-009, conduct standard and layout | Approved | 2026-11-16 | Owner in chat: "R-1: All 9 decisions approved". Transcribed by the assistant; applies to commit `314a276` |
+| Decisions ADR-001 to ADR-009, conduct standard and layout | Approved | 2026-11-16 | Owner in chat: "R-1: All 9 decisions approved". Transcribed by the assistant; applies to commit `7141598` |
 
 ## 6. Cost
 

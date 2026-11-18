@@ -95,7 +95,7 @@ coming from `KANON_PROFILE`. Both keep the profile outside the repository.
 
 | Item | Decision | Date | Basis |
 |---|---|---|---|
-| Design | Approved | 2026-11-18 | Owner in chat: "R-1 approve". Transcribed by the assistant; applies to commit `68c10e8` |
+| Design | Approved | 2026-11-18 | Owner in chat: "R-1 approve". Transcribed by the assistant; applies to commit `dfdfcfb` |
 
 ## 5. Cost
 

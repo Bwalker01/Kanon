@@ -18,4 +18,4 @@ reason = "The Phase 0 record was written after the work, during the 2026-11-16 r
 path = "kanon/work/2026-11-16-phase-1-plan.md"
 rule = "loop"
 contains = "not committed on its own"
-reason = "Plan approved by the owner at 314a276 before any code; the Creator and Reviewer rows were added later. Accepted by the owner 2026-11-17."
+reason = "Plan approved by the owner at 7141598 before any code; the Creator and Reviewer rows were added later. Accepted by the owner 2026-11-17."

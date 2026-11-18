@@ -1,13 +1,13 @@
 ---
 type: work
-status: awaiting-approval
-updated: 2026-11-17
+status: in-progress
+updated: 2026-11-18
 ---
 
 # Agent Files and Profiles
 
 > **Summary:** Keep every Kanon-generated agent file and every personal profile out of Git, so teams never overwrite each other and nothing personal is published.
-> **Decision needed:** Approve this design (R-1 in `kanon/REVIEW.md`).
+> **Decision:** Design approved by the owner on 2026-11-18 (R-1). Build in progress.
 
 ## 1. Plan
 
@@ -85,7 +85,9 @@ Not yet reviewed.
 
 ## 4. Decision
 
-Pending.
+| Item | Decision | Date | Basis |
+|---|---|---|---|
+| Design | Approved | 2026-11-18 | Owner in chat: "R-1 approve". Transcribed by the assistant; applies to commit `68c10e8` |
 
 ## 5. Cost
 

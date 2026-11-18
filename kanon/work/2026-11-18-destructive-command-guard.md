@@ -4,7 +4,7 @@ status: awaiting-approval
 updated: 2026-11-18
 ---
 
-# Destructive command guard
+# Destructive Command Guard
 
 > **Summary:** Block agent commands that delete shared locations, after a reviewer's cleanup deleted `/tmp` and with it the session's commit-signing helper.
 > **Decision needed:** Approve the guard hook and the deletion rule for all agents.
@@ -13,7 +13,7 @@ updated: 2026-11-18
 
 | Field | Value |
 |---|---|
-| Output | `kanon/guard.py`; generated `.claude/hooks/kanon-guard.py`; hook registered in `.claude/settings.local.json` by `kanon sync`; deletion rule for all agents; learning L-004 |
+| Output | `src/kanon/guard.py`; generated `.claude/hooks/kanon-guard.py`; hook registered in `.claude/settings.local.json` by `kanon sync`; deletion rule for all agents; learning L-004 |
 | Inputs | Incident 2026-11-18 13:38:38 (subagent log); Claude Code hooks documentation, read 2026-11-18 |
 | Acceptance | The incident command is blocked; deletions of paths the agent created pass; other settings in `settings.local.json` survive sync; hooks fire for subagents (per documentation) |
 | Creator | Claude Code (builder session) |
@@ -28,8 +28,11 @@ including the session's commit-signing helper `/tmp/code-sign`. Evidence: the su
 
 ### 1.2 Limits
 
-- The guard reads command text. It cannot see through variables, scripts or other programs, and it
-  also blocks commands that only quote such text (for example a heredoc); agents then use a file editor.
+- The guard reads command text. It cannot see what variables hold, what scripts do, or deletions made
+  by other programs, and it allows patterns with literal text such as `/tmp/tmp*`.
+- It can block a harmless command whose text resembles a dangerous deletion (for example such text
+  inside a heredoc); agents then write that text with a file editor.
+- It fails open: when the hook script, the project folder variable or `python3` is missing, commands run unchecked.
 - The signing helper returns only with a new container; this session's later commits are unsigned.
 
 ## 2. Questions
@@ -39,7 +42,9 @@ including the session's commit-signing helper `/tmp/code-sign`. Evidence: the su
 
 ## 3. Review
 
-Not yet reviewed.
+| Round | Items | Reviewer | Verdict | Blocking | Outcome |
+|---|---|---|---|---|---|
+| 1 | Guard, hook registration, rule | Kritos (`kritos-reviewer` agent) | correct | K-101 to K-105 | All fixed with tests; non-blocking K-106 to K-109 fixed |
 
 ## 4. Decision
 
@@ -48,3 +53,7 @@ Pending.
 ## 5. Cost
 
 Recorded when work starts.
+
+| Step | Output (main) | Output (subagents) | Cache writes | Cache reads | Estimated cost |
+|---|---|---|---|---|---|
+| Guard build, review round 1 and fixes | 35,219 | 29,496 | 102,292 | 22,182,324 | incomplete: $0.00 so far |

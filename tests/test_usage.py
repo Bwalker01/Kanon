@@ -230,9 +230,32 @@ def test_subagent_without_session_id_belongs_to_its_parent_session(tmp_path):
     assert rep.cost_bound == "incomplete"
 
 
-def test_cli_usage_resolves_git_refs_from_a_subdirectory(monkeypatch, capsys):
-    monkeypatch.chdir(Path(__file__).resolve().parent)
-    assert main(["usage", "--logs", str(LOGS), "--since", "HEAD"]) == 0
+def test_cli_usage_resolves_git_refs_from_a_subdirectory(monkeypatch, capsys, tmp_path):
+    root = Path(__file__).resolve().parents[1]
+    monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(tmp_path))
+    shutil.copytree(LOGS, usage.default_log_dir(root))
+    monkeypatch.chdir(root / "tests")
+    assert main(["usage", "--json", "--since", "2000-01-01T00:00:00Z"]) == 0
+    data = json.loads(capsys.readouterr().out)
+    assert data["main"]["output_tokens"] == MAIN["output_tokens"]  # logs found under the root's name
+    assert main(["usage", "--since", "HEAD"]) == 0
+
+
+def test_subagent_only_activity_counts_its_parent_session(tmp_path):
+    write_log(tmp_path / "s.jsonl", [mark("2026-01-01T09:00:00Z"), cost(1),
+                                     mark("2026-01-01T11:00:00Z"), cost(9)])
+    write_log(tmp_path / "s" / "subagents" / "agent-1.jsonl", [reply("r1", "2026-01-01T10:00:00Z", 5)])
+    rep = usage.report(tmp_path, t("2026-01-01T09:30:00Z"), t("2026-01-01T10:30:00Z"))
+    assert rep.subagents.replies == 1 and rep.cost_usd == 8.0
+
+
+def test_a_total_that_drops_and_recovers_is_unavailable(tmp_path):
+    write_log(tmp_path / "s.jsonl", [mark("2026-01-01T09:00:00Z"), cost(5), mark("2026-01-01T09:20:00Z"),
+                                     reply("r1", "2026-01-01T09:25:00Z", 5), cost(1),
+                                     mark("2026-01-01T09:40:00Z"), cost(6)])
+    rep = usage.report(tmp_path, t("2026-01-01T09:10:00Z"))
+    assert rep.cost_usd is None and rep.cost_bound == "unknown"
+    assert not any("no cost estimate found" in n for n in rep.notes)
 
 
 def test_incomplete_cost_with_no_estimate_yet_is_not_shown_as_zero(tmp_path):

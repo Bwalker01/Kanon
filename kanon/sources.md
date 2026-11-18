@@ -87,3 +87,11 @@ Phase 1 work file's plan-first exception is accepted.
 ## 11. Owner Actions (2026-11-18)
 
 > give me everything that needs doing on my side, and make sure that its reflected easily and kept up to date in the project in some way to make it easier to do
+
+## 12. Desk and Atlas (2026-11-18)
+
+> owner setup doesn't need to be kept in the repo, instructions for the creation of things relating directly to the setup of this repo can be kept as current actions within the REVIEW file (which could be better named now that it includes actions). for all general repos, REVIEW.md and STATUS.md shouldn't be committed right? maybe status can, but REVIEW again pertains to the current local user's actions and decisions so these may be useful on the current branch if people switch between them but in the core project, where multiple features are being done at once, these will end up overlapping. consider this and identify a fix.
+
+> could Atlas be an agent archetype extension to koine's existing ones that manages the review and actions required by the user, managing the DESK.md file that gives these steps in an ordered, structured, and easily interactable file? it may require the DESK being expanded out into something more than an md file so that reviews can be more interactive, and actions can be more visually helpful
+
+Chosen in questions: roadmap committed, status generated; the Desk as a self-contained page with no server.

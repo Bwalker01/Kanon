@@ -11,10 +11,10 @@ updated: 2026-11-18
 
 ## Decisions
 
-### R-1: Owner Actions List
+### R-1: Desk and Atlas
 
-- **Decide:** approve tracking owner actions here, with steps in `kanon/docs/owner-setup.md`.
-- **Read:** `kanon/work/2026-11-18-owner-actions.md`, section 1.
+- **Decide:** approve replacing this file and `STATUS.md` with a generated, per-person Desk kept by a new role, Atlas.
+- **Read:** `kanon/work/2026-11-18-desk-and-atlas.md`, sections 1.2 to 1.6. Replaces the earlier R-1.
 
 ## Actions
 

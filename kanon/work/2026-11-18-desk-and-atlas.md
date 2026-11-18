@@ -88,6 +88,7 @@ Atlas holds what rests on the person's shoulders. A thirteenth archetype, extend
 | 2026-11-18 | Commit `REVIEW.md` and `STATUS.md`? | Neither; status generated, roadmap committed |
 | 2026-11-18 | Name for the personal list | `DESK.md`, maintained by a new archetype, Atlas |
 | 2026-11-18 | How interactive should the Desk be? | A self-contained page with no server |
+| 2026-11-18 | Desk page feedback: copy fails; hard to skim | Rebuild with tabs, expandable cards, proper buttons and a reply box that works without clipboard access |
 
 ## 3. Review
 

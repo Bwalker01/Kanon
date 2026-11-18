@@ -200,6 +200,19 @@ def test_cycles_keep_every_action(repo):
     assert sorted(a.id for a in desk.build(repo).actions) == ["A-1", "A-2", "A-3"]
 
 
+def test_page_has_tabs_cards_and_selectable_replies(repo):
+    (repo / "kanon/work/2026-11-18-setup.md").write_text(work_file("Setup", ACTIONS))
+    (repo / "kanon/work/2026-11-18-plan.md").write_text(work_file("Plan", status="awaiting-approval", needed="Approve."))
+    desk.write(repo)
+    page = (repo / "kanon/local/desk.html").read_text()
+    for tab in ("decide", "do", "later", "status"):
+        assert f'id="tab-{tab}"' in page and f'id="panel-{tab}"' in page
+    assert page.count('<details class="card action') == 2 and page.count('<details class="card decision') == 1
+    assert 'class="reply-text" readonly value="approve plan"' in page
+    assert 'value="done setup A-1"' in page
+    assert "execCommand('copy')" in page  # works where the Clipboard API is blocked
+
+
 def test_the_same_topic_on_two_days_is_refused_and_reported(repo):
     kinit.new_work(repo, "setup", dt.date(2026, 11, 17))
     with pytest.raises(FileExistsError, match="already uses the topic 'setup'"):

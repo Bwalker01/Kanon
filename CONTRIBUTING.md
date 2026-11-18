@@ -34,4 +34,4 @@ Projects set up before 2026-11-18 kept profiles in `kanon/kanon.toml`. To upgrad
 
 1. Move each person's details into their own profile with `kanon profile`.
 2. Replace the `[people]` tables in `kanon/kanon.toml` with `approvers = ["<github-username>", ...]` under `[kanon]`.
-3. Untrack Kanon's generated files (`git rm --cached` on `AGENTS.md`, `CLAUDE.md` and `.claude/` where Kanon wrote them), then run `kanon sync`.
+3. Delete the files the earlier format generated: `AGENTS.md` and `CLAUDE.md` where Kanon wrote them, `.claude/skills/clio-scribe/`, `.claude/skills/metis-coordinator/`, `.claude/skills/mnemon-context/` and `.claude/agents/kritos-reviewer.md`. Untrack only those paths with `git rm --cached`, never the whole `.claude/` folder, then run `kanon sync`.

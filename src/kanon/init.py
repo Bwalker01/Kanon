@@ -115,7 +115,8 @@ def init(path: Path, approvers: list[str], today: dt.date | None = None) -> Init
     if ".gitignore" in synced.written:
         result.updated.append(".gitignore")
     result.kept += synced.unchanged
-    result.warnings += [f"{f} exists and was not written by Kanon; it was left alone" for f in synced.refused]
+    result.warnings += [f"{f} exists and was not written by Kanon; it was left alone"
+                        for f in synced.refused if f != ".gitignore"]  # a damaged block is explained in the notes
     result.warnings += synced.notes
     hook_path = Path(hook_location(root))
     existed = hook_path.exists()

@@ -1,13 +1,13 @@
 ---
 type: work
-status: awaiting-approval
+status: complete
 updated: 2026-11-18
 ---
 
 # Destructive Command Guard
 
 > **Summary:** Block agent commands that delete shared locations, after a reviewer's cleanup deleted `/tmp` and with it the session's commit-signing helper.
-> **Decision needed:** Approve the guard hook and the deletion rule for all agents.
+> **Decision needed:** None. Approved by the owner on 2026-11-18.
 
 ## 1. Plan
 
@@ -49,7 +49,9 @@ including the session's commit-signing helper `/tmp/code-sign`. Evidence: the su
 
 ## 4. Decision
 
-Pending.
+| Item | Decision | Date | Basis |
+|---|---|---|---|
+| Guard hook and deletion rule | Approved | 2026-11-18 | Owner in chat: "approve destructive-command-guard". Transcribed by the assistant; applies to commit `be4dbe8` |
 
 ## 5. Cost
 

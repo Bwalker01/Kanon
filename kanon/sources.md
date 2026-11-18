@@ -109,3 +109,5 @@ Chosen in a question before this: commit unsigned until the signing helper retur
 ## 14. Desk Layout (2026-11-18)
 
 > the copy button doesn't work in the desk.html file. its also not very clearly laid out or easy to skim and read. make it generate more interactively (headers as clear tabs, proper buttons, items split into cards that can be expanded for more info
+
+> approve destructive-command-guard

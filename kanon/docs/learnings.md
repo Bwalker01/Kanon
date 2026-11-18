@@ -9,6 +9,12 @@ updated: 2026-11-16
 > **Summary:** Lessons from building and using Kanon that apply beyond the task that produced
 > them. Newest first.
 
+## L-004: Cleanup Commands Must Name What They Delete (2026-11-18)
+
+- **Finding:** A reviewer's cleanup loop deleted every folder that `find /tmp -maxdepth 1 -name 'tmp*'` returned. `find` returns its own starting folder, and `/tmp` matched `tmp*`, so all of `/tmp` was deleted, including the session's commit-signing helper. Commits failed for the rest of the container's life.
+- **Cause:** Cleanup by pattern instead of by exact path, allowed by a reviewer prompt that said only "remove them".
+- **Rule:** Delete only paths you created, by exact path. The Kanon guard hook blocks deletions of shared locations for every agent, subagents included (`kanon/work/2026-11-18-destructive-command-guard.md`).
+
 ## L-003: Record Only What Is Committed (2026-11-18)
 
 - **Finding:** A review record listed three fixes as done; the commit held none of them.

@@ -30,7 +30,8 @@ Roles, in `kanon/docs/roles/`: Metis coordinates (skill `kanon-metis`), Kritos r
 9. **Run `kanon verify`** before committing.
 10. **Commit messages** start with ADDED, MODIFIED or REMOVED and give a one-line reason.
 11. **Be economical.** Read summaries before full files; run free checks before model reviews.
-12. **Never commit personal data.** Profiles stay outside the repository. Generated agent files are listed in the Kanon block of `.gitignore`; `kanon sync` rebuilds them.
+12. **Delete only what you created.** Make probe folders with `mktemp -d`, keep their exact paths, and remove only those paths. Never delete with `find` or globs over shared folders such as `/tmp` or the home folder; the Kanon guard hook blocks it, and it also blocks commands that merely contain such text, so write that text with a file editor instead of the shell.
+13. **Never commit personal data.** Profiles stay outside the repository. Generated agent files are listed in the Kanon block of `.gitignore`; `kanon sync` rebuilds them.
 
 ## Conduct and Writing Standard
 

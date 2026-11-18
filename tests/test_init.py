@@ -54,7 +54,7 @@ def untracked_or_changed(repo):
 
 def test_init_writes_shared_files_and_generated_files(repo):
     kinit.init(repo, APPROVERS, TODAY)
-    assert sorted(set(committed_and_generated(repo)) - set(ksync.GENERATED)) == COMMITTED
+    assert sorted(set(committed_and_generated(repo)) - set(ksync.GENERATED) - set(ksync.PERSONAL)) == COMMITTED
     assert all((repo / p).exists() for p in ("kanon/local/DESK.md", "kanon/local/desk.html", "kanon/local/STATUS.md"))
     assert set(ksync.GENERATED) <= set(files_in(repo))
 

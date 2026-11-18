@@ -8,11 +8,6 @@ VALUES = dict(
     title="Example",
     summary="An example document.",
     number="001",
-    person_id="owner",
-    person_name="Owner",
-    person_level="developer",
-    person_description="Writes Python daily.",
-    approver="owner@laptop",
 )
 MARKDOWN = [n for n in TEMPLATE_NAMES if n.endswith(".md") and not n.startswith(("claude/", "rules-"))]
 

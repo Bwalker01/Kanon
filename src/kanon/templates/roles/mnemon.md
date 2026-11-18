@@ -11,7 +11,7 @@ updated: $date
 
 ## 1. Inputs
 
-- `kanon/STATUS.md`, `kanon/REVIEW.md`, the person's profile, decision summaries.
+- `kanon/STATUS.md`, `kanon/REVIEW.md`, `.claude/rules/kanon-person.md`, decision summaries.
 
 ## 2. Procedure
 

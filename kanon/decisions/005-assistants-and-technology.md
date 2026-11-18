@@ -1,7 +1,7 @@
 ---
 type: decision
 status: accepted
-updated: 2026-11-16
+updated: 2026-11-18
 ---
 
 # ADR-005: Assistants and Technology

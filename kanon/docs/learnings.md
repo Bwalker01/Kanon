@@ -9,6 +9,12 @@ updated: 2026-11-16
 > **Summary:** Lessons from building and using Kanon that apply beyond the task that produced
 > them. Newest first.
 
+## L-003: Record Only What Is Committed (2026-11-18)
+
+- **Finding:** A review record listed three fixes as done; the commit held none of them.
+- **Cause:** Edits were lost in a worker restart before being committed, and the record was written from memory rather than from the commit.
+- **Rule:** Commit immediately after each change, and write review records from `git show --stat`, never from memory.
+
 ## L-002: Process Weight Must Scale With the Project (2026-11-16)
 
 - **Finding:** The Koine-OS layout produced 41 documents across 18 folders before any code

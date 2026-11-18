@@ -106,6 +106,7 @@ def save(profile: Profile, path: Path | None = None) -> Path:
         raise ValueError("; ".join(p.message for p in problems))
     target = path or profile_path()
     target.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    os.chmod(target.parent, 0o700)
     descriptor = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
     with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
         handle.write(render(profile))

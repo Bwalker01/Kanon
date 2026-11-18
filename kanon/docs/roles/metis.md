@@ -1,7 +1,7 @@
 ---
 type: standard
 status: proposed
-updated: 2026-11-16
+updated: 2026-11-18
 ---
 
 # Metis, Coordinator
@@ -12,7 +12,7 @@ updated: 2026-11-16
 ## 1. Inputs
 
 - The request, in the person's words.
-- `kanon/STATUS.md`, `kanon/REVIEW.md`, `kanon/decisions/` (summaries first), the person's profile in `kanon/kanon.toml`.
+- `kanon/STATUS.md`, `kanon/REVIEW.md`, `kanon/decisions/` (summaries first), the person's instructions in `.claude/rules/kanon-person.md`.
 
 ## 2. Procedure
 
@@ -37,5 +37,5 @@ A work file with every section filled, an entry in `kanon/REVIEW.md` where a dec
 
 ## 5. Profiles
 
-Pitch every message at the person's level in `kanon/kanon.toml`. If the conversation shows the
-level is wrong, suggest a change and apply it only after the person confirms.
+Pitch every message at the person's level in `.claude/rules/kanon-person.md`. If the conversation
+shows the level is wrong, suggest a change; the person applies it with `kanon profile`.

@@ -95,7 +95,8 @@ def run_sync() -> int:
         for item in items:
             print(f"{label:9} {item}")
     for item in result.refused:
-        print(f"Refused   {item}: exists and was not written by Kanon")
+        reason = "its Kanon block is damaged (see note)" if item == ".gitignore" else "exists and was not written by Kanon"
+        print(f"Refused   {item}: {reason}")
     for note in result.notes:
         print(f"Note      {note}")
     return 1 if result.refused else 0

@@ -78,12 +78,14 @@ updated: 2026-11-18
 |---|---|---|
 | 2026-11-17 | Where should personal profiles live? | Out of Git, for every user, including in live team environments; all agent files ignored |
 | 2026-11-17 | Split agent instructions into the owner's and Kanon's standard? | Yes |
+| 2026-11-18 | Earlier commits hold the owner's old profile: accept or rewrite history? (K-64) | Rewrite the branch history |
 
 ## 3. Review
 
 | Round | Items | Reviewer | Verdict | Blocking | Outcome |
 |---|---|---|---|---|---|
-| 1 | Build and migration | Kritos (`kritos-reviewer` agent) | correct | K-56, K-57, K-58 | All fixed with tests or records; non-blocking K-59 to K-63, K-65, K-66, K-68, K-69 fixed; K-64 to the owner |
+| 1 | Build and migration | Kritos (`kritos-reviewer` agent) | correct | K-56, K-57, K-58 | K-56, K-57, K-59 to K-63, K-68, K-69 fixed; K-64 to the owner |
+| 2 | Round 1 fixes | Kritos (`kritos-reviewer` agent) | correct | K-70 | K-70: the round 1 record wrongly listed K-58, K-65 and K-66 as fixed (edits lost in a worker restart, then recorded without checking the commit). All three, K-72 and K-74 to K-76 fixed after the final round; not independently reviewed. Owner decides at the review point |
 
 **Deviation from the plan (K-67):** cloud setup scripts cannot read the environment's saved
 variables, so the owner's profile is written by the setup script with `kanon profile` instead of

@@ -1,7 +1,7 @@
 ---
 type: standard
 status: proposed
-updated: 2026-11-16
+updated: 2026-11-18
 ---
 
 # Mnemon, Context Keeper
@@ -11,7 +11,7 @@ updated: 2026-11-16
 
 ## 1. Inputs
 
-- `kanon/STATUS.md`, `kanon/REVIEW.md`, the person's profile, decision summaries.
+- `kanon/STATUS.md`, `kanon/REVIEW.md`, `.claude/rules/kanon-person.md`, decision summaries.
 
 ## 2. Procedure
 

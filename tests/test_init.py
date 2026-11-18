@@ -288,3 +288,10 @@ def test_a_committed_generated_file_is_a_finding(repo):
     git(repo, "add", "-f", ".claude/rules/kanon-person.md")
     from kanon import verify as kv
     assert any(f.rule == "privacy" and f.path == ".claude/rules/kanon-person.md" for f in kv.verify(repo))
+
+
+def test_a_marker_on_line_one_outside_generated_paths_is_still_checked(repo):
+    kinit.init(repo, APPROVERS, TODAY)
+    (repo / ".claude/rules/team.md").write_text(f"{ksync.MARKER}\n# Team\n\nA seamless note.\n")
+    from kanon import verify as kv
+    assert (".claude/rules/team.md", "writing") in [(f.path, f.rule) for f in kv.verify(repo)]

@@ -222,3 +222,26 @@ def test_reviewer_review_commands_are_not_blocked(command):
 ])
 def test_reviewer_misses_are_now_blocked(command):
     assert guard.reviewer_write(command, PROJECT, HOME, PROJECT, SCRATCH)
+
+
+@pytest.mark.parametrize("command", [  # K-360 to K-363: false blocks found in round C2
+    "T=$(mktemp -d); cd $T && echo x > a", "echo $(date); cd /tmp && echo x > a",
+    "D=$(mktemp -d) && cp -r /home/user/project/src $D/", "cp README.md /tmp/claude-0/-home-user-project/session/scratchpad/r",
+    "rsync -a /home/user/project/ /tmp/k/", "tee /tmp/claude-0/-home-user-project/session/scratchpad/o < README.md",
+    "grep -c 'open(.*\"w\")' src/kanon/*.py", "git grep -n 'shutil.copy('",
+    "python3 -c \"open('/tmp/claude-0/-home-user-project/session/scratchpad/a','w').write('x')\"",
+    "git tag --list", "git tag -l", "git tag", "git branch --contains HEAD", "git branch --merged",
+    "git config user.name", "kanon desk --help", "kanon sync --help", "[[ 3 > 2 ]] && echo y", "echo $((3 > 2))",
+])
+def test_reviewer_probe_commands_from_round_c2_are_allowed(command):
+    assert guard.reviewer_write(command, PROJECT, HOME, PROJECT, SCRATCH) is None
+
+
+@pytest.mark.parametrize("command", [  # K-360, K-362, K-367: misses found in round C2
+    "cd /tmp && X=$(pwd); cd /home/user/project && echo x > README.md", "(echo x)>README.md",
+    "cd /tmp && python3 -c \"open('/home/user/project/README.md','w').write('x')\"",
+    'echo x > "$CLAUDE_PROJECT_DIR/README.md"', "find . -name x -delete", "find . -fprint README.md",
+    "env -u X cp /tmp/x README.md", "nohup cp /tmp/x README.md", "xargs cp -t src < list",
+])
+def test_reviewer_misses_from_round_c2_are_blocked(command):
+    assert guard.reviewer_write(command, PROJECT, HOME, PROJECT, SCRATCH)

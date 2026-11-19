@@ -252,7 +252,7 @@ def check(command: str, cwd: str, home: str, extra: list[str] | None = None, dep
 REVIEWER = "kritos-reviewer"
 GIT_WRITES = {"add", "commit", "push", "reset", "checkout", "switch", "restore", "merge", "rebase", "cherry-pick",
               "revert", "tag", "rm", "mv", "clean", "apply", "am", "pull", "init", "update-ref"}
-GIT_READ_FORMS = {"stash": {"list", "show"}, "branch": {"--list", "-l", "--show-current", "-a", "-r", "-v", "-vv"},
+GIT_READ_FORMS = {"stash": {"list", "show"}, "branch": {"--list", "-l", "--show-current", "-a", "-r", "-v", "-vv", "--contains", "--merged", "--no-merged", "--no-contains", "--points-at"},
                   "config": {"--get", "--get-all", "--list", "-l", "--get-regexp"}, "worktree": {"add", "list", "remove", "prune"}}
 FILE_WRITERS = {"cp", "mv", "rm", "rmdir", "touch", "mkdir", "chmod", "chown", "ln", "tee", "truncate", "install",
                 "dd", "patch", "unlink", "shred", "rsync"}
@@ -260,6 +260,7 @@ KANON_WRITES = {"init", "sync", "new", "approve", "request-changes", "transcribe
 REDIRECTS = {">", ">>", ">|", "&>", "&>>"}
 CODE_WRITES = re.compile(r"\bopen\([^)]*['\"][wax]\+?b?['\"]|\.write_(?:text|bytes)\(|\bwriteFileSync\b"
                          r"|shutil\.(?:copy\w*|move)\(")
+DESTINATION_ONLY = {"cp", "mv", "rsync", "install", "ln"}
 HEREDOC = re.compile(r"<<-?\s*(['\"]?)([A-Za-z_][A-Za-z0-9_]*)\1")
 
 
@@ -280,16 +281,36 @@ def _without_heredoc_bodies(command: str) -> str:
     return "\n".join(out)
 
 
+OPERATORS = sorted(["&>>", "<<<", ">>", "&&", "||", "&>", ">|", "<>", "<<", ";;", ">", "<", "|", ";", "&", "(", ")", "\n"],
+                   key=len, reverse=True)
+PUNCTUATION = set("<>|;&()\n")
+
+
+def _split_operators(token: str) -> list[str]:
+    """`);` or `)>` as single operators (K-360)."""
+    out = []
+    while token:
+        match = next((op for op in OPERATORS if token.startswith(op)), token[0])
+        out.append(match)
+        token = token[len(match):]
+    return out
+
+
 def _shell_words(text: str) -> list[str]:
     """Words and operators as the shell sees them: a `>` inside quotes stays part of its word (K-341)."""
+    text = re.sub(r"\$\(\([^()]*\)\)", "0", text)  # arithmetic such as $((3 > 2)) holds no redirection
     lexer = shlex.shlex(text, posix=True, punctuation_chars="<>|;&()\n")
     lexer.whitespace = " \t\r"
     lexer.whitespace_split = True
     lexer.commenters = ""
     try:
-        return list(lexer)
+        raw = list(lexer)
     except ValueError:
         return text.split()
+    words = []
+    for token in raw:
+        words += _split_operators(token) if token and set(token) <= PUNCTUATION else [token]
+    return words
 
 
 def _git_parts(args: list[str]) -> tuple[str | None, str, list[str]]:
@@ -306,13 +327,22 @@ def _git_parts(args: list[str]) -> tuple[str | None, str, list[str]]:
     return folder, (args[index] if index < len(args) else ""), args[index + 1:]
 
 
+WRAPPERS = {"nohup", "time", "command", "sudo", "nice", "timeout", "exec", "builtin"}
+
+
 def _command(stage: list[str]) -> tuple[str, list[str]]:
-    """The program a stage runs, looking through env, uv run and python -m wrappers (K-344)."""
+    """The program a stage runs, looking through env, uv run, python -m and similar wrappers (K-344, K-367)."""
     index, word = _first(stage)
     args = stage[index + 1:]
     while True:
         if word == "env":
-            args = [a for a in args if not re.fullmatch(r"[A-Za-z_]\w*=.*", a) and not a.startswith("-")]
+            while args and (args[0].startswith("-") or re.fullmatch(r"[A-Za-z_]\w*=.*", args[0])):
+                args = args[2:] if args[0] in ("-u", "-C", "--unset", "--chdir", "-S") else args[1:]
+        elif word in WRAPPERS or word == "xargs":
+            while args and args[0].startswith("-"):
+                args = args[2:] if word in ("timeout", "nice", "xargs") and args[0] in ("-n", "-s", "-k", "-P", "-I", "-L", "-d", "-a") else args[1:]
+            if word == "timeout" and args and re.fullmatch(r"[\d.]+[smhd]?", args[0]):
+                args = args[1:]
         elif word == "uv" and args[:1] == ["run"]:
             args = args[1:]
             while args and args[0].startswith("-"):
@@ -336,7 +366,7 @@ def reviewer_write(command: str, cwd: str, home: str, project: str, scratch: lis
     """
     keep_out = [os.path.normpath(project or cwd)]
     allowed = [os.path.normpath(p) for p in scratch if p]
-    names: dict[str, str | None] = {}
+    names: dict[str, str | None] = {"CLAUDE_PROJECT_DIR": keep_out[0], "PWD": cwd, "HOME": home}
 
     def expand(token: str) -> str | None:
         def value(match):
@@ -368,6 +398,9 @@ def reviewer_write(command: str, cwd: str, home: str, project: str, scratch: lis
                     names[name] = "/tmp/mktemp" if value.startswith("$(mktemp") or value.startswith("`mktemp") \
                         else expand(value)
                 word, args = _command(stage)
+                args = [a for i, a in enumerate(args) if a != "<" and (i == 0 or args[i - 1] != "<")]
+                if "--help" in args or "-h" in args[:1]:
+                    continue
                 if word in SHELLS and depth < 3:
                     for inner in _inner_commands([word, *args]):
                         reason = judge(inner, depth + 1)
@@ -380,6 +413,10 @@ def reviewer_write(command: str, cwd: str, home: str, project: str, scratch: lis
                     else:
                         here = "/tmp/unknown"
                     continue
+                if word == "find":
+                    start = next((a for a in args if not a.startswith("-")), ".")
+                    if any(a in ("-delete", "-fprint", "-fprint0", "-fprintf", "-fls") for a in args) and in_project(start, here):
+                        return "the reviewer may not change project files (`find -delete` or `-fprint`)"
                 if word == "find" and any(a in ("-exec", "-execdir", "-ok") for a in args):
                     start = next((a for a in args if not a.startswith("-")), ".")
                     position = next(i for i, a in enumerate(args) if a in ("-exec", "-execdir", "-ok"))
@@ -394,6 +431,10 @@ def reviewer_write(command: str, cwd: str, home: str, project: str, scratch: lis
                                                    and not any(r in reads for r in rest))
                     if sub == "stash" and not rest:
                         writes = True
+                    if sub == "tag" and (not rest or rest[0] in ("-l", "--list", "--contains", "--points-at", "-n")):
+                        writes = False  # listing tags (K-363)
+                    if sub == "config" and len([r for r in rest if not r.startswith("-")]) == 1:
+                        writes = False  # `git config <key>` reads one value
                     if writes and in_project(place, here):
                         return f"the reviewer may not change the repository (`git {sub}`)"
                 elif word == "kanon" and args and args[0] in KANON_WRITES:
@@ -402,15 +443,23 @@ def reviewer_write(command: str, cwd: str, home: str, project: str, scratch: lis
                     if any(in_project(a, here) for a in args if not a.startswith("-")):
                         return f"the reviewer may not edit project files (`{word} -i`)"
                 elif word in FILE_WRITERS:
-                    if any(in_project(a, here) for a in args if not a.startswith("-")):
+                    operands = [a for a in args if not a.startswith("-")]
+                    if word in DESTINATION_ONLY:  # only the destination is written (K-361)
+                        given = next((args[i + 1] for i, a in enumerate(args[:-1]) if a in ("-t", "--target-directory")), None)
+                        operands = [given] if given else operands[-1:]
+                    if any(in_project(a, here) for a in operands):
                         return f"the reviewer may not change project files (`{word}`)"
-                for index, token in enumerate(stage):
+                for index, token in enumerate(stage if word not in ("[[", "test", "[") else []):
                     if token in REDIRECTS and index + 1 < len(stage):
                         target = stage[index + 1]
                         if target not in ("/dev/null", "/dev/stderr", "/dev/stdout") and in_project(target, here):
                             return "the reviewer may not write project files (redirection)"
-                if CODE_WRITES.search(" ".join(stage)) and in_project(".", here):
-                    return "the reviewer may not write files from code run in the project"
+                code = next((args[i + 1] for i, a in enumerate(args[:-1]) if a in ("-c", "-e")), None) \
+                    if word.startswith(("python", "node", "ruby", "perl")) else None
+                if code and CODE_WRITES.search(code):  # judge the paths the code names, not the folder (K-362)
+                    literals = re.findall(r"['\"]([^'\"]+)['\"]", code)
+                    if any(in_project(l, here) for l in literals if not re.fullmatch(r"[wax]\+?b?|r", l)):
+                        return "the reviewer may not write project files from code"
         return None
 
     return judge(command)
@@ -428,7 +477,11 @@ def main() -> int:
     extra = [os.environ.get("CLAUDE_PROJECT_DIR", ""), str(event.get("scratchpad_dir") or "")]
     reason = check(command, cwd, os.path.expanduser("~"), extra)
     if not reason and event.get("agent_type") == REVIEWER:
-        reason = reviewer_write(command, cwd, os.path.expanduser("~"), extra[0] or cwd, extra[1:])
+        write = reviewer_write(command, cwd, os.path.expanduser("~"), extra[0] or cwd, extra[1:])
+        if write:  # its own advice (K-368)
+            print(f"Blocked by the Kanon guard: {write}. The reviewer reads and probes; copy files into a "
+                  "folder made with `mktemp -d` or the scratchpad to experiment.", file=sys.stderr)
+            return 2
     if reason:
         print(f"Blocked by the Kanon guard: {reason}. Delete only what you created, by its exact path "
               "(for example a folder made with `mktemp -d`), and never with find or globs over shared folders.",

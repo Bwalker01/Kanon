@@ -42,6 +42,17 @@ def _heading_name(line: str) -> str:
     return re.sub(r"^## (?:\d+\.\s+)?", "", line).strip()
 
 
+def _fence_left_open(lines: list[str]) -> bool:
+    fence = None
+    for line in lines:
+        marker = re.match(r"\s*(`{3,}|~{3,})", line)
+        if fence is None and marker:
+            fence = marker.group(1)[0] * len(marker.group(1))
+        elif fence is not None and line.strip().startswith(fence) and not line.strip().strip(fence[0]):
+            fence = None
+    return fence is not None
+
+
 def _unfenced(lines: list[str]) -> list[bool]:
     """For each line, True when it is outside a fenced code block (K-349)."""
     out, fence = [], None
@@ -133,13 +144,19 @@ class Row:
     line: int  # 1-based line in the file
 
     @property
+    def label(self) -> str:
+        """The basis after any quoted words: only Kanon writes here (K-365)."""
+        marker = "Transcribed by the assistant for "
+        return self.basis[self.basis.rindex(marker):] if marker in self.basis else self.basis
+
+    @property
     def hash(self) -> str | None:
-        match = HASH.search(self.basis)
+        match = HASH.search(self.label)
         return match.group(1) if match else None
 
     @property
     def kind(self) -> str:
-        match = MATERIAL.search(self.basis)
+        match = MATERIAL.search(self.label)
         return match.group(1) if match else (PLAN if self.item.lower().startswith("plan") else RESULT)
 
     @property
@@ -154,7 +171,7 @@ class Row:
 
     @property
     def labelled(self) -> bool:
-        return any(form in self.basis for form in FORMS)
+        return any(form in self.label for form in FORMS)
 
 
 def decision_rows(text: str) -> list[Row]:
@@ -274,6 +291,9 @@ def check(text: str, approvers: list[str], status: str | None) -> list[tuple[int
     """(line, message) for each approval problem in a work file."""
     rows = decision_rows(text)
     problems: list[tuple[int, str]] = []
+    head, lines = _split(text)
+    if _fence_left_open(lines):  # K-364: an open fence would hide the Decision rows
+        problems.append((head.count("\n") + 1, "a code fence is never closed; Decision rows after it cannot be checked"))
     allowed = [a.lower() for a in approvers]
     for row in rows:
         who = row.approver

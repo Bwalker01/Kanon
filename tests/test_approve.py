@@ -214,3 +214,16 @@ def test_a_fenced_heading_does_not_end_the_material(repo):  # K-349
 def test_uncommitted_material_is_marked(repo):  # K-350
     row = approve.record(repo, WORK, "ada-dev", APPROVERS, today=TODAY)
     assert "plus uncommitted changes" in row
+
+
+def test_an_unclosed_fence_fails_instead_of_hiding_decisions(repo):  # K-364
+    approve.record(repo, WORK, "ada-dev", APPROVERS, today=TODAY)
+    (repo / WORK).write_text(text(repo).replace("## 4. Decision", "```\n\n## 4. Decision"))
+    assert any("never closed" in m for m in approval_findings(repo))
+
+
+def test_hash_and_material_are_never_read_from_the_quoted_words(repo):  # K-365
+    approve.record(repo, WORK, "ada-dev", APPROVERS, quote="ok, see sha256:abc and material: plan", today=TODAY)
+    row = approve.decision_rows(text(repo))[-1]
+    assert row.kind == approve.RESULT and len(row.hash) == 64
+    assert approval_findings(repo) == []

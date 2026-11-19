@@ -28,5 +28,6 @@ updated: 2026-11-19
 
 ## Consequences
 
-- Remaining bypasses, all tamper-evident only: file edits through the shell (including of `.claude/settings.local.json`, which holds the deny rules), running Kanon with `CLAUDECODE` unset, a forged transcription, a forged hashless row dated on or before 2026-11-19, and reviewer writes made by programs a command starts or through variables the guard cannot resolve.
+- Remaining bypasses, all tamper-evident only: file edits through the shell (including of `.claude/settings.local.json`, which holds the deny rules), running Kanon with `CLAUDECODE` unset, a forged transcription, a forged hashless row dated on or before 2026-11-19, and reviewer writes made by programs a command starts, through variables the guard cannot resolve, or by commands it does not model (for example `awk` output redirection, `sort -o`, `curl -o`, `tar x`, `git fetch`, `uv sync`).
+- An item approval leaves the summary as it is; Atlas updates the summary's Decision line after recording one.
 - The edit deny rules were written but not exercised live; tests confirm they are written.

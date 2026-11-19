@@ -122,10 +122,10 @@ Chosen in a question before this: commit unsigned until the signing helper retur
 
 Chosen in questions: option A with capability tiers and a Git-only floor; no new role. Plan as P1-11: "yes".
 
+> the github integration review work can be done in the same phase as the github projects integration work, as it won't be necessary until then anyway
+
 ## 16. Role Packaging and Roster (2026-11-19)
 
 > can the existing roles be split into their own agents, as expansions that are added via the pantheon as required later? and can the roster of roles be expanded into other possibilities to improve the variety in what Kanon can facilitate?
 
 > this seems okay as is and will be looked into closer to phase 4
-
-> the github integration review work can be done in the same phase as the github projects integration work, as it won't be necessary until then anyway

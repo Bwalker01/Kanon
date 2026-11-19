@@ -1,7 +1,7 @@
 ---
 type: doc
 status: current
-updated: 2026-11-18
+updated: 2026-11-19
 ---
 
 # Roadmap
@@ -17,5 +17,5 @@ updated: 2026-11-18
 | 1 | Core engine: `kanon` command, review loop, approvals, verification, agent files, the Desk, branches and pull requests | `kanon/work/2026-11-16-phase-1-plan.md` |
 | 2 | Pinax tickets, specialist roster, GitHub Project board | Not yet planned |
 | 3 | Engine mode, AutoBuild | Not yet planned |
-| 4 | Pantheon marketplace | Not yet planned |
+| 4 | Pantheon marketplace; core roles packaged in the Pantheon format and a wider specialist roster considered here (owner, 2026-11-19) | Not yet planned |
 | 5 | First outside project; other assistants | Not yet planned |

@@ -121,3 +121,9 @@ Chosen in a question before this: commit unsigned until the signing helper retur
 > does a new agent role need to be added for repository interaction management and tracking or will that be done via communication between Atlas and the scribe one?
 
 Chosen in questions: option A with capability tiers and a Git-only floor; no new role. Plan as P1-11: "yes".
+
+## 16. Role Packaging and Roster (2026-11-19)
+
+> can the existing roles be split into their own agents, as expansions that are added via the pantheon as required later? and can the roster of roles be expanded into other possibilities to improve the variety in what Kanon can facilitate?
+
+> this seems okay as is and will be looked into closer to phase 4

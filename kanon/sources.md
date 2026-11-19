@@ -111,3 +111,13 @@ Chosen in a question before this: commit unsigned until the signing helper retur
 > the copy button doesn't work in the desk.html file. its also not very clearly laid out or easy to skim and read. make it generate more interactively (headers as clear tabs, proper buttons, items split into cards that can be expanded for more info
 
 > approve destructive-command-guard
+
+## 15. Review and Action Records (2026-11-19)
+
+> is there a way that the desk can become more integrated with either vscode, claude code or another application as an actual interactive reviewing method, and action step record that you can access without it taking too many excess tokens to recreate every time? it would preferably allow you to see steps ticked with any necessary notes users give about them, and allow users to add review notes to specific files or even directly to any line(s). I'm aiming to make it as easy as possible for any user to explore and use but it also shouldn't take too much away from time or cost of the project that Kanon is doing.
+
+> I like A, I think it would be a good starting point, but it does tie Kanon heavily to github. this may also run into problems on github enterprise where users may not have very elevated permissions with use of Kanon, or the enterprise limits use of projects  or other github features altogether
+
+> does a new agent role need to be added for repository interaction management and tracking or will that be done via communication between Atlas and the scribe one?
+
+Chosen in questions: option A with capability tiers and a Git-only floor; no new role. Plan as P1-11: "yes".

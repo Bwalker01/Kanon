@@ -137,6 +137,38 @@ def ensure_guard_hook(root: Path) -> str:
     return "added"
 
 
+def deny_rules(root: Path) -> list[str]:
+    """Claude Code rules that refuse self-approval and edits to the owner's settings (P1-05, K-33)."""
+    settings_file = (root / "kanon" / "kanon.toml").resolve().as_posix()
+    rules = [f"Bash({prefix}kanon {command}:*)" for prefix in ("", "uv run ", "uv run --quiet ", "python3 -m ", "python -m ")
+             for command in ("approve", "request-changes")]
+    for tool in ("Edit", "Write"):
+        rules += [f"{tool}(kanon/kanon.toml)", f"{tool}(//{settings_file.lstrip('/')})"]
+    return rules
+
+
+def ensure_permissions(root: Path) -> str:
+    """Add Kanon's deny rules to .claude/settings.local.json, keeping other rules. Returns "added",
+    "present" or a reason they could not be added."""
+    import json
+    path = root / SETTINGS_LOCAL
+    try:
+        settings = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return f"{SETTINGS_LOCAL} is not valid JSON; Kanon's permission rules were not added"
+    permissions = settings.setdefault("permissions", {}) if isinstance(settings, dict) else None
+    deny = permissions.setdefault("deny", []) if isinstance(permissions, dict) else None
+    if not isinstance(deny, list):
+        return f"{SETTINGS_LOCAL} has an unexpected 'permissions' layout; Kanon's permission rules were not added"
+    missing = [rule for rule in deny_rules(root) if rule not in deny]
+    if not missing:
+        return "present"
+    deny += missing
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(settings, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    return "added"
+
+
 def ensure_gitignore(root: Path) -> bool:
     """Add or refresh the Kanon block in .gitignore. Returns True if the file changed."""
     path = root / ".gitignore"
@@ -188,10 +220,13 @@ def sync(root: Path) -> SyncResult:
         path.write_text(content, encoding="utf-8")
         result.written.append(rel)
     hook = ensure_guard_hook(root)
-    if hook == "added":
-        result.written.append(SETTINGS_LOCAL)
-    elif hook != "present":
-        result.notes.append(hook)
+    # A settings file Kanon could not read safely is left exactly as it is.
+    for outcome in (hook, ensure_permissions(root) if hook in ("added", "present") else "present"):
+        if outcome == "added":
+            if SETTINGS_LOCAL not in result.written:
+                result.written.append(SETTINGS_LOCAL)
+        elif outcome != "present":
+            result.notes.append(outcome)
     if ".gitignore" in result.refused:
         result.notes.append("the Desk was not rebuilt: it would not be ignored by Git until .gitignore is fixed")
     elif (root / "kanon/kanon.toml").exists():

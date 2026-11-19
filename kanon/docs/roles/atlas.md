@@ -1,7 +1,7 @@
 ---
 type: standard
 status: proposed
-updated: 2026-11-18
+updated: 2026-11-19
 ---
 
 # Atlas, Desk Keeper
@@ -37,7 +37,7 @@ The person replies `done <work> <ID>` (for example `done repository-setup A-1`) 
 2. Run `kanon desk` to rebuild `kanon/local/DESK.md`, `desk.html` and `STATUS.md`.
 3. Open `kanon/local/desk.html` for the person in the assistant's file viewer.
 4. When the person confirms an action, set Done to `yes` in its work file and commit.
-5. When the person decides, record the decision in the work file and rebuild the Desk.
+5. When the person decides in chat, record their exact words with `kanon transcribe <work> --quote "..."` (add `--changes "..."` for a change request, `--plan` for a plan), then rebuild the Desk. Never run `kanon approve` or `kanon request-changes`: they belong to the approver.
 6. A Review row whose Outcome contains "Owner decides at the review point" appears under Review
    Later. When the person has reviewed it, append "Owner reviewed YYYY-MM-DD" to that Outcome.
 7. Apply `kanon/docs/conduct-and-writing.md` to every action and step.

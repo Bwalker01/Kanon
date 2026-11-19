@@ -32,3 +32,4 @@ updated: 2026-11-18
 - The assistant never records an approval.
 - The residual risk of a forged local approval is documented, not hidden.
 - Superseded in part by ADR-011: the review list and status page are generated per person.
+- Amended by ADR-013 (proposed): the assistant may record an approval only as a labelled transcription of the approver's words.

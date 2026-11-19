@@ -15,6 +15,10 @@ or a pattern covering all of one. When loops, command substitution or xargs carr
 units, the paths of every non-reading unit are judged. Text run by `bash -c` (any flags) or `eval`
 is checked as a command of its own.
 
+For the reviewer subagent (`agent_type` "kritos-reviewer" in the hook input), commands that would
+change the project (git writes, file writers, redirection, `sed -i`, Kanon's writing commands) are
+also blocked (K-29); writes to the scratchpad and to temporary folders outside the project are allowed.
+
 Limits: it reads command text only. It cannot see what variables hold, what scripts do, or deletions
 made by other programs, and patterns with literal text (such as `/tmp/tmp*`) are allowed.
 """
@@ -245,6 +249,72 @@ def check(command: str, cwd: str, home: str, extra: list[str] | None = None, dep
     return None
 
 
+REVIEWER = "kritos-reviewer"
+GIT_WRITES = {"add", "commit", "push", "reset", "checkout", "switch", "restore", "stash", "merge", "rebase",
+              "cherry-pick", "revert", "tag", "rm", "mv", "clean", "apply", "am", "pull", "fetch", "init",
+              "update-ref"}
+FILE_WRITERS = {"cp", "mv", "rm", "rmdir", "touch", "mkdir", "chmod", "chown", "ln", "tee", "truncate", "install",
+                "dd", "patch", "unlink", "shred"}
+KANON_WRITES = {"init", "sync", "new", "approve", "request-changes", "transcribe", "profile", "desk"}
+REDIRECT = re.compile(r"(?:^|[^<>&0-9])(?:\d|&)?>>?\s*([^\s;&|]+)")
+CODE_WRITES = re.compile(r"\bopen\([^)]*['\"][wax]\+?b?['\"]|\.write_(?:text|bytes)\(|\bwriteFileSync\b")
+
+
+def _inside(path: str, folders: list[str]) -> bool:
+    return any(path == f or path.startswith(f.rstrip("/") + "/") for f in folders if f)
+
+
+def reviewer_write(command: str, cwd: str, home: str, project: str, scratch: list[str]) -> str | None:
+    """Reason to block a reviewer's command that would change the project (K-29), or None.
+
+    Writes to the scratchpad and to temporary folders outside the project are allowed: reviewers
+    use them for probes. Writes made by programs the command starts cannot be seen.
+    """
+    project = os.path.normpath(project or cwd)
+    keep_out = [project]
+    allowed = [os.path.normpath(p) for p in scratch if p]
+
+    def in_project(token: str, here: str) -> bool:
+        target = resolve(token, here, home) or (os.path.normpath(os.path.join(here, token.strip("'\""))) if token else None)
+        return bool(target) and _inside(target, keep_out) and not _inside(target, allowed)
+
+    for inner in [command, *[i for u in _units(_tokens(command)) for i in _inner_commands(u)]]:
+        here = cwd
+        for unit in _units(_tokens(inner)):
+            for stage in _stages(unit):
+                index, word = _first(stage)
+                args = stage[index + 1:]
+                while (word == "uv" and args[:1] == ["run"]) or (word.startswith("python") and args[:1] == ["-m"]):
+                    args = [a for a in args[1:] if a not in ("--quiet", "-q")]  # look through the wrapper
+                    word, args = (_verb(args[0]), args[1:]) if args else ("", [])
+                if word == "cd":
+                    here = resolve(args[0], here, home) or here if args else home
+                    continue
+                if word == "git":
+                    sub = next((a for a in args if not a.startswith("-") and a not in ("-C",)), "")
+                    if "-C" in args:
+                        position = args.index("-C")
+                        if position + 1 < len(args) and not in_project(args[position + 1], here):
+                            continue
+                        sub = next((a for a in args[position + 2:] if not a.startswith("-")), "")
+                    if sub in GIT_WRITES and in_project(".", here):
+                        return f"the reviewer may not change the repository (`git {sub}`)"
+                elif word == "kanon" and args and args[0] in KANON_WRITES:
+                    return f"the reviewer may not run `kanon {args[0]}`"
+                elif word == "sed" and any(a.startswith("-i") or a == "--in-place" for a in args):
+                    if any(in_project(a, here) for a in args if not a.startswith("-")):
+                        return "the reviewer may not edit project files (`sed -i`)"
+                elif word in FILE_WRITERS:
+                    if any(in_project(a, here) for a in args if not a.startswith("-")):
+                        return f"the reviewer may not change project files (`{word}`)"
+            for target in REDIRECT.findall(" ".join(unit)):
+                if target not in ("/dev/null", "/dev/stderr", "/dev/stdout") and in_project(target, here):
+                    return "the reviewer may not write project files (redirection)"
+            if CODE_WRITES.search(" ".join(unit)) and in_project(".", here):
+                return "the reviewer may not write files from code run in the project"
+    return None
+
+
 def main() -> int:
     try:
         event = json.load(sys.stdin)
@@ -256,6 +326,8 @@ def main() -> int:
     cwd = str(event.get("cwd") or os.getcwd())
     extra = [os.environ.get("CLAUDE_PROJECT_DIR", ""), str(event.get("scratchpad_dir") or "")]
     reason = check(command, cwd, os.path.expanduser("~"), extra)
+    if not reason and event.get("agent_type") == REVIEWER:
+        reason = reviewer_write(command, cwd, os.path.expanduser("~"), extra[0] or cwd, extra[1:])
     if reason:
         print(f"Blocked by the Kanon guard: {reason}. Delete only what you created, by its exact path "
               "(for example a folder made with `mktemp -d`), and never with find or globs over shared folders.",

@@ -41,6 +41,19 @@ def build_parser() -> argparse.ArgumentParser:
 
     commands.add_parser("verify", help="run Kanon's mechanical checks on this repository")
 
+    app = commands.add_parser("approve", help="approve a work file's plan or result (run by the approver)")
+    app.add_argument("work", help="work file name without its date, or its path")
+    app.add_argument("--plan", action="store_true", help="approve the plan; the build may start")
+    req = commands.add_parser("request-changes", help="request changes to a work file (run by the approver)")
+    req.add_argument("work", help="work file name without its date, or its path")
+    req.add_argument("changes", help="what must change")
+    req.add_argument("--plan", action="store_true", help="the changes concern the plan")
+    tra = commands.add_parser("transcribe", help="record an approver's decision given in chat, in their exact words")
+    tra.add_argument("work", help="work file name without its date, or its path")
+    tra.add_argument("--quote", required=True, help="the approver's exact words")
+    tra.add_argument("--changes", help="the requested changes, when the reply asks for changes")
+    tra.add_argument("--plan", action="store_true", help="the decision concerns the plan")
+
     new = commands.add_parser("new", help="create a work file from the template")
     new.add_argument("topic", help="short topic, used in the file name and title")
 
@@ -161,6 +174,50 @@ def run_new(args) -> int:
     return 0
 
 
+def _work_path(root: Path, work: str) -> str:
+    candidate = Path(work)
+    if candidate.suffix == ".md" and (root / candidate).is_file():
+        return candidate.as_posix()
+    matches = sorted((root / "kanon" / "work").glob(f"????-??-??-{work}.md"))
+    if len(matches) != 1:
+        raise ValueError(f"no single work file named '{work}' in kanon/work")
+    return matches[0].relative_to(root).as_posix()
+
+
+def run_decision(args) -> int:
+    import tomllib
+    from kanon import approve
+    name = args.command
+    if name in ("approve", "request-changes") and approve.in_assistant():
+        print(f"kanon {name}: refused inside an assistant session; the approver runs it in their own terminal, "
+              "or the assistant records their words with kanon transcribe")
+        return 2
+    root = init_module.repo_root(Path.cwd())
+    if root is None or not init_module.has_settings(root):
+        print(f"kanon {name}: Kanon is not set up here; run kanon init first")
+        return 2
+    try:
+        person = profiles.load()
+    except ValueError as error:
+        print(f"kanon {name}: {error}")
+        return 2
+    if person is None or not person.github:
+        print(f"kanon {name}: no profile with a GitHub username; run kanon profile --github <username>")
+        return 2
+    settings = tomllib.loads((root / "kanon" / "kanon.toml").read_text(encoding="utf-8"))
+    approvers = settings.get("kanon", {}).get("approvers", [])
+    changes = args.changes if name in ("request-changes", "transcribe") else None
+    quote = args.quote if name == "transcribe" else None
+    try:
+        rel = _work_path(root, args.work)
+        row = approve.record(root, rel, person.github, approvers, changes=changes, plan=args.plan, quote=quote)
+    except (ValueError, PermissionError) as error:
+        print(f"kanon {name}: {error}")
+        return 2
+    print(f"Recorded in {rel}:\n{row}")
+    return 0
+
+
 def run_verify() -> int:
     root = init_module.repo_root(Path.cwd())
     if root is None:
@@ -213,4 +270,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         return run_verify()
     if args.command == "usage":
         return run_usage(args)
+    if args.command in ("approve", "request-changes", "transcribe"):
+        return run_decision(args)
     return 0

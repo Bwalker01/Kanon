@@ -386,6 +386,17 @@ def verify_with_exceptions(root: Path) -> tuple[list[Finding], list[tuple[Findin
     return open_, covered
 
 
+def check_approvals(rel: str, text: str, settings: dict) -> list[Finding]:
+    """P1-05: the latest approval still matches its hash and names a listed approver."""
+    from kanon.approve import check
+    meta, _ = split_frontmatter(text)
+    if not meta or meta.get("type") != "work":
+        return []
+    approvers = settings.get("kanon", {}).get("approvers", [])
+    approvers = [a for a in approvers if isinstance(a, str)] if isinstance(approvers, list) else []
+    return [Finding(rel, line, "approval", message) for line, message in check(text, approvers, meta.get("status"))]
+
+
 def _verify(root: Path) -> tuple[list[Finding], dict]:
     kanon = root / "kanon"
     if not kanon.is_dir():
@@ -424,6 +435,7 @@ def _verify(root: Path) -> tuple[list[Finding], dict]:
                                         lambda commit: changed_files(root, commit))
             findings += check_decision_needed(rel, text)
             findings += check_actions(rel, text)
+            findings += check_approvals(rel, text, settings)
 
     # Hand-written instruction files are checked; generated ones are checked through their sources.
     from kanon.sync import GENERATED, is_generated

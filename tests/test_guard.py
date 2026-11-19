@@ -127,7 +127,8 @@ def test_hook_registration_keeps_other_settings_and_is_idempotent(tmp_path):
     kinit.init(tmp_path, ["ada-dev"])
     ksync.sync(tmp_path)
     data = json.loads(settings.read_text())
-    assert data["permissions"] == {"allow": ["Bash(ls:*)"]}
+    assert data["permissions"]["allow"] == ["Bash(ls:*)"]
+    assert data["permissions"]["deny"] == ksync.deny_rules(tmp_path)
     assert "café" in settings.read_text()
     commands = [h["command"] for e in data["hooks"]["PreToolUse"] for h in e["hooks"]]
     assert commands == [ksync.GUARD_COMMAND]
@@ -158,3 +159,43 @@ def test_unexpected_settings_are_left_alone_with_a_note(tmp_path, content):
     kinit.init(tmp_path, ["ada-dev"])
     assert (tmp_path / ksync.SETTINGS_LOCAL).read_text() == content
     assert any("guard hook was not registered" in n for n in ksync.sync(tmp_path).notes)
+
+
+PROJECT = "/home/user/project"
+
+
+@pytest.mark.parametrize("command", [  # K-29: the reviewer may not change the project
+    "git commit -m x", "git add -A", "git -C /home/user/project reset --hard", "cd src && git stash",
+    "echo x > notes.md", "echo x >> /home/user/project/README.md", "sed -i 's/a/b/' src/x.py",
+    "cp /tmp/x src/x.py", "rm tests/test_x.py", "touch kanon/work/new.md", "tee out.txt < /dev/null",
+    "kanon approve plan", "kanon transcribe plan --quote ok", "uv run kanon sync",
+    "python3 -c \"open('x.md', 'w').write('y')\"", "bash -c 'git commit -m x'",
+])
+def test_reviewer_writes_to_the_project_are_blocked(command):
+    assert guard.reviewer_write(command, PROJECT, HOME, PROJECT, SCRATCH)
+
+
+@pytest.mark.parametrize("command", [
+    "git status", "git log -5 --oneline", "git diff HEAD~1", "git show bb29241:src/kanon/guard.py",
+    "git worktree add /tmp/tmp.abc/wt HEAD", "uv run pytest -q", "kanon verify", "grep -rn x src",
+    "echo x > /tmp/claude-0/-home-user-project/session/scratchpad/probe.py", "echo x > /dev/null",
+    "D=$(mktemp -d); cp -r src \"$D\"", "cd /tmp/tmp.abc && git commit -m probe",
+    "python3 -I /tmp/claude-0/-home-user-project/session/scratchpad/probe.py",
+])
+def test_reviewer_reads_and_scratch_writes_are_allowed(command):
+    assert guard.reviewer_write(command, PROJECT, HOME, PROJECT, SCRATCH) is None
+
+
+def test_the_hook_applies_reviewer_rules_only_to_the_reviewer(tmp_path):
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    kinit.init(tmp_path, ["ada-dev"])
+    hook = tmp_path / ksync.GUARD
+
+    def run(agent):
+        event = {"tool_name": "Bash", "cwd": str(tmp_path), "tool_input": {"command": "git commit -m x"}}
+        if agent:
+            event["agent_type"] = agent
+        return subprocess.run([sys.executable, str(hook)], input=json.dumps(event), capture_output=True, text=True,
+                              env={"CLAUDE_PROJECT_DIR": str(tmp_path), "PATH": "/usr/bin:/bin"}).returncode
+    assert run("kritos-reviewer") == 2
+    assert run(None) == 0 and run("general-purpose") == 0

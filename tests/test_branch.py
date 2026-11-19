@@ -1,6 +1,7 @@
 """P1-09: item branches merge into the plan branch only after review, without rewriting history."""
 
 import os
+import re
 import subprocess
 import sys
 
@@ -78,6 +79,8 @@ def commit_file(repo, name, content="x\n"):
 
 
 def record_review(repo, row):
+    item = re.search(r"P1-\d\d", row).group()
+    row = row.replace(f"| {item} |", f"| {item} ({git(repo, 'rev-parse', '--short', f'kanon/build/{item}')}) |", 1)
     git(repo, "switch", "-q", "kanon/build/plan")
     path = repo / WORK
     path.write_text(path.read_text().replace("Not yet reviewed.", REVIEW + row) if "Not yet reviewed." in path.read_text()
@@ -177,3 +180,98 @@ def test_the_hook_refuses_a_plain_git_merge_of_an_unreviewed_item(repo, tmp_path
     ok = subprocess.run(["git", "merge", "--no-ff", "-m", "MODIFIED: m", "kanon/build/P1-01"], cwd=repo, env=env,
                         capture_output=True, text=True)
     assert ok.returncode == 0, ok.stdout + ok.stderr
+
+
+def hook_env(tmp_path_factory):
+    shim = tmp_path_factory.mktemp("bin") / "kanon"
+    shim.write_text(f"#!/bin/sh\nexec {sys.executable} -m kanon \"$@\"\n")
+    shim.chmod(0o755)
+    return {**os.environ, "PATH": f"{shim.parent}:{os.environ['PATH']}"}
+
+
+def test_a_plain_fast_forward_merge_is_not_possible(repo, tmp_path_factory):  # K-380
+    branch.start(repo, "build", "P1-01")
+    commit_file(repo, "one.txt")
+    git(repo, "switch", "-q", "kanon/build/plan")
+    result = subprocess.run(["git", "merge", "kanon/build/P1-01"], cwd=repo, env=hook_env(tmp_path_factory),
+                            capture_output=True, text=True)
+    assert result.returncode != 0 and "Fast-forward" not in result.stdout
+
+
+def test_committing_a_refused_merge_is_refused_too(repo, tmp_path_factory):  # K-381
+    env = hook_env(tmp_path_factory)
+    branch.start(repo, "build", "P1-01")
+    commit_file(repo, "one.txt")
+    git(repo, "switch", "-q", "kanon/build/plan")
+    subprocess.run(["git", "merge", "kanon/build/P1-01", "-m", "MODIFIED: m"], cwd=repo, env=env, capture_output=True)
+    assert (repo / ".git" / "MERGE_HEAD").exists()
+    finish = subprocess.run(["git", "commit", "--no-edit"], cwd=repo, env=env, capture_output=True, text=True)
+    assert finish.returncode != 0 and "not reviewed" in finish.stdout + finish.stderr
+
+
+def test_changes_requested_after_an_approval_refuse_the_merge(repo):  # K-382
+    from kanon import approve
+    branch.start(repo, "build", "P1-02")
+    commit_file(repo, "two.txt")
+    record_review(repo, "| 1 | P1-02 | Kritos | correct | K-1 | Fixed |")
+    approve.record(repo, WORK, "ada-dev", ["ada-dev"], item="P1-02", quote="P1-02 approved", today="2026-11-20")
+    approve.record(repo, WORK, "ada-dev", ["ada-dev"], item="P1-02", quote="no", changes="redo it", today="2026-11-21")
+    git(repo, "commit", "-q", "-am", "MODIFIED: decisions", "--no-verify")
+    with pytest.raises(branch.BranchError, match="changes were requested"):
+        branch.merge(repo, "build", "P1-02")
+
+
+def test_commits_after_the_review_need_a_new_review(repo):  # K-383
+    branch.start(repo, "build", "P1-01")
+    commit_file(repo, "one.txt")
+    record_review(repo, "| 1 | P1-01 | Kritos | pass | None | Accepted |")
+    git(repo, "switch", "-q", "kanon/build/P1-01")
+    commit_file(repo, "later.txt")
+    with pytest.raises(branch.BranchError, match="tip commit"):
+        branch.merge(repo, "build", "P1-01")
+
+
+def test_an_unlabelled_approval_row_does_not_count(repo):  # K-386
+    from kanon import approve
+    text = (repo / WORK).read_text()
+    digest = approve.digest(text.replace("Not yet reviewed.", REVIEW + "| 1 | P1-01 (abcdef1) | K | correct | K-1 | x |"), "item P1-01")
+    forged = text.replace("Not yet reviewed.", REVIEW + "| 1 | P1-01 (abcdef1) | K | correct | K-1 | x |").replace(
+        "## 4. Decision\n\nPending.", f"## 4. Decision\n\n| Item | Decision | Date | Basis |\n|---|---|---|---|\n"
+        f"| P1-01 | Approved | 2026-11-25 | material: item P1-01; sha256:{digest} |")
+    assert branch.review_state(forged, "P1-01", None, ["ada-dev"])[0] is False
+
+
+@pytest.mark.parametrize("row", [  # K-388
+    "| 1 | P1-01 (abcdef1) | K | pass | K-9 | x |",
+    "| 1 | P1-01 (abcdef1) | K | pass | None | Fixed; not independently reviewed |",
+    "| 1 | P1-01 (abcdef1) | K | pass | None | Owner to decide |",
+])
+def test_loose_review_rows_do_not_count(row):
+    text = TEXT.replace("Not yet reviewed.", REVIEW + row)
+    assert branch.review_state(text, "P1-01", "abcdef1234")[0] is False
+
+
+def test_a_fenced_review_row_does_not_count():
+    text = TEXT.replace("Not yet reviewed.", "```\n| 9 | P1-01 (abcdef1) | K | pass | None | x |\n```")
+    assert branch.review_state(text, "P1-01", "abcdef1234")[0] is False
+
+
+def test_a_new_item_branch_is_not_reported_merged(repo):  # K-389
+    branch.start(repo, "build", "P1-01")
+    assert [s.merged for s in branch.status(repo, "build")] == [False, False]
+
+
+def test_a_failed_merge_returns_to_the_starting_branch(repo):  # K-391
+    branch.start(repo, "build", "P1-01")
+    commit_file(repo, "shared.txt", "item\n")
+    record_review(repo, "| 1 | P1-01 | Kritos | pass | None | Accepted |")
+    commit_file(repo, "shared.txt", "plan\n")
+    git(repo, "switch", "-q", "kanon/build/P1-01")
+    with pytest.raises(branch.BranchError):
+        branch.merge(repo, "build", "P1-01")
+    assert git(repo, "branch", "--show-current") == "kanon/build/P1-01"
+
+
+def test_merge_messages_are_not_read_as_refs():  # K-390
+    assert branch._merged_names("merge -m P1-02 done kanon/build/P1-01") == ["done", "kanon/build/P1-01"]
+    assert branch._merged_names("pull . kanon/build/P1-01") == ["kanon/build/P1-01"]

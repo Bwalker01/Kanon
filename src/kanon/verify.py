@@ -446,6 +446,13 @@ def _verify(root: Path) -> tuple[list[Finding], dict]:
             text = path.read_text(encoding="utf-8")
             if not (rel in GENERATED and is_generated(text)):
                 findings += check_writing(rel, text)
+    # A merge in progress (for example `git commit` after the merge hook refused) is checked too (K-381).
+    merge_head = subprocess.run(["git", "rev-parse", "--git-path", "MERGE_HEAD"], cwd=root, capture_output=True, text=True)
+    if merge_head.returncode == 0 and (root / merge_head.stdout.strip()).is_file():
+        from kanon.branch import check_merge
+        reason = check_merge(root)
+        if reason:
+            findings.append(Finding(".git/MERGE_HEAD", 0, "loop", reason))
     tracked = set(_git(root, "ls-files", "--", *GENERATED, "kanon/local").split())
     findings += [Finding(rel, 1, "privacy", "generated agent file is committed; remove it with git rm --cached")
                  for rel in sorted(tracked)]

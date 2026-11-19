@@ -437,8 +437,9 @@ def reviewer_write(command: str, cwd: str, home: str, project: str, scratch: lis
                         writes = False  # `git config <key>` reads one value
                     if writes and in_project(place, here):
                         return f"the reviewer may not change the repository (`git {sub}`)"
-                elif word == "kanon" and args and args[0] in KANON_WRITES:
-                    return f"the reviewer may not run `kanon {args[0]}`"
+                elif word == "kanon" and args and (args[0] in KANON_WRITES or
+                                                   (args[0] == "branch" and args[1:2] != ["status"])):
+                    return f"the reviewer may not run `kanon {' '.join(args[:2])}`"  # branch writes too (K-384)
                 elif word in ("sed", "perl") and any(re.match(r"-\w*i|--in-place", a) for a in args):
                     if any(in_project(a, here) for a in args if not a.startswith("-")):
                         return f"the reviewer may not edit project files (`{word} -i`)"

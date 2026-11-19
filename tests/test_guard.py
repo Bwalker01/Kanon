@@ -245,3 +245,11 @@ def test_reviewer_probe_commands_from_round_c2_are_allowed(command):
 ])
 def test_reviewer_misses_from_round_c2_are_blocked(command):
     assert guard.reviewer_write(command, PROJECT, HOME, PROJECT, SCRATCH)
+
+
+@pytest.mark.parametrize("command,blocked", [  # K-384
+    ("kanon branch merge phase-1-plan P1-09", True), ("kanon branch start phase-1-plan P1-09", True),
+    ("uv run kanon branch start phase-1-plan P1-09", True), ("kanon branch status phase-1-plan", False),
+])
+def test_reviewer_branch_commands(command, blocked):
+    assert bool(guard.reviewer_write(command, PROJECT, HOME, PROJECT, SCRATCH)) is blocked

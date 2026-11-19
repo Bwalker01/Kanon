@@ -69,30 +69,76 @@ def items(text: str) -> list[str]:
     return found
 
 
-def review_state(text: str, item: str) -> tuple[bool, str]:
-    """(may merge, reason) for an item, from the plan branch's work file."""
-    for row in reversed(approve.decision_rows(text)):
-        if row.kind == f"item {item}" and row.decision.lower().startswith("approved"):
-            if row.hash and row.hash == approve.digest(text, row.kind):
-                return True, f"approved ({row.date})"
-            return False, "approved, but the approved record has changed since"
-    latest = None
-    section = None
-    for line in text.split("\n"):
-        if line.startswith("## "):
+PENDING = ("owner decides", "owner to decide", "not independently reviewed")
+SHORT_HASH = re.compile(r"\b[0-9a-f]{7,40}\b")
+
+
+def _review_rows(text: str, item: str) -> list[list[str]]:
+    """Review rows naming the item, outside code fences (K-388)."""
+    lines = text.split("\n")
+    rows, section = [], None
+    for line, open_ in zip(lines, approve._unfenced(lines)):
+        if open_ and line.startswith("## "):
             section = re.sub(r"^## (?:\d+\.\s+)?", "", line).strip()
-        elif section == "Review" and line.startswith("|"):
+        elif open_ and section == "Review" and line.startswith("|"):
             cells = [c.strip() for c in approve.CELL_SPLIT.split(line.strip().strip("|"))]
             if len(cells) >= 6 and approve._names_item(cells[1], item):
-                latest = cells
-    if latest is None:
+                rows.append(cells)
+    return rows
+
+
+def _cites(cells: list[str], tip: str | None) -> bool:
+    """True when the row's Items cell cites the reviewed commit and it is the item's tip (K-383)."""
+    if tip is None:
+        return True
+    return any(tip.startswith(h) for h in SHORT_HASH.findall(cells[1]))
+
+
+def review_state(text: str, item: str, tip: str | None = None, approvers: list[str] | None = None) -> tuple[bool, str]:
+    """(may merge, reason) for an item, from the plan branch's work file.
+
+    The latest Decision row for the item decides first: a change request refuses; a recorded,
+    labelled approval by a listed approver whose hash still matches allows (K-382, K-386). Otherwise
+    the latest Review row naming the item must be a `pass` with no blocking findings, not awaiting
+    the owner, citing the item branch's tip commit.
+    """
+    allowed = [a.lower() for a in approvers] if approvers is not None else None
+    decisions = [r for r in approve.decision_rows(text) if r.item == item or r.kind == f"item {item}"]
+    if decisions:
+        row = decisions[-1]
+        if not row.decision.lower().startswith("approved"):
+            return False, f"changes were requested on {row.date}"
+        valid = row.labelled and row.approver and (allowed is None or row.approver.lower() in allowed) \
+            and row.hash and row.hash == approve.digest(text, f"item {item}")
+        if valid:
+            reviewed = _review_rows(text, item)
+            if reviewed and not _cites(reviewed[-1], tip):
+                return False, "approved, but the item branch has commits newer than the reviewed one"
+            return True, f"approved ({row.date})"
+    reviewed = _review_rows(text, item)
+    if not reviewed:
         return False, "not reviewed"
-    verdict, outcome = latest[3].strip("` ").lower(), latest[-1].lower()
-    if "owner decides" in outcome and "owner reviewed" not in outcome:
+    latest = reviewed[-1]
+    verdict, blocking, outcome = latest[3].strip("` ").lower(), latest[4].strip().lower(), latest[-1].lower()
+    if any(p in outcome for p in PENDING) and "owner reviewed" not in outcome:
         return False, f"round {latest[0]} awaits the owner's decision"
-    if verdict == "pass":
-        return True, f"review round {latest[0]} passed"
-    return False, f"latest review round {latest[0]} is '{verdict}', not pass"
+    if verdict != "pass":
+        return False, f"latest review round {latest[0]} is '{verdict}', not pass"
+    if blocking not in ("", "none", "-"):
+        return False, f"review round {latest[0]} lists blocking findings ({latest[4]})"
+    if not _cites(latest, tip):
+        return False, f"review round {latest[0]} does not cite the item branch's tip commit {tip[:7]}"
+    return True, f"review round {latest[0]} passed"
+
+
+def _approvers(root: Path) -> list[str]:
+    import tomllib
+    try:
+        data = tomllib.loads((root / "kanon" / "kanon.toml").read_text(encoding="utf-8"))
+    except (OSError, tomllib.TOMLDecodeError):
+        return []
+    found = data.get("kanon", {}).get("approvers", [])
+    return [a for a in found if isinstance(a, str)] if isinstance(found, list) else []
 
 
 def _clean(root: Path) -> None:
@@ -111,6 +157,8 @@ def start(root: Path, work: str, item: str | None = None) -> str:
     plan = plan_branch(work)
     if not _exists(root, plan):
         _git(root, "branch", plan)
+    # A plain `git merge` into the plan branch then always makes a merge commit, so the hook runs (K-380).
+    _git(root, "config", f"branch.{plan}.mergeoptions", "--no-ff")
     if item is None:
         _git(root, "switch", plan)
         return plan
@@ -132,18 +180,22 @@ def merge(root: Path, work: str, item: str) -> str:
         if not _exists(root, name):
             raise BranchError(f"branch {name} does not exist")
     _, text = work_file(root, work, plan)
-    ok, reason = review_state(text, item)
+    tip = _git(root, "rev-parse", branch).stdout.strip()
+    ok, reason = review_state(text, item, tip, _approvers(root))
     if not ok:
         raise BranchError(f"{item} cannot be merged: {reason}")
     touched = _git(root, "diff", "--name-only", f"{plan}...{branch}", "--", "kanon/work/").stdout.split()
     if touched:
         raise BranchError(f"{branch} changed work files ({', '.join(touched)}); record reviews on {plan} instead")
+    origin = _git(root, "symbolic-ref", "--short", "-q", "HEAD", check=False).stdout.strip()
     _git(root, "switch", plan)
     result = _git(root, "merge", "--no-ff", "-m", f"MODIFIED: merge {item} into the {work} plan branch after review",
                   branch, check=False)
     if result.returncode != 0:
         conflicted = _git(root, "diff", "--name-only", "--diff-filter=U", check=False).stdout.split()
         _git(root, "merge", "--abort", check=False)
+        if origin and origin != plan:
+            _git(root, "switch", origin, check=False)  # back where the person started (K-391)
         raise BranchError(f"merge stopped and was undone: {', '.join(conflicted) or result.stderr.strip()}")
     return _git(root, "rev-parse", "--short", "HEAD").stdout.strip()
 
@@ -164,10 +216,32 @@ def status(root: Path, work: str) -> list[ItemStatus]:
     for item in items(text):
         branch = item_branch(work, item)
         exists = _exists(root, branch)
-        merged = exists and ref is not None and _git(
-            root, "merge-base", "--is-ancestor", branch, plan, check=False).returncode == 0
-        out.append(ItemStatus(item, branch if exists else None, merged, review_state(text, item)[1]))
+        tip = _git(root, "rev-parse", branch).stdout.strip() if exists else None
+        merged = bool(tip) and ref is not None and tip in _merged_parents(root, plan)
+        out.append(ItemStatus(item, branch if exists else None, merged, review_state(text, item, tip)[1]))
     return out
+
+
+def _merged_parents(root: Path, plan: str) -> set[str]:
+    """Commits merged into the plan branch as a non-first parent of a merge commit (K-389)."""
+    lines = _git(root, "rev-list", "--merges", "--parents", plan, check=False).stdout.splitlines()
+    return {parent for line in lines for parent in line.split()[2:]}
+
+
+def _merged_names(action: str) -> list[str]:
+    """Refs named in GIT_REFLOG_ACTION ("merge ..." or "pull ..."), without option values (K-385, K-390)."""
+    words = action.split()
+    if not words or words[0] not in ("merge", "pull"):
+        return []
+    names, skip = [], False
+    for word in words[1:]:
+        if skip:
+            skip = False
+        elif word in ("-m", "-F", "-s", "-X", "--strategy", "--strategy-option", "--file", "--message"):
+            skip = True
+        elif not word.startswith("-") and word != ".":
+            names.append(word)
+    return names
 
 
 def check_merge(root: Path) -> str | None:
@@ -178,26 +252,27 @@ def check_merge(root: Path) -> str | None:
         return None
     work = match.group(1)
     # Git 2.43 has not written MERGE_HEAD when it runs pre-merge-commit; GIT_REFLOG_ACTION names the
-    # merged refs ("merge <ref>..."). MERGE_HEAD is the fallback for other versions.
+    # merged refs. MERGE_HEAD covers other versions and `git commit` after a refused merge (K-381).
     import os
-    action = os.environ.get("GIT_REFLOG_ACTION", "")
-    wanted = [a for a in action.split()[1:] if not a.startswith("-")] if action.startswith("merge") else []
     heads = [h for h in (_git(root, "rev-parse", "-q", "--verify", f"{w}^{{commit}}", check=False).stdout.strip()
-                         for w in wanted) if h]
-    merge_head = _git(root, "rev-parse", "-q", "--verify", "MERGE_HEAD", check=False).stdout.strip()
-    heads += [merge_head] if merge_head else []
-    tips = sorted({t for h in heads for t in _git(root, "for-each-ref", "--format=%(refname:short)", "--points-at", h,
-                                                   f"refs/heads/{PREFIX}/{work}/").stdout.split()})
-    for tip in tips:
-        item = tip.rsplit("/", 1)[1]
-        if item == "plan":
+                         for w in _merged_names(os.environ.get("GIT_REFLOG_ACTION", ""))) if h]
+    merge_head = root / _git(root, "rev-parse", "--git-path", "MERGE_HEAD").stdout.strip()
+    if merge_head.is_file():
+        heads += merge_head.read_text().split()
+    try:
+        _, text = work_file(root, work, "HEAD")
+    except BranchError as error:
+        return str(error)
+    approvers = _approvers(root)
+    for head in sorted(set(heads)):
+        tips = _git(root, "for-each-ref", "--format=%(refname:short)", "--points-at", head,
+                    f"refs/heads/{PREFIX}/{work}/", f"refs/remotes/*/{PREFIX}/{work}/").stdout.split()
+        candidates = [t.rsplit("/", 1)[1] for t in tips if t.rsplit("/", 1)[1] != "plan"]
+        if not candidates:
             continue
-        try:
-            _, text = work_file(root, work, "HEAD")
-        except BranchError as error:
-            return str(error)
-        ok, reason = review_state(text, item)
-        if not ok:
+        results = [(item, *review_state(text, item, head, approvers)) for item in candidates]
+        if not any(ok for _, ok, _ in results):  # one reviewed item at this commit is enough (K-390)
+            item, _, reason = results[0]
             return f"{item} cannot be merged into {current}: {reason}"
     return None
 
@@ -209,6 +284,6 @@ if grep -q '^name = "kanon-engine"' pyproject.toml 2>/dev/null && command -v uv 
   exec uv run --quiet kanon branch check-merge
 fi
 if command -v kanon >/dev/null 2>&1; then exec kanon branch check-merge; fi
-echo "kanon is not installed; the item review check was skipped"
+echo "kanon is not installed; the item review check was skipped (a documented limit)"
 exit 0
 """

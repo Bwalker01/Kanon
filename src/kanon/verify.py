@@ -466,24 +466,25 @@ exit 0
 """
 
 
-def hook_location(root: Path) -> str:
-    """Path of the repository's pre-commit hook (it may not exist yet)."""
-    result = subprocess.run(["git", "rev-parse", "--git-path", "hooks/pre-commit"], cwd=root,
+def hook_location(root: Path, name: str = "pre-commit") -> str:
+    """Path of one of the repository's hooks (it may not exist yet)."""
+    result = subprocess.run(["git", "rev-parse", "--git-path", f"hooks/{name}"], cwd=root,
                             capture_output=True, text=True, check=True)
     return str((root / result.stdout.strip()).resolve())
 
 
-def install_hook(root: Path) -> tuple[str, bool]:
-    """Install or update Kanon's pre-commit hook; never replace someone else's.
+def install_hook(root: Path, name: str = "pre-commit", content: str | None = None) -> tuple[str, bool]:
+    """Install or update one of Kanon's hooks; never replace someone else's.
 
     Returns (hook path, whether it was written).
     """
-    hook = Path(hook_location(root))
+    content = HOOK if content is None else content
+    hook = Path(hook_location(root, name))
     if hook.exists():
         current = hook.read_text(encoding="utf-8", errors="replace")
-        if "# Installed by kanon init." not in current or current == HOOK:
+        if "# Installed by kanon init." not in current or current == content:
             return str(hook), False  # someone else's hook, or already current
     hook.parent.mkdir(parents=True, exist_ok=True)
-    hook.write_text(HOOK, encoding="utf-8")
+    hook.write_text(content, encoding="utf-8")
     hook.chmod(0o755)
     return str(hook), True

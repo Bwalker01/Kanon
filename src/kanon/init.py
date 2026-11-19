@@ -129,6 +129,17 @@ def init(path: Path, approvers: list[str], today: dt.date | None = None) -> Init
     else:
         result.warnings.append(f"an existing pre-commit hook was kept at {hook}; it does not run kanon verify "
                                "unless you add it")
+    from kanon.branch import MERGE_HOOK
+    merge_path = Path(hook_location(root, "pre-merge-commit"))
+    existed = merge_path.exists()
+    merge_hook, written = install_hook(root, "pre-merge-commit", MERGE_HOOK)
+    if written:
+        (result.updated if existed else result.created).append(".git/hooks/pre-merge-commit")
+    elif "# Installed by kanon init." in merge_path.read_text(encoding="utf-8", errors="replace"):
+        result.kept.append(".git/hooks/pre-merge-commit")
+    else:
+        result.warnings.append(f"an existing pre-merge-commit hook was kept at {merge_hook}; it does not check "
+                               "that item branches were reviewed before merging")
     return result
 
 

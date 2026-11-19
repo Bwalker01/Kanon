@@ -50,6 +50,18 @@ def build_parser() -> argparse.ArgumentParser:
     req.add_argument("changes", help="what must change")
     req.add_argument("--item", help="one item of a work file with several, such as P1-05; the status stays as it is")
     req.add_argument("--plan", action="store_true", help="the changes concern the plan")
+    bra = commands.add_parser("branch", help="item and plan branches: start, merge after review, status")
+    actions = bra.add_subparsers(dest="branch_command", metavar="<action>", required=True)
+    b_start = actions.add_parser("start", help="create and switch to the item branch (and the plan branch if missing)")
+    b_start.add_argument("work", help="work file name without its date")
+    b_start.add_argument("item", nargs="?", help="item ID such as P1-09; omit to switch to the plan branch")
+    b_merge = actions.add_parser("merge", help="merge a reviewed item into the plan branch (merge commit, no rewrite)")
+    b_merge.add_argument("work", help="work file name without its date")
+    b_merge.add_argument("item", help="item ID such as P1-09")
+    b_status = actions.add_parser("status", help="list items, their branches, review state and merges")
+    b_status.add_argument("work", help="work file name without its date")
+    actions.add_parser("check-merge", help="used by the pre-merge-commit hook")
+
     tra = commands.add_parser("transcribe", help="record an approver's decision given in chat, in their exact words")
     tra.add_argument("work", help="work file name without its date, or its path")
     tra.add_argument("--quote", required=True, help="the approver's exact words")
@@ -222,6 +234,33 @@ def run_decision(args) -> int:
     return 0
 
 
+def run_branch(args) -> int:
+    from kanon import branch
+    root = init_module.repo_root(Path.cwd())
+    if root is None:
+        print("kanon branch: not inside a Git repository")
+        return 2
+    try:
+        if args.branch_command == "start":
+            print(f"On branch {branch.start(root, args.work, args.item)}")
+        elif args.branch_command == "merge":
+            commit = branch.merge(root, args.work, args.item)
+            print(f"Merged {args.item} into {branch.plan_branch(args.work)} ({commit})")
+        elif args.branch_command == "status":
+            for row in branch.status(root, args.work):
+                state = "merged" if row.merged else (row.branch or "no branch")
+                print(f"{row.item:8} {state:40} {row.review}")
+        else:
+            reason = branch.check_merge(root)
+            if reason:
+                print(f"Refused by Kanon: {reason}. Review the item, record it on the plan branch, then merge.")
+                return 1
+    except branch.BranchError as error:
+        print(f"kanon branch: {error}")
+        return 2
+    return 0
+
+
 def run_verify() -> int:
     root = init_module.repo_root(Path.cwd())
     if root is None:
@@ -274,6 +313,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return run_verify()
     if args.command == "usage":
         return run_usage(args)
+    if args.command == "branch":
+        return run_branch(args)
     if args.command in ("approve", "request-changes", "transcribe"):
         return run_decision(args)
     return 0

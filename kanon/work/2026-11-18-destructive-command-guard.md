@@ -1,13 +1,13 @@
 ---
 type: work
-status: awaiting-approval
-updated: 2026-11-18
+status: complete
+updated: 2026-11-19
 ---
 
 # Destructive Command Guard
 
 > **Summary:** Block agent commands that delete shared locations, after a reviewer's cleanup deleted `/tmp` and with it the session's commit-signing helper.
-> **Decision needed:** Approve the round 3 fixes (94796b5), made after the approval of `be4dbe8`; no reviewer has checked them.
+> **Decision needed:** None. Approved by the owner on 2026-11-19, including the round 3 fixes.
 
 ## 1. Plan
 
@@ -48,13 +48,14 @@ including the session's commit-signing helper `/tmp/code-sign`. Evidence: the su
 |---|---|---|---|---|---|
 | 1 | Guard, hook registration, rule | Kritos (`kritos-reviewer` agent) | correct | K-101 to K-105 | All fixed with tests; non-blocking K-106 to K-109 fixed |
 | 2 | Round 1 fixes | Kritos (`kritos-reviewer` agent) | correct | K-110 | K-110 (git in front hid the deletion), K-111 (shell flags), K-112 (false blocks after `cd` into the project), K-113 (find start reused as a target), K-114 (`cd` and `pathlib`), K-115 (cost shown as $0.00 so far) fixed with tests; reviewed in round 3 |
-| 3 | Round 2 fixes (bb29241) | Kritos (`kritos-reviewer` agent) | correct | K-260 to K-262 | K-260 (newlines not separators), K-261 (`uv run` and `make` skipped), K-262 (git stage in a pipeline hid the deletion), K-263 to K-268 fixed with tests after the final round; K-265 false blocks under loops or substitution accepted as a limit. Not independently reviewed. Owner decides at the review point |
+| 3 | Round 2 fixes (bb29241) | Kritos (`kritos-reviewer` agent) | correct | K-260 to K-262 | K-260 (newlines not separators), K-261 (`uv run` and `make` skipped), K-262 (git stage in a pipeline hid the deletion), K-263 to K-268 fixed with tests after the final round; K-265 false blocks under loops or substitution accepted as a limit. Not independently reviewed. Owner decides at the review point. Owner reviewed 2026-11-19 |
 
 ## 4. Decision
 
 | Item | Decision | Date | Basis |
 |---|---|---|---|
 | Guard hook and deletion rule | Approved | 2026-11-18 | Owner in chat: "approve destructive-command-guard". Transcribed by the assistant; applies to commit `be4dbe8` |
+| Round 3 fixes | Approved | 2026-11-19 | Owner in chat: "approve destructive-command-guard". Transcribed by the assistant; applies to commit `c17d301` |
 
 ## 5. Cost
 

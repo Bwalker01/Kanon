@@ -1,13 +1,13 @@
 ---
 type: work
-status: awaiting-approval
-updated: 2026-11-18
+status: complete
+updated: 2026-11-19
 ---
 
 # Desk and Atlas
 
 > **Summary:** Replace the committed review list and status page with a generated, per-person Desk, maintained by a new role, Atlas, so parallel branches never conflict.
-> **Decision needed:** Approve the built result, including the round 3 fixes (6d1de19) that no reviewer has checked.
+> **Decision needed:** None. Approved by the owner on 2026-11-19, including the round 3 fixes.
 
 ## 1. Plan
 
@@ -96,13 +96,14 @@ Atlas holds what rests on the person's shoulders. A thirteenth archetype, extend
 |---|---|---|---|---|---|
 | 1 | Build and migration | Kritos (`kritos-reviewer` agent) | correct | K-77, K-79 to K-82 | All fixed with tests or records; non-blocking K-78, K-83 to K-90 fixed; K-80 was already resolved (profile updated and synced) |
 | 2 | Round 1 fixes | Kritos (`kritos-reviewer` agent) | correct | K-91 | K-91 (same topic on two days), K-92 to K-94, K-96, K-97 fixed with tests; reviewed in round 3 |
-| 3 | Round 2 fixes (b0fc8be) and the Desk page rebuild (be4dbe8) | Kritos (`kritos-reviewer` agent) | pass | None | Non-blocking K-240 (attribute escaping untested), K-241, K-242, K-243 (leads cut mid-word), K-244 (raw Markdown), K-246 (remembered tab hid waiting items) fixed with tests after the final round; K-245 kept: topics stay unique across closed work so `done <work>` replies never become ambiguous. Not independently reviewed. Owner decides at the review point |
+| 3 | Round 2 fixes (b0fc8be) and the Desk page rebuild (be4dbe8) | Kritos (`kritos-reviewer` agent) | pass | None | Non-blocking K-240 (attribute escaping untested), K-241, K-242, K-243 (leads cut mid-word), K-244 (raw Markdown), K-246 (remembered tab hid waiting items) fixed with tests after the final round; K-245 kept: topics stay unique across closed work so `done <work>` replies never become ambiguous. Not independently reviewed. Owner decides at the review point. Owner reviewed 2026-11-19 |
 
 ## 4. Decision
 
 | Item | Decision | Date | Basis |
 |---|---|---|---|
 | Design | Approved | 2026-11-18 | Owner in chat: "R-1 approved." Transcribed by the assistant; applies to commit `2708b3a` |
+| Built result, with round 3 fixes | Approved | 2026-11-19 | Owner in chat: "approve desk-and-atlas". Transcribed by the assistant; applies to commit `c17d301` |
 
 ## 5. Cost
 

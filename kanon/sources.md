@@ -129,3 +129,9 @@ Chosen in questions: option A with capability tiers and a Git-only floor; no new
 > can the existing roles be split into their own agents, as expansions that are added via the pantheon as required later? and can the roster of roles be expanded into other possibilities to improve the variety in what Kanon can facilitate?
 
 > this seems okay as is and will be looked into closer to phase 4
+
+## 17. Approvals (2026-11-19)
+
+> approve agent-files-and-profiles
+> approve desk-and-atlas
+> approve destructive-command-guard

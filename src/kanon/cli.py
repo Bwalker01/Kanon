@@ -43,15 +43,18 @@ def build_parser() -> argparse.ArgumentParser:
 
     app = commands.add_parser("approve", help="approve a work file's plan or result (run by the approver)")
     app.add_argument("work", help="work file name without its date, or its path")
+    app.add_argument("--item", help="one item of a work file with several, such as P1-05; the status stays as it is")
     app.add_argument("--plan", action="store_true", help="approve the plan; the build may start")
     req = commands.add_parser("request-changes", help="request changes to a work file (run by the approver)")
     req.add_argument("work", help="work file name without its date, or its path")
     req.add_argument("changes", help="what must change")
+    req.add_argument("--item", help="one item of a work file with several, such as P1-05; the status stays as it is")
     req.add_argument("--plan", action="store_true", help="the changes concern the plan")
     tra = commands.add_parser("transcribe", help="record an approver's decision given in chat, in their exact words")
     tra.add_argument("work", help="work file name without its date, or its path")
     tra.add_argument("--quote", required=True, help="the approver's exact words")
     tra.add_argument("--changes", help="the requested changes, when the reply asks for changes")
+    tra.add_argument("--item", help="one item of a work file with several, such as P1-05; the status stays as it is")
     tra.add_argument("--plan", action="store_true", help="the decision concerns the plan")
 
     new = commands.add_parser("new", help="create a work file from the template")
@@ -210,7 +213,8 @@ def run_decision(args) -> int:
     quote = args.quote if name == "transcribe" else None
     try:
         rel = _work_path(root, args.work)
-        row = approve.record(root, rel, person.github, approvers, changes=changes, plan=args.plan, quote=quote)
+        row = approve.record(root, rel, person.github, approvers, changes=changes, plan=args.plan, quote=quote,
+                             item=args.item)
     except (ValueError, PermissionError) as error:
         print(f"kanon {name}: {error}")
         return 2

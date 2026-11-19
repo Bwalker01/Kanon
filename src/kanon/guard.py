@@ -250,69 +250,170 @@ def check(command: str, cwd: str, home: str, extra: list[str] | None = None, dep
 
 
 REVIEWER = "kritos-reviewer"
-GIT_WRITES = {"add", "commit", "push", "reset", "checkout", "switch", "restore", "stash", "merge", "rebase",
-              "cherry-pick", "revert", "tag", "rm", "mv", "clean", "apply", "am", "pull", "fetch", "init",
-              "update-ref"}
+GIT_WRITES = {"add", "commit", "push", "reset", "checkout", "switch", "restore", "merge", "rebase", "cherry-pick",
+              "revert", "tag", "rm", "mv", "clean", "apply", "am", "pull", "init", "update-ref"}
+GIT_READ_FORMS = {"stash": {"list", "show"}, "branch": {"--list", "-l", "--show-current", "-a", "-r", "-v", "-vv"},
+                  "config": {"--get", "--get-all", "--list", "-l", "--get-regexp"}, "worktree": {"add", "list", "remove", "prune"}}
 FILE_WRITERS = {"cp", "mv", "rm", "rmdir", "touch", "mkdir", "chmod", "chown", "ln", "tee", "truncate", "install",
-                "dd", "patch", "unlink", "shred"}
+                "dd", "patch", "unlink", "shred", "rsync"}
 KANON_WRITES = {"init", "sync", "new", "approve", "request-changes", "transcribe", "profile", "desk"}
-REDIRECT = re.compile(r"(?:^|[^<>&0-9])(?:\d|&)?>>?\s*([^\s;&|]+)")
-CODE_WRITES = re.compile(r"\bopen\([^)]*['\"][wax]\+?b?['\"]|\.write_(?:text|bytes)\(|\bwriteFileSync\b")
+REDIRECTS = {">", ">>", ">|", "&>", "&>>"}
+CODE_WRITES = re.compile(r"\bopen\([^)]*['\"][wax]\+?b?['\"]|\.write_(?:text|bytes)\(|\bwriteFileSync\b"
+                         r"|shutil\.(?:copy\w*|move)\(")
+HEREDOC = re.compile(r"<<-?\s*(['\"]?)([A-Za-z_][A-Za-z0-9_]*)\1")
 
 
 def _inside(path: str, folders: list[str]) -> bool:
     return any(path == f or path.startswith(f.rstrip("/") + "/") for f in folders if f)
 
 
+def _without_heredoc_bodies(command: str) -> str:
+    """The command with heredoc bodies removed: they are data, not commands (K-341)."""
+    lines, out, waiting = command.split("\n"), [], []
+    for line in lines:
+        if waiting:
+            if line.strip() == waiting[0]:
+                waiting.pop(0)
+            continue
+        out.append(line)
+        waiting += [m.group(2) for m in HEREDOC.finditer(line)]
+    return "\n".join(out)
+
+
+def _shell_words(text: str) -> list[str]:
+    """Words and operators as the shell sees them: a `>` inside quotes stays part of its word (K-341)."""
+    lexer = shlex.shlex(text, posix=True, punctuation_chars="<>|;&()\n")
+    lexer.whitespace = " \t\r"
+    lexer.whitespace_split = True
+    lexer.commenters = ""
+    try:
+        return list(lexer)
+    except ValueError:
+        return text.split()
+
+
+def _git_parts(args: list[str]) -> tuple[str | None, str, list[str]]:
+    """(-C folder, subcommand, its arguments), skipping git's own options and their values (K-343)."""
+    folder, index = None, 0
+    while index < len(args) and args[index].startswith("-"):
+        option = args[index]
+        if option in ("-C", "-c", "--git-dir", "--work-tree", "--namespace") and index + 1 < len(args):
+            if option == "-C":
+                folder = args[index + 1]
+            index += 2
+            continue
+        index += 1
+    return folder, (args[index] if index < len(args) else ""), args[index + 1:]
+
+
+def _command(stage: list[str]) -> tuple[str, list[str]]:
+    """The program a stage runs, looking through env, uv run and python -m wrappers (K-344)."""
+    index, word = _first(stage)
+    args = stage[index + 1:]
+    while True:
+        if word == "env":
+            args = [a for a in args if not re.fullmatch(r"[A-Za-z_]\w*=.*", a) and not a.startswith("-")]
+        elif word == "uv" and args[:1] == ["run"]:
+            args = args[1:]
+            while args and args[0].startswith("-"):
+                args = args[2:] if args[0] in ("--directory", "--project", "--with", "--python", "-p") else args[1:]
+        elif word.startswith("python") and args[:1] == ["-m"]:
+            args = args[1:]
+            if args and args[0] in ("kanon", "kanon.cli"):
+                args = ["kanon", *args[1:]]
+        else:
+            return word, args
+        word, args = (_verb(args[0]), args[1:]) if args else ("", [])
+
+
 def reviewer_write(command: str, cwd: str, home: str, project: str, scratch: list[str]) -> str | None:
     """Reason to block a reviewer's command that would change the project (K-29), or None.
 
-    Writes to the scratchpad and to temporary folders outside the project are allowed: reviewers
-    use them for probes. Writes made by programs the command starts cannot be seen.
+    Writes to the scratchpad and to folders outside the project are allowed: reviewers use them for
+    probes. Paths held in variables are followed when assigned in the same command (`D=$(mktemp -d)`
+    counts as a temporary folder) and otherwise treated as outside the project. Writes made by
+    programs the command starts cannot be seen.
     """
-    project = os.path.normpath(project or cwd)
-    keep_out = [project]
+    keep_out = [os.path.normpath(project or cwd)]
     allowed = [os.path.normpath(p) for p in scratch if p]
+    names: dict[str, str | None] = {}
+
+    def expand(token: str) -> str | None:
+        def value(match):
+            known = names.get(match.group(1) or match.group(2))
+            if known is None:
+                raise KeyError
+            return known
+        try:
+            expanded = re.sub(r"\$\{(\w+)\}|\$(\w+)", value, token)
+        except KeyError:
+            return None  # an unknown variable: its value cannot be seen
+        return None if "$" in expanded or "`" in expanded else expanded
 
     def in_project(token: str, here: str) -> bool:
-        target = resolve(token, here, home) or (os.path.normpath(os.path.join(here, token.strip("'\""))) if token else None)
-        return bool(target) and _inside(target, keep_out) and not _inside(target, allowed)
+        token = expand(token.strip("'\""))
+        if not token or "$(" in token or "`" in token:
+            return False
+        target = os.path.normpath(token if token.startswith("/") else os.path.join(here, token))
+        return _inside(target, keep_out) and not _inside(target, allowed)
 
-    for inner in [command, *[i for u in _units(_tokens(command)) for i in _inner_commands(u)]]:
+    def judge(text: str, depth: int = 0) -> str | None:
         here = cwd
-        for unit in _units(_tokens(inner)):
+        words = _shell_words(_without_heredoc_bodies(text))
+        for unit in _units(words):
             for stage in _stages(unit):
-                index, word = _first(stage)
-                args = stage[index + 1:]
-                while (word == "uv" and args[:1] == ["run"]) or (word.startswith("python") and args[:1] == ["-m"]):
-                    args = [a for a in args[1:] if a not in ("--quiet", "-q")]  # look through the wrapper
-                    word, args = (_verb(args[0]), args[1:]) if args else ("", [])
+                assign = [t for t in stage if re.fullmatch(r"[A-Za-z_]\w*=.*", t)]
+                for token in assign:
+                    name, value = token.split("=", 1)
+                    names[name] = "/tmp/mktemp" if value.startswith("$(mktemp") or value.startswith("`mktemp") \
+                        else expand(value)
+                word, args = _command(stage)
+                if word in SHELLS and depth < 3:
+                    for inner in _inner_commands([word, *args]):
+                        reason = judge(inner, depth + 1)
+                        if reason:
+                            return reason
                 if word == "cd":
-                    here = resolve(args[0], here, home) or here if args else home
+                    target = expand(args[0].strip("'\"")) if args else home
+                    if target:
+                        here = os.path.normpath(target if target.startswith("/") else os.path.join(here, target))
+                    else:
+                        here = "/tmp/unknown"
                     continue
+                if word == "find" and any(a in ("-exec", "-execdir", "-ok") for a in args):
+                    start = next((a for a in args if not a.startswith("-")), ".")
+                    position = next(i for i, a in enumerate(args) if a in ("-exec", "-execdir", "-ok"))
+                    inner = args[position + 1:]
+                    if inner and _verb(inner[0]) in FILE_WRITERS | {"sed", "perl"} and in_project(start, here):
+                        return f"the reviewer may not change project files (`find -exec {inner[0]}`)"
                 if word == "git":
-                    sub = next((a for a in args if not a.startswith("-") and a not in ("-C",)), "")
-                    if "-C" in args:
-                        position = args.index("-C")
-                        if position + 1 < len(args) and not in_project(args[position + 1], here):
-                            continue
-                        sub = next((a for a in args[position + 2:] if not a.startswith("-")), "")
-                    if sub in GIT_WRITES and in_project(".", here):
+                    folder, sub, rest = _git_parts(args)
+                    place = folder if folder else "."
+                    reads = GIT_READ_FORMS.get(sub)
+                    writes = sub in GIT_WRITES or (reads is not None and sub != "worktree" and bool(rest)
+                                                   and not any(r in reads for r in rest))
+                    if sub == "stash" and not rest:
+                        writes = True
+                    if writes and in_project(place, here):
                         return f"the reviewer may not change the repository (`git {sub}`)"
                 elif word == "kanon" and args and args[0] in KANON_WRITES:
                     return f"the reviewer may not run `kanon {args[0]}`"
-                elif word == "sed" and any(a.startswith("-i") or a == "--in-place" for a in args):
+                elif word in ("sed", "perl") and any(re.match(r"-\w*i|--in-place", a) for a in args):
                     if any(in_project(a, here) for a in args if not a.startswith("-")):
-                        return "the reviewer may not edit project files (`sed -i`)"
+                        return f"the reviewer may not edit project files (`{word} -i`)"
                 elif word in FILE_WRITERS:
                     if any(in_project(a, here) for a in args if not a.startswith("-")):
                         return f"the reviewer may not change project files (`{word}`)"
-            for target in REDIRECT.findall(" ".join(unit)):
-                if target not in ("/dev/null", "/dev/stderr", "/dev/stdout") and in_project(target, here):
-                    return "the reviewer may not write project files (redirection)"
-            if CODE_WRITES.search(" ".join(unit)) and in_project(".", here):
-                return "the reviewer may not write files from code run in the project"
-    return None
+                for index, token in enumerate(stage):
+                    if token in REDIRECTS and index + 1 < len(stage):
+                        target = stage[index + 1]
+                        if target not in ("/dev/null", "/dev/stderr", "/dev/stdout") and in_project(target, here):
+                            return "the reviewer may not write project files (redirection)"
+                if CODE_WRITES.search(" ".join(stage)) and in_project(".", here):
+                    return "the reviewer may not write files from code run in the project"
+        return None
+
+    return judge(command)
 
 
 def main() -> int:

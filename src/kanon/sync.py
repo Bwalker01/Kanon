@@ -140,10 +140,14 @@ def ensure_guard_hook(root: Path) -> str:
 def deny_rules(root: Path) -> list[str]:
     """Claude Code rules that refuse self-approval and edits to the owner's settings (P1-05, K-33)."""
     settings_file = (root / "kanon" / "kanon.toml").resolve().as_posix()
-    rules = [f"Bash({prefix}kanon {command}:*)" for prefix in ("", "uv run ", "uv run --quiet ", "python3 -m ", "python -m ")
-             for command in ("approve", "request-changes")]
-    for tool in ("Edit", "Write"):
-        rules += [f"{tool}(kanon/kanon.toml)", f"{tool}(//{settings_file.lstrip('/')})"]
+    prefixes = ("", "uv run ", "uv run --quiet ", "uv run -q ", "env ", ".venv/bin/", "python3 -m ", "python -m ")
+    rules = [f"Bash({prefix}kanon {command}:*)" for prefix in prefixes for command in ("approve", "request-changes")]
+    rules += [f"Bash({python} -m kanon.cli {command}:*)" for python in ("python3", "python")
+              for command in ("approve", "request-changes")]
+    local = (root / SETTINGS_LOCAL).resolve().as_posix()
+    for tool in ("Edit", "Write"):  # the owner's settings, and the file holding these rules (K-347)
+        for target in ("kanon/kanon.toml", settings_file, SETTINGS_LOCAL, local):
+            rules.append(f"{tool}(//{target.lstrip('/')})" if target.startswith("/") else f"{tool}({target})")
     return rules
 
 

@@ -199,3 +199,26 @@ def test_the_hook_applies_reviewer_rules_only_to_the_reviewer(tmp_path):
                               env={"CLAUDE_PROJECT_DIR": str(tmp_path), "PATH": "/usr/bin:/bin"}).returncode
     assert run("kritos-reviewer") == 2
     assert run(None) == 0 and run("general-purpose") == 0
+
+
+@pytest.mark.parametrize("command", [  # K-341, K-345: ordinary review commands
+    'grep -n "->" src/kanon/guard.py', "awk '$3 > 5' f", 'python3 -c "print(1>2)"', "git log --format='%h > %s'",
+    'echo "a=>b"', "cat > /tmp/claude-0/-home-user-project/session/scratchpad/t.py <<'E'\nfoo > README.md\ngit init\nE",
+    "git stash list", "git branch --show-current", "git config --get user.name",
+    "d=$(mktemp -d) && cd \"$d\" && git init -q && touch a", "cd \"$(mktemp -d)\" && git init",
+    "S=/tmp/claude-0/-home-user-project/session/scratchpad; cat > $S/g.py <<'E'\nprint(1)\nE",
+])
+def test_reviewer_review_commands_are_not_blocked(command):
+    assert guard.reviewer_write(command, PROJECT, HOME, PROJECT, SCRATCH) is None
+
+
+@pytest.mark.parametrize("command", [  # K-343, K-344, K-351: misses
+    "cd /tmp && git -C /home/user/project commit -m x", "git -c user.name=x commit -m y",
+    "cd /tmp && git -C /home/user/project reset --hard", "sed --in-place=.bak 's/a/b/' README.md",
+    "perl -pi -e 's/a/b/' README.md", "env cp /tmp/x README.md", "find . -name x -exec touch {} \\;",
+    "rsync /tmp/x README.md", "python3 -c \"import shutil; shutil.copy('/tmp/x', 'README.md')\"",
+    "python3 -m kanon.cli sync", "uv run --directory . kanon sync", "uv run -q kanon desk",
+    "git branch -D old", "git config user.name x", "git stash",
+])
+def test_reviewer_misses_are_now_blocked(command):
+    assert guard.reviewer_write(command, PROJECT, HOME, PROJECT, SCRATCH)

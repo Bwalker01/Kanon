@@ -17,8 +17,8 @@ updated: 2026-11-19
 ## Decision
 
 - **Forms:** "approved by" (the approver ran `kanon approve`) and "transcribed" (the assistant ran `kanon transcribe --quote` with the approver's words). Each Decision row names its form.
-- **Material:** the work file without its frontmatter, summary block, Actions, Decision and Cost sections; up to the Plan for a plan approval, up to the Review for a result. The row records its SHA-256 and the commit.
-- **Checks:** `kanon verify` fails when the latest approval no longer matches its hash, names an approver missing from `approvers`, or, for complete work, has no hash and is dated after 2026-11-19.
+- **Material:** the work file without its frontmatter, summary block, Actions, Decision and Cost sections; up to the Plan for a plan approval, up to the Review for a result. An item approval (`--item P1-05`) covers only that item's Work Items row, Plan subsections naming it and Review rows naming it, and leaves the status alone (owner, K-340). The row records its SHA-256 and the commit.
+- **Checks:** `kanon verify` fails when the latest approval of each plan, result or item no longer matches its hash, when a recorded approval's hash is missing or malformed, names an approver missing from `approvers`, or, for complete work, has no hash and is dated after 2026-11-19.
 - **Refusals:** `kanon sync` writes Claude Code deny rules for `kanon approve`, `kanon request-changes` and edits to `kanon/kanon.toml`; both commands also refuse when `CLAUDECODE` is set. The guard blocks project writes by `kritos-reviewer` (K-29).
 
 ## Basis
@@ -28,5 +28,5 @@ updated: 2026-11-19
 
 ## Consequences
 
-- Remaining bypasses, all tamper-evident only: direct file edits through the shell, running Kanon with `CLAUDECODE` unset, a forged transcription, and reviewer writes made by programs a command starts.
-- The edit deny rules for `kanon/kanon.toml` were written but not exercised live; a test confirms they are written.
+- Remaining bypasses, all tamper-evident only: file edits through the shell (including of `.claude/settings.local.json`, which holds the deny rules), running Kanon with `CLAUDECODE` unset, a forged transcription, a forged hashless row dated on or before 2026-11-19, and reviewer writes made by programs a command starts or through variables the guard cannot resolve.
+- The edit deny rules were written but not exercised live; tests confirm they are written.

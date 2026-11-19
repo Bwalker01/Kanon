@@ -129,10 +129,88 @@ def test_sync_writes_deny_rules_for_self_approval_and_owner_settings(repo):
     ksync.sync(repo)
     deny = json.loads((repo / ksync.SETTINGS_LOCAL).read_text())["permissions"]["deny"]
     for rule in ("Bash(kanon approve:*)", "Bash(uv run kanon approve:*)", "Bash(kanon request-changes:*)",
-                 "Edit(kanon/kanon.toml)", "Write(kanon/kanon.toml)"):
+                 "Edit(kanon/kanon.toml)", "Write(kanon/kanon.toml)", "Bash(python3 -m kanon.cli approve:*)",
+                 "Edit(.claude/settings.local.json)", "Write(.claude/settings.local.json)"):
         assert rule in deny
     assert "Bash(kanon transcribe:*)" not in deny
     ksync.sync(repo)
     assert json.loads((repo / ksync.SETTINGS_LOCAL).read_text())["permissions"]["deny"] == deny
     status = subprocess.run(["git", "status", "--porcelain"], cwd=repo, capture_output=True, text=True).stdout
     assert "settings.local.json" not in status
+
+
+ITEMS = """
+### 1.3 Work Items
+
+| ID | Item | Delivers |
+|---|---|---|
+| P1-05 | Approvals | Hashes |
+| P1-08 | End-to-end | Runs |
+
+### 1.6 P1-05 Design
+
+| Part | Design |
+|---|---|
+| Material | Hashed |
+"""
+
+
+def item_repo(repo):
+    body = text(repo).replace("| Reviewer | Kritos (independent) |", "| Reviewer | Kritos (independent) |\n" + ITEMS)
+    body = body.replace("| 1 | Example | Kritos | pass | None | Accepted |",
+                        "| C1 | P1-05 | Kritos | correct | K-1 | Fixed |").replace("status: awaiting-approval", "status: in-progress")
+    (repo / WORK).write_text(body)
+    return repo
+
+
+def test_an_item_approval_keeps_the_status_and_ignores_later_items(repo):  # K-340
+    item_repo(repo)
+    row = approve.record(repo, WORK, "ada-dev", APPROVERS, item="P1-05", quote="group C approved", today=TODAY)
+    assert row.startswith("| P1-05 | Approved |") and "material: item P1-05" in row
+    assert "status: in-progress" in text(repo) and "> **Decision needed:** None yet." in text(repo)
+    later = text(repo).replace("| C1 | P1-05 | Kritos | correct | K-1 | Fixed |",
+                               "| C1 | P1-05 | Kritos | correct | K-1 | Fixed |\n| G1 | P1-08 | Kritos | pass | None | Fine |")
+    (repo / WORK).write_text(later.replace("| P1-08 | End-to-end | Runs |", "| P1-08 | End-to-end | Two runs |"))
+    assert approval_findings(repo) == []
+    (repo / WORK).write_text(text(repo).replace("| Material | Hashed |", "| Material | Unhashed |"))
+    assert any("approved item P1-05 has changed" in m for m in approval_findings(repo))
+
+
+def test_an_unknown_item_is_refused(repo):
+    with pytest.raises(ValueError):
+        approve.record(repo, WORK, "ada-dev", APPROVERS, item="P9-99", today=TODAY)
+
+
+@pytest.mark.parametrize("quote", ["Yes, approved for now", "Approved by me | ship it", "Approved for P1-05"])
+def test_the_approver_is_never_read_from_the_quoted_words(repo, quote):  # K-342
+    approve.record(repo, WORK, "ada-dev", APPROVERS, quote=quote, today=TODAY)
+    assert approve.decision_rows(text(repo))[-1].approver == "ada-dev"
+    assert approval_findings(repo) == []
+
+
+def test_a_damaged_hash_fails_instead_of_being_skipped(repo):  # K-346
+    approve.record(repo, WORK, "ada-dev", APPROVERS, plan=True, today=TODAY)
+    damaged = approve.HASH.sub("sha256:deadbeef", text(repo))
+    (repo / WORK).write_text(damaged)
+    assert any("missing or malformed hash" in m for m in approval_findings(repo))
+
+
+def test_a_prose_decision_section_gets_a_table_after_it(repo):  # K-348
+    body = text(repo).replace("## 4. Decision\n\nPending.", "## 4. Decision\n\nThe owner approved this in chat.")
+    (repo / WORK).write_text(body)
+    approve.record(repo, WORK, "ada-dev", APPROVERS, today=TODAY)
+    assert "The owner approved this in chat.\n\n| Item | Decision | Date | Basis |" in text(repo)
+
+
+def test_a_fenced_heading_does_not_end_the_material(repo):  # K-349
+    fenced = text(repo).replace("| Output | A file |", "| Output | A file |\n\n```\n## 4. Decision\n```\n")
+    (repo / WORK).write_text(fenced)
+    approve.record(repo, WORK, "ada-dev", APPROVERS, plan=True, today=TODAY)
+    assert approve.decision_rows(text(repo))[-1].item == "Plan"
+    (repo / WORK).write_text(text(repo).replace("| Creator | Builder |", "| Creator | Someone |"))
+    assert any("approved plan has changed" in m for m in approval_findings(repo))
+
+
+def test_uncommitted_material_is_marked(repo):  # K-350
+    row = approve.record(repo, WORK, "ada-dev", APPROVERS, today=TODAY)
+    assert "plus uncommitted changes" in row

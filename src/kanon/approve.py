@@ -22,9 +22,12 @@ PLAN, RESULT = "plan", "result"
 # Rows dated on or before this day were recorded before P1-05 and carry no hash (legacy).
 LEGACY_UNTIL = dt.date(2026, 11, 19)
 DECISION_HEADER = "| Item | Decision | Date | Basis |\n|---|---|---|---|"
-HASH = re.compile(r"sha256:([0-9a-f]{64})")
-MATERIAL = re.compile(r"material: (plan|result)")
+HASH = re.compile(r"sha256:(\S+)")
+VALID_HASH = re.compile(r"[0-9a-f]{64}")
+MATERIAL = re.compile(r"material: (plan|result|item [A-Za-z0-9._-]+)")
+FORMS = ("with kanon approve", "Transcribed by the assistant for", "material:")
 LATE = "owner decides"
+CELL_SPLIT = re.compile(r"(?<!\\)\|")
 
 
 def _split(text: str) -> tuple[str, list[str]]:
@@ -39,6 +42,57 @@ def _heading_name(line: str) -> str:
     return re.sub(r"^## (?:\d+\.\s+)?", "", line).strip()
 
 
+def _unfenced(lines: list[str]) -> list[bool]:
+    """For each line, True when it is outside a fenced code block (K-349)."""
+    out, fence = [], None
+    for line in lines:
+        marker = re.match(r"\s*(`{3,}|~{3,})", line)
+        if fence is None and marker:
+            fence = marker.group(1)[0] * len(marker.group(1))
+            out.append(False)
+        elif fence is not None:
+            if line.strip().startswith(fence) and not line.strip().strip(fence[0]):
+                fence = None
+            out.append(False)
+        else:
+            out.append(True)
+    return out
+
+
+def _cells(line: str) -> list[str]:
+    return [c.strip() for c in CELL_SPLIT.split(line.strip().strip("|"))]
+
+
+def _names_item(text: str, item: str) -> bool:
+    return re.search(rf"(?<![\w-]){re.escape(item)}(?![\w-])", text) is not None
+
+
+def _item_material(lines: list[str], item: str) -> str:
+    """An item's own record: its Work Items row, Plan subsections naming it, and Review rows naming it."""
+    out, section, subsection = [], None, ""
+    for line, open_ in zip(lines, _unfenced(lines)):
+        if open_ and line.startswith("## "):
+            section, subsection = _heading_name(line), ""
+            continue
+        if open_ and line.startswith("### "):
+            subsection = line
+            if section == "Plan" and _names_item(line, item):
+                out.append(line.rstrip())
+            continue
+        if section == "Plan":
+            if subsection and _names_item(subsection, item):
+                out.append(line.rstrip())
+            elif line.startswith("|") and _cells(line)[0] == item:
+                out.append(line.rstrip())
+        elif section == "Review" and line.startswith("|"):
+            cells = _cells(line)
+            if len(cells) > 1 and _names_item(cells[1], item):
+                out.append(line.rstrip())
+    if not out:
+        raise ValueError(f"no record of item {item} in the work file (Work Items row, Plan subsection or Review row)")
+    return "\n".join(out).strip() + "\n"
+
+
 def material(text: str, kind: str) -> str:
     """The approved text: title and sections up to the Plan's end (plan) or the Review's end (result).
 
@@ -46,15 +100,17 @@ def material(text: str, kind: str) -> str:
     recorded or when the person confirms an action, not when the approved work changes.
     """
     _, lines = _split(text)
+    if kind.startswith("item "):
+        return _item_material(lines, kind[5:])
     out, section, in_summary = [], None, False
     stop = "Questions" if kind == PLAN else "Decision"
-    for line in lines:
-        if line.startswith("## "):
+    for line, open_ in zip(lines, _unfenced(lines)):
+        if open_ and line.startswith("## "):
             section = _heading_name(line)
             if section == stop or (kind == PLAN and section != "Plan"):
                 break
             in_summary = False
-        elif line.startswith("# ") and section is None:
+        elif open_ and line.startswith("# ") and section is None:
             in_summary = True
         elif in_summary and line.startswith(">"):
             continue
@@ -88,36 +144,50 @@ class Row:
 
     @property
     def approver(self) -> str | None:
-        match = re.search(r"(?:Approved by|Changes requested by|for) @?([A-Za-z0-9-]+)", self.basis)
+        """The approver named by Kanon's own label, never a name inside the quoted words (K-342)."""
+        marker = "Transcribed by the assistant for "
+        if marker in self.basis:
+            match = re.match(r"@?([A-Za-z0-9-]+)", self.basis[self.basis.rindex(marker) + len(marker):])
+        else:
+            match = re.match(r"(?:Approved by|Changes requested by) @?([A-Za-z0-9-]+) with kanon", self.basis)
         return match.group(1) if match else None
+
+    @property
+    def labelled(self) -> bool:
+        return any(form in self.basis for form in FORMS)
 
 
 def decision_rows(text: str) -> list[Row]:
     head, lines = _split(text)
     offset = head.count("\n") + 1
     rows, inside = [], False
-    for index, line in enumerate(lines):
-        if line.startswith("## "):
+    for index, (line, open_) in enumerate(zip(lines, _unfenced(lines))):
+        if open_ and line.startswith("## "):
             inside = _heading_name(line) == "Decision"
             continue
-        if inside and line.startswith("|") and not re.fullmatch(r"\|[\s|:-]+\|", line.strip()):
-            cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        if inside and open_ and line.startswith("|") and not re.fullmatch(r"\|[\s|:-]+\|", line.strip()):
+            cells = _cells(line)
             if len(cells) >= 4 and cells[0].lower() != "item":
                 rows.append(Row(cells[0], cells[1], cells[2], " | ".join(cells[3:]), index + offset))
     return rows
 
 
-def _git_head(root: Path) -> str:
-    result = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=root, capture_output=True, text=True)
-    return result.stdout.strip() or "none"
+def _git_head(root: Path, rel: str) -> str:
+    """The commit at approval, marked when the work file has changes not yet committed (K-350)."""
+    head = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=root, capture_output=True, text=True)
+    dirty = subprocess.run(["git", "status", "--porcelain", "--", rel], cwd=root, capture_output=True, text=True)
+    commit = f"`{head.stdout.strip() or 'none'}`"
+    return commit + (" plus uncommitted changes" if dirty.stdout.strip() else "")
 
 
-def _mark_late_reviews(lines: list[str], today: str) -> None:
+def _mark_late_reviews(lines: list[str], today: str, item: str | None = None) -> None:
     section = None
-    for index, line in enumerate(lines):
-        if line.startswith("## "):
+    for index, (line, open_) in enumerate(zip(lines, _unfenced(lines))):
+        if open_ and line.startswith("## "):
             section = _heading_name(line)
         elif section == "Review" and line.startswith("|") and LATE in line.lower() and "owner reviewed" not in line.lower():
+            if item and not (len(_cells(line)) > 1 and _names_item(_cells(line)[1], item)):
+                continue
             lines[index] = line.rstrip().rstrip("|").rstrip() + f". Owner reviewed {today} |"
 
 
@@ -132,20 +202,26 @@ def _set_summary(lines: list[str], decided: str) -> None:
 
 
 def _append_row(lines: list[str], row: str) -> None:
-    start = next((i for i, l in enumerate(lines) if l.startswith("## ") and _heading_name(l) == "Decision"), None)
+    open_ = _unfenced(lines)
+    heads = [i for i, l in enumerate(lines) if open_[i] and l.startswith("## ")]
+    start = next((i for i in heads if _heading_name(lines[i]) == "Decision"), None)
     if start is None:
         raise ValueError("the work file has no Decision section")
-    end = next((i for i in range(start + 1, len(lines)) if lines[i].startswith("## ")), len(lines))
+    end = next((i for i in heads if i > start), len(lines))
     body = [l for l in lines[start + 1:end] if l.strip()]
+    table = [i for i in range(start + 1, end) if open_[i] and lines[i].startswith("|")]
     if not body or body == ["Pending."]:
         lines[start + 1:end] = ["", *DECISION_HEADER.split("\n"), row, ""]
-        return
-    last = max(i for i in range(start + 1, end) if lines[i].startswith("|"))
-    lines.insert(last + 1, row)
+    elif not table:  # a Decision section written as prose keeps its text, with the table after it (K-348)
+        while end > start + 1 and not lines[end - 1].strip():
+            end -= 1
+        lines[end:end] = ["", *DECISION_HEADER.split("\n"), row]
+    else:
+        lines.insert(table[-1] + 1, row)
 
 
 def record(root: Path, rel: str, approver: str, approvers: list[str], *, changes: str | None = None,
-           plan: bool = False, quote: str | None = None, today: str | None = None) -> str:
+           plan: bool = False, quote: str | None = None, today: str | None = None, item: str | None = None) -> str:
     """Record a decision in the work file at rel. Returns the new Decision row.
 
     quote: the person's words, when the assistant transcribes them; None when the person runs it.
@@ -159,26 +235,31 @@ def record(root: Path, rel: str, approver: str, approvers: list[str], *, changes
     head, lines = _split(path.read_text(encoding="utf-8"))
     if not re.search(r"^type: work$", head, re.M):
         raise ValueError(f"{rel} is not a work file")
+    if item is not None and (plan or not re.fullmatch(r"[A-Za-z0-9._-]+", item)):
+        raise ValueError("--item takes an item ID such as P1-05 and cannot be combined with --plan")
     today = today or dt.date.today().isoformat()
-    kind = PLAN if plan else RESULT
+    kind = f"item {item}" if item else (PLAN if plan else RESULT)
+    label = item or ("Plan" if plan else "Result")
     if changes is None:
-        _mark_late_reviews(lines, today)
+        _mark_late_reviews(lines, today, item)
     text = head + "\n".join(lines)
-    commit = _git_head(root)
-    who = f'Owner in chat: "{quote.strip()}". Transcribed by the assistant for {approver}' if quote is not None \
+    commit = _git_head(root, rel)
+    clean = lambda words: " ".join(words.split()).replace("|", "\\|")  # noqa: E731
+    who = f'Owner in chat: "{clean(quote)}". Transcribed by the assistant for {approver}' if quote is not None \
         else (f"Changes requested by {approver} with kanon request-changes" if changes is not None
               else f"Approved by {approver} with kanon approve")
     if changes is not None:
-        row = f"| {'Plan' if plan else 'Result'} | Changes requested | {today} | {who}: {changes.strip()}; commit `{commit}` |"
+        row = f"| {label} | Changes requested | {today} | {who}; changes: {clean(changes)}; commit {commit} |"
         status, decided = "in-progress", f"Changes requested by {approver} on {today}."
     else:
-        row = (f"| {'Plan' if plan else 'Result'} | Approved | {today} | {who}; commit `{commit}`; "
+        row = (f"| {label} | Approved | {today} | {who}; commit {commit}; "
                f"material: {kind}; sha256:{digest(text, kind)} |")
         status = "in-progress" if plan else "complete"
         decided = f"{'Plan approved' if plan else 'Approved'} by {approver} on {today}."
-    _append_row(lines, row.replace("\n", " "))
-    _set_summary(lines, decided)
-    head = re.sub(r"^status: .*$", f"status: {status}", head, count=1, flags=re.M)
+    _append_row(lines, row)
+    if item is None:  # an item approval leaves the work file's status and summary as they are (K-340)
+        _set_summary(lines, decided)
+        head = re.sub(r"^status: .*$", f"status: {status}", head, count=1, flags=re.M)
     head = re.sub(r"^updated: .*$", f"updated: {today}", head, count=1, flags=re.M)
     path.write_text(head + "\n".join(lines), encoding="utf-8")
     return row
@@ -199,18 +280,28 @@ def check(text: str, approvers: list[str], status: str | None) -> list[tuple[int
         if row.hash and who and who.lower() not in allowed:
             problems.append((row.line, f"decision recorded for {who}, who is not listed in approvers"))
     approvals = [r for r in rows if r.decision.lower().startswith("approved")]
-    if not approvals:
-        return problems
-    latest = approvals[-1]
-    if latest.hash:
-        if latest.hash != digest(text, latest.kind):
-            problems.append((latest.line, f"the approved {latest.kind} has changed since it was approved; "
-                                          "a new decision is needed"))
-    elif status == "complete":
+    latest: dict[str, Row] = {}
+    for row in approvals:
+        latest[row.kind] = row
+    for kind, row in latest.items():
+        if row.labelled and not (row.hash and VALID_HASH.fullmatch(row.hash)):
+            problems.append((row.line, "a recorded approval has a missing or malformed hash"))
+        elif row.hash:
+            try:
+                current = digest(text, kind)
+            except ValueError as error:
+                problems.append((row.line, str(error)))
+                continue
+            if row.hash != current:
+                problems.append((row.line, f"the approved {kind} has changed since it was approved; "
+                                           "a new decision is needed"))
+    final = [r for r in approvals if not r.kind.startswith("item ")]
+    if status == "complete" and final and not final[-1].hash:
         try:
-            day = dt.date.fromisoformat(latest.date)
+            day = dt.date.fromisoformat(final[-1].date)
         except ValueError:
             day = None
         if day is None or day > LEGACY_UNTIL:
-            problems.append((latest.line, "the latest approval has no hash; record it with kanon approve or kanon transcribe"))
+            problems.append((final[-1].line, "the latest approval has no hash; "
+                                             "record it with kanon approve or kanon transcribe"))
     return problems

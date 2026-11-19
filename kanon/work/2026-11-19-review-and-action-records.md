@@ -1,19 +1,19 @@
 ---
 type: work
-status: awaiting-approval
+status: parked
 updated: 2026-11-19
 ---
 
 # Review and Action Records
 
-> **Summary:** Plan for P1-11, awaiting approval: let people tick action steps, add notes and comment on files or lines from GitHub (web, mobile, VS Code's GitHub Pull Requests extension) or plain Git, with the repository as the record and a short `kanon inbox` read for agents. Phase 1 item P1-11.
-> **Decision needed:** Approve this plan and ADR-012 as set out in section 1.2. Below tier 3, host approvals are advisory; binding approval stays in chat or `kanon approve`. Tier 2 (issues) is optional item R-06: keep or defer it.
+> **Summary:** Plan, parked until Phase 2 (owner, 2026-11-19): let people tick action steps, add notes and comment on files or lines from GitHub (web, mobile, VS Code's GitHub Pull Requests extension) or plain Git, with the repository as the record and a short `kanon inbox` read for agents. Planned with the GitHub Project board.
+> **Decision needed:** None until Phase 2 is planned; then approve this plan and ADR-012 as set out in section 1.2, and keep or defer tier 2 (R-06).
 
 ## 1. Plan
 
 | Field | Value |
 |---|---|
-| Output | ADR-012; `kanon inbox`, `kanon done`, `kanon note`; a tier probe saved by `kanon init`; a host adapter interface with a Git-only adapter and a GitHub adapter (tiers 0 to 2); a Notes table in work files; Atlas and Metis prompt changes; P1-11 added to the phase-1 plan's item table, Order line and review points |
+| Output | ADR-012; `kanon inbox`, `kanon done`, `kanon note`; a tier probe saved by `kanon init`; a host adapter interface with a Git-only adapter and a GitHub adapter (tiers 0 to 2); a Notes table in work files; Atlas and Metis prompt changes; Phase 2 roadmap entry |
 | Inputs | Owner requests, 2026-11-19 (`kanon/sources.md`, section 15); ADR-007; ADR-009; ADR-011; P1-05, P1-09 and P1-10 in `kanon/work/2026-11-16-phase-1-plan.md` |
 | Acceptance | See section 1.6 |
 | Creator | Claude Code (builder session) |
@@ -50,7 +50,7 @@ updated: 2026-11-19
 - **Line notes** live in the work file's Notes table (one file per piece of work, ADR-009) and record the commit SHA they were written against. `kanon verify` maps the range to the current file through `git diff`: lines that only moved are re-anchored; lines that changed make the note stale; a missing commit (squash merge, shallow clone) makes it unverifiable. Stale and unverifiable are warnings, never failures.
 - **No model calls** in any command; GitHub calls run locally through `gh`. Kanon starts no Actions itself. Opening pull requests or posting comments can trigger a repository's own workflows on those events; the probe lists such workflows so the person knows the cost. Actions minutes are used only by the repository's own workflows (assessment).
 - **The Desk** shows the tier saved by `kanon init` and makes no `gh` call.
-- **Shared with P1-10:** the pull request description generator and the pull request opening code are built once in R-04, using P1-09's branch names, and reused by P1-10, which adds only the App identity and approval read-back.
+- **Shared with P1-10:** the pull request description generator and the pull request opening code are built in Phase 1 by P1-10; R-04 reuses them and P1-09's branch names, and adds checklists and comment read-back.
 
 ### 1.3 Roles
 
@@ -81,7 +81,7 @@ No new role. The host sync is mechanical; each judgement fits an existing role.
 | R-05 | `kanon inbox` and roles | Change summary, idempotent work file updates, Atlas and Metis prompts, Desk links |
 | R-06 | Tier 2 (optional) | One issue per action, checkbox and comment read-back |
 
-**Order and dependencies:** R-01, then R-02 and R-03, then R-04 and R-05, then R-06 if kept. P1-11 depends on P1-05 (binding `kanon approve`) and P1-09 (branch names), and P1-10 reuses R-04. The phase-1 Order becomes: P1-05 and P1-09 (group C), then P1-11 (groups D: R-01 to R-03, and E: R-04 to R-06), then P1-10 (group F), then P1-08. The group C review point covers P1-05 and P1-09; new review points follow groups E and F.
+**Order and dependencies:** R-01, then R-02 and R-03, then R-04 and R-05, then R-06 if kept. Built in Phase 2, after Phase 1 delivers P1-05 (binding `kanon approve`), P1-09 (branch names) and P1-10 (pull requests and the App, tier 3). The phase-1 Order is unchanged. Review groups are set when Phase 2 is planned.
 
 **Cost estimate (assessment):** about 1.5 times the group B build (P1-04 and P1-06), recorded in section 5 as work proceeds. Each session's `kanon inbox` makes one `gh` call per open pull request (plus one per open action issue at tier 2) and prints under 1,500 characters for 10 changes.
 
@@ -120,6 +120,7 @@ No new role. The host sync is mechanical; each judgement fits an existing role.
 | 2026-11-19 | How to work under GitHub Enterprise limits? | Tiers chosen by capability, with a Git-only floor |
 | 2026-11-19 | New role for repository interaction? | None; routing added to Atlas and Metis |
 | 2026-11-19 | Plan as P1-11 with tiers 0 to 2, tier 3 left to P1-10? | Yes |
+| 2026-11-19 | When is this built? | Phase 2, with the GitHub Project board work, since it is not needed before then (owner) |
 | 2026-11-19 | Keep tier 2 (issues) now or defer it? Review K-311: tiers 0 and 1 meet every request; tier 2 adds sync work and notification noise. Recommendation: defer. Default: R-06 kept as optional | In the Decision needed line |
 
 ## 3. Review

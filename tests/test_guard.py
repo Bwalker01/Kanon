@@ -261,6 +261,13 @@ def test_reviewer_branch_commands(command, blocked):
     ("gh api --method=POST repos/o/r/pulls", True), ("gh issue create -t x", True),
     ("gh pr view 3", False), ("gh pr list", False), ("gh api repos/o/r/pulls", False),
     ("gh api -X GET search/code -f q=x", False), ("echo 'gh pr merge 3'", False),
+    # K-407: further writes, and a graphql read
+    ("gh api -XPOST repos/o/r/pulls", True), ("gh api -X=POST repos/o/r/pulls", True), ("gh ssh-key add k", True),
+    ("gh repo deploy-key add k", True), ("gh auth token", True), ("gh alias set m 'pr merge'", True),
+    ("gh pr update-branch 3", True), ("gh pr revert 3", True), ("gh secret set X", True), ("gh run rerun 1", True),
+    ("gh repo sync", True), ("gh gist create f", True), ("gh issue pin 3", True),
+    ("gh api graphql -f query='mutation{x}'", True), ("gh api graphql -f query='query{viewer{login}}'", False),
+    ("gh search code x", False), ("gh auth status", False), ("gh run list", False),
 ])
 def test_gh_writes_are_blocked_for_every_agent(command, blocked):
     assert bool(guard.gh_write(command)) is blocked

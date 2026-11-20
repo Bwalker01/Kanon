@@ -24,7 +24,8 @@ Phase 1 (core engine) is in progress. Run `kanon desk` to see what waits on you.
 
 ## GitHub Mode (Optional)
 
-Kanon can open one pull request per approved plan as its own GitHub App. Agents never act as you.
+Kanon can open one pull request per approved plan as its own GitHub App, and agents are refused your GitHub
+connector and writing `gh` commands. Cloud sessions' own clone and branch pushes still use your connection.
 Set it up once, on your own computer, in a clone of your repository:
 
 1. `kanon github setup` opens GitHub with Kanon's permissions filled in. Create the App, then install it on the repository.
@@ -32,7 +33,8 @@ Set it up once, on your own computer, in a clone of your repository:
 3. `kanon github protect`, run with your own `gh` login, makes your review required on `main`.
 
 Merging the pull request is the approval. Cloud sessions cannot sign in as the App (their proxy refuses GitHub App
-paths), so pull requests are opened from your computer.
+paths), so pull requests are opened from your computer. A repository's own CI runs on the App's pull requests as on
+any other.
 
 ## Contributing
 

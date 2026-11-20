@@ -466,32 +466,50 @@ def reviewer_write(command: str, cwd: str, home: str, project: str, scratch: lis
     return judge(command)
 
 
-GH_WRITES = {"pr": {"create", "merge", "review", "comment", "edit", "close", "reopen", "ready", "lock"},
-             "issue": {"create", "comment", "edit", "close", "reopen", "delete", "transfer", "lock"},
-             "repo": {"create", "edit", "delete", "fork", "rename", "archive"},
-             "release": {"create", "edit", "delete", "upload"}, "workflow": {"run", "enable", "disable"},
-             "label": {"create", "edit", "delete"}}
+GH_READS = {"view", "list", "status", "diff", "checks"}
+GH_READ_GROUPS = {"search", "help", "version", "--version", "--help", "completion"}
+
+
+def _gh_method(args: list[str]) -> str | None:
+    for index, arg in enumerate(args):
+        if arg in ("-X", "--method") and index + 1 < len(args):
+            return args[index + 1]
+        for prefix in ("--method=", "-X="):
+            if arg.startswith(prefix):
+                return arg[len(prefix):]
+        if arg.startswith("-X") and len(arg) > 2:
+            return arg[2:]
+    return None
 
 
 def gh_write(command: str) -> str | None:
-    """Reason to block a `gh` command that would act on GitHub as the person (owner, 2026-11-19), or None.
+    """Reason to block a `gh` command that is not a plain read (owner, 2026-11-19), or None.
 
-    Kanon acts on GitHub only as its App, through `kanon github`. Reading with `gh` stays allowed.
+    Kanon acts on GitHub only as its App, through `kanon github`, so an agent's `gh` may only read:
+    `view`, `list`, `status`, `diff` and `checks`, `gh search`, and `gh api` with GET (K-407).
     """
     for unit in _units(_shell_words(_without_heredoc_bodies(command))):
         for stage in _stages(unit):
             word, args = _command(stage)
-            if word != "gh" or not args:
+            if word != "gh":
                 continue
-            group, action = args[0], (args[1] if len(args) > 1 else "")
-            if action in GH_WRITES.get(group, set()):
-                return f"`gh {group} {action}` would act on GitHub as you; Kanon acts only as its App (kanon github)"
+            args = [a for a in args if a not in ("--repo", "-R")] if args else []
+            group, action = (args[0] if args else "help"), (args[1] if len(args) > 1 else "")
+            if group in GH_READ_GROUPS or (group == "auth" and action == "status"):
+                continue
             if group == "api":
-                method = next((args[i + 1] for i, a in enumerate(args[:-1]) if a in ("-X", "--method")), None)
-                method = method or next((a.split("=", 1)[1] for a in args if a.startswith("--method=")), None)
+                method = (_gh_method(args) or "").upper()
                 fields = any(a in ("-f", "-F", "--field", "--raw-field", "--input") for a in args)
-                if (method or ("POST" if fields else "GET")).upper() != "GET":
-                    return "`gh api` with a writing method would act on GitHub as you; Kanon acts only as its App"
+                if len(args) > 1 and args[1] == "graphql":
+                    if any("mutation" in a for a in args):
+                        return "`gh api graphql` with a mutation would act on GitHub as you; Kanon acts only as its App"
+                    continue
+                if (method or ("POST" if fields else "GET")) == "GET":
+                    continue
+                return "`gh api` with a writing method would act on GitHub as you; Kanon acts only as its App"
+            if action in GH_READS:
+                continue
+            return f"`gh {group} {action}`".replace(" `", "`") + " is not a read; Kanon acts on GitHub only as its App"
     return None
 
 

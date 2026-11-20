@@ -205,10 +205,23 @@ def build(root: Path, today: dt.datetime | None = None) -> Desk:
     approvers = [a.lower() for a in settings.get("kanon", {}).get("approvers", []) if isinstance(a, str)]
     may_approve = not github or github in approvers
 
+    from kanon import approve as approvals
+    from kanon.github import read_cache
+    merged = approvals.merged_pull_requests(root)
+    links = {str(e.get("work")): str(e.get("url", "")) for e in read_cache(root).values() if isinstance(e, dict)}
     decisions, actions, reviews, work = [], [], [], []
     for path in sorted((root / "kanon/work").glob("*.md")):
         rel = path.relative_to(root).as_posix()
-        w, d, acts, revs = parse_work(rel, path.read_text(encoding="utf-8"))
+        text = path.read_text(encoding="utf-8")
+        w, d, acts, revs = parse_work(rel, text)
+        rows = approvals.decision_rows(text)
+        pending = approvals.ON_MERGE_NUMBER.search(rows[-1].decision) if rows else None
+        if pending and int(pending.group(1)) in merged:
+            d = None  # the pull request merged: decided (P1-10)
+        elif pending:  # waiting on GitHub, read from the work file and Git history only (K-402)
+            number, url = pending.group(1), links.get(rel, "")
+            d = Decision("", rel, w.title, f"Pull request #{number} carries this work; merging it is the approval.",
+                         f"Review and merge pull request #{number} on GitHub.", url if url.startswith("https://") else "")
         if w.status not in CLOSED:
             work.append(w)
         if d and may_approve:
@@ -219,14 +232,7 @@ def build(root: Path, today: dt.datetime | None = None) -> Desk:
             reviews += revs
     for decision in decisions:
         decision.id = slug(decision.work)
-    if may_approve:  # open pull requests recorded by kanon github; no network call (P1-10)
-        from kanon.github import read_cache
-        for work_name, entry in sorted(read_cache(root).items()):
-            if isinstance(entry, dict) and entry.get("state") == "open" and str(entry.get("url", "")).startswith("https://"):
-                decisions.append(Decision(work_name, str(entry.get("work", "")), f"Pull request #{entry.get('number')}",
-                                          "Merging it is the final approval of the work it carries.",
-                                          f"Review and merge pull request #{entry.get('number')} on GitHub.",
-                                          str(entry["url"])))
+
     recent = [l for l in _git(root, "log", "-n", "40", "--format=%as %s").splitlines()
               if re.match(r"^\S+ (ADDED|MODIFIED|REMOVED):", l)][:12]
     when = (today or dt.datetime.now()).strftime("%Y-%m-%d %H:%M")
@@ -243,7 +249,7 @@ def render_markdown(desk: Desk) -> str:
            f"{len(desk.reviews)} late reviews on branch `{desk.branch}`. Generated {desk.generated}; "
            "never edit or commit this file.", ""]
     out += ["## Decide", ""]
-    out += [f"- **{d.title}:** {d.needed} {d.url}" if d.url else
+    out += [f"- **{d.title}:** {d.needed} {d.url}" if d.url or "pull request #" in d.needed else
             f"- **{d.title}:** {d.needed} Read `{d.work}`. Reply `approve {d.id}` or `changes {d.id}: ...`."
             for d in desk.decisions] or ["Nothing to decide."]
     out += ["", "## Do", ""]

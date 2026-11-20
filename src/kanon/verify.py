@@ -386,7 +386,7 @@ def verify_with_exceptions(root: Path) -> tuple[list[Finding], list[tuple[Findin
     return open_, covered
 
 
-def check_approvals(rel: str, text: str, settings: dict) -> list[Finding]:
+def check_approvals(rel: str, text: str, settings: dict, merged: set[int] | None = None) -> list[Finding]:
     """P1-05: the latest approval still matches its hash and names a listed approver."""
     from kanon.approve import check
     meta, _ = split_frontmatter(text)
@@ -394,7 +394,8 @@ def check_approvals(rel: str, text: str, settings: dict) -> list[Finding]:
         return []
     approvers = settings.get("kanon", {}).get("approvers", [])
     approvers = [a for a in approvers if isinstance(a, str)] if isinstance(approvers, list) else []
-    return [Finding(rel, line, "approval", message) for line, message in check(text, approvers, meta.get("status"))]
+    return [Finding(rel, line, "approval", message)
+            for line, message in check(text, approvers, meta.get("status"), merged)]
 
 
 def _verify(root: Path) -> tuple[list[Finding], dict]:
@@ -417,6 +418,7 @@ def _verify(root: Path) -> tuple[list[Finding], dict]:
     limit = limit if isinstance(limit, int) and not isinstance(limit, bool) and limit > 0 else 3
 
     seen_topics: dict[str, str] = {}
+    merged: set[int] | None = None
     for path in sorted((kanon / "work").glob("*.md")):
         topic = re.sub(r"^\d{4}-\d{2}-\d{2}-", "", path.stem)
         rel = path.relative_to(root).as_posix()
@@ -435,7 +437,10 @@ def _verify(root: Path) -> tuple[list[Finding], dict]:
                                         lambda commit: changed_files(root, commit))
             findings += check_decision_needed(rel, text)
             findings += check_actions(rel, text)
-            findings += check_approvals(rel, text, settings)
+            if merged is None:
+                from kanon.approve import merged_pull_requests
+                merged = merged_pull_requests(root)
+            findings += check_approvals(rel, text, settings, merged)
 
     # Hand-written instruction files are checked; generated ones are checked through their sources.
     from kanon.sync import GENERATED, is_generated

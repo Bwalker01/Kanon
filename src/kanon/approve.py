@@ -293,7 +293,16 @@ def in_assistant() -> bool:
     return bool(os.environ.get("CLAUDECODE"))
 
 
-def check(text: str, approvers: list[str], status: str | None) -> list[tuple[int, str]]:
+ON_MERGE_NUMBER = re.compile(r"on merge of pull request #(\d+)", re.I)
+
+
+def merged_pull_requests(root: Path) -> set[int]:
+    """Pull request numbers whose GitHub merge commit is in HEAD's history (no network call)."""
+    log = subprocess.run(["git", "log", "--merges", "--format=%s"], cwd=root, capture_output=True, text=True).stdout
+    return {int(n) for n in re.findall(r"^Merge pull request #(\d+) ", log, re.M)}
+
+
+def check(text: str, approvers: list[str], status: str | None, merged: set[int] | None = None) -> list[tuple[int, str]]:
     """(line, message) for each approval problem in a work file."""
     rows = decision_rows(text)
     problems: list[tuple[int, str]] = []
@@ -322,8 +331,11 @@ def check(text: str, approvers: list[str], status: str | None) -> list[tuple[int
                 problems.append((row.line, f"the approved {kind} has changed since it was approved; "
                                            "a new decision is needed"))
     final = [r for r in approvals if not r.kind.startswith("item ")]
-    on_merge = final and "on merge of pull request" in final[-1].decision.lower()  # P1-10: the merge approves
-    if status == "complete" and final and not final[-1].hash and not on_merge:
+    pending = ON_MERGE_NUMBER.search(final[-1].decision) if final else None  # P1-10: the merge approves
+    if status == "complete" and pending and int(pending.group(1)) not in (merged or set()):
+        problems.append((final[-1].line, f"pull request #{pending.group(1)} has not merged here; the work is complete "
+                                         "only once it merges (K-400)"))
+    elif status == "complete" and final and not final[-1].hash and not pending:
         try:
             day = dt.date.fromisoformat(final[-1].date)
         except ValueError:

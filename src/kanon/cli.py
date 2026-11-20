@@ -308,7 +308,7 @@ def run_github(args) -> int:
             import tomllib
             approvers = tomllib.loads((root / "kanon/kanon.toml").read_text(encoding="utf-8"))["kanon"]["approvers"]
             print("\n".join(github.protect(root, approvers)))
-    except (github.GitHubError, OSError) as error:
+    except (github.GitHubError, OSError, ValueError) as error:
         print(f"kanon github {name}: {error}")
         return 2
     return 0

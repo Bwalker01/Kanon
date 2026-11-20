@@ -137,13 +137,9 @@ def ensure_guard_hook(root: Path) -> str:
     return "added"
 
 
-GITHUB_WRITE_TOOLS = (
-    "add_comment_to_pending_review", "add_issue_comment", "add_reply_to_pull_request_comment", "actions_run_trigger",
-    "create_branch", "create_or_update_file", "create_pull_request", "create_repository", "delete_file",
-    "disable_pr_auto_merge", "enable_pr_auto_merge", "fork_repository", "issue_write", "merge_pull_request",
-    "pull_request_review_write", "push_files", "request_copilot_review", "resolve_review_thread", "sub_issue_write",
-    "unresolve_review_thread", "update_issue_comment", "update_pull_request", "update_pull_request_branch",
-)
+# The GitHub connector acts as the person, so all of it is refused: agents never use the person's
+# login for anything (owner, 2026-11-19; K-408). Kanon reaches GitHub only as its App.
+GITHUB_CONNECTOR = "mcp__github"
 
 
 def deny_rules(root: Path) -> list[str]:
@@ -154,7 +150,7 @@ def deny_rules(root: Path) -> list[str]:
     rules += [f"Bash({python} -m kanon.cli {command}:*)" for python in ("python3", "python")
               for command in ("approve", "request-changes")]
     # Agents never act on GitHub as the person (owner, 2026-11-19): the connector's writing tools are refused.
-    rules += [f"mcp__github__{tool}" for tool in GITHUB_WRITE_TOOLS]
+    rules.append(GITHUB_CONNECTOR)
     local = (root / SETTINGS_LOCAL).resolve().as_posix()
     for tool in ("Edit", "Write"):  # the owner's settings, and the file holding these rules (K-347)
         for target in ("kanon/kanon.toml", settings_file, SETTINGS_LOCAL, local):

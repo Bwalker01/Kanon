@@ -89,7 +89,7 @@ def test_check_reports_the_app_installation_and_permissions(repo, monkeypatch):
     lines = github.check(repo)
     assert lines[0].startswith("App: Kanon (ada) (kanon-ada), ID 123")
     assert "contents: write" in lines[2] and not any("Missing" in l for l in lines)
-    assert any('app_slug = "kanon-ada"' in l for l in lines)  # kanon.toml has no [github] yet
+    assert 'app_slug = "kanon-ada"' in lines  # kanon.toml has no [github] yet
     token_request = next(c for c in fake.calls if c[1].endswith("/access_tokens"))
     assert token_request[2] == {"repositories": ["project"], "permissions": github.PERMISSIONS}
     assert not any("ghs_secret" in l for l in lines)
@@ -111,13 +111,16 @@ def test_push_refuses_other_branches_and_never_shows_the_token(repo, monkeypatch
 
     def failing(cmd, **kwargs):  # stands in for git: no network in tests
         seen.append(cmd)
-        header = next(c for c in cmd if "extraHeader" in c).split("Basic ", 1)[1]
+        if cmd[1] != "push":
+            return subprocess.CompletedProcess(cmd, 1, "", "")
+        header = kwargs["env"]["GIT_CONFIG_VALUE_0"].split("Basic ", 1)[1]
         return subprocess.CompletedProcess(cmd, 1, "", f"fatal: denied for ghs_secret {header}")
     monkeypatch.setattr(github.subprocess, "run", failing)
     with pytest.raises(github.GitHubError) as error:
         github.push(repo, session, "kanon/build/plan")
     assert "ghs_secret" not in str(error.value) and "***" in str(error.value)
-    assert "--force" not in seen[0] and seen[0][-1] == "refs/heads/kanon/build/plan:refs/heads/kanon/build/plan"
+    pushes = [c for c in seen if c[1] == "push"]
+    assert "--force" not in pushes[0] and pushes[0][-1] == "refs/heads/kanon/build/plan:refs/heads/kanon/build/plan"
 
 
 def item_merged(repo):
@@ -164,8 +167,11 @@ def test_opening_the_pull_request_records_that_its_merge_approves(repo, monkeypa
 def test_a_single_item_work_file_is_complete_when_its_pull_request_merges(repo):
     single = TEXT.replace("### 1.1 Work Items", "### 1.1 Scope").replace("| P1-01 | One | a |\n| P1-02 | Two | b |", "")
     marked = github._mark_on_merge(single, 3, "https://github.com/o/r/pull/3", "2026-11-20", [])
-    assert "status: complete" in marked and "| Result | Approved on merge of pull request #3 |" in marked
-    assert approve.check(marked, ["ada-dev"], "complete") == []
+    assert "status: awaiting-approval" in marked and "| Result | Approved on merge of pull request #3 |" in marked
+    assert approve.check(marked, ["ada-dev"], "awaiting-approval") == []
+    complete = marked.replace("status: awaiting-approval", "status: complete")
+    assert any("has not merged" in m for _, m in approve.check(complete, ["ada-dev"], "complete", set()))  # K-400
+    assert approve.check(complete, ["ada-dev"], "complete", {3}) == []
 
 
 def review(user, state, sha, url="https://github.com/ada-dev/project/pull/7#r1", body="split it"):
@@ -195,12 +201,41 @@ def test_sync_clears_a_merged_pull_request(repo, monkeypatch):
     assert github.read_cache(repo) == {}
 
 
-def test_the_desk_lists_open_pull_requests_as_decisions(repo):
+def test_the_desk_lists_pull_requests_from_the_work_file_until_they_merge(repo):
+    path = repo / WORK
+    path.write_text(github._mark_on_merge(path.read_text(), 7, "https://github.com/ada-dev/project/pull/7", "2026-11-20", []))
+    git(repo, "commit", "-q", "-am", "MODIFIED: pr", "--no-verify")
+    assert any("pull request #7" in d.needed for d in desk.build(repo).decisions)  # no cache needed (K-402)
     github.write_cache(repo, {"build": {"number": 7, "url": "https://github.com/ada-dev/project/pull/7",
                                         "state": "open", "work": WORK}})
     built = desk.build(repo)
-    assert any(d.url.endswith("/pull/7") for d in built.decisions)
-    assert "Open on GitHub" in desk.render_html(built)
+    assert any(d.url.endswith("/pull/7") for d in built.decisions) and "Open on GitHub" in desk.render_html(built)
+    git(repo, "switch", "-q", "-c", "side")
+    git(repo, "commit", "-q", "--allow-empty", "-m", "ADDED: side", "--no-verify")
+    git(repo, "switch", "-q", "main")
+    git(repo, "merge", "-q", "--no-ff", "--no-verify", "-m", "Merge pull request #7 from ada-dev/kanon/build/plan", "side")
+    assert not any("pull request #7" in d.needed for d in desk.build(repo).decisions)
+
+
+def test_a_closed_pull_request_reopens_the_work(repo, monkeypatch):  # K-401
+    path = repo / WORK
+    path.write_text(github._mark_on_merge(path.read_text(), 7, "u", "2026-11-20", []))
+    git(repo, "commit", "-q", "-am", "MODIFIED: pr", "--no-verify")
+    git(repo, "switch", "-q", "-c", "kanon/build/plan")
+    monkeypatch.setattr(github, "call", FakeGitHub({("GET", "/repos/ada-dev/project/pulls"): [{
+        "number": 7, "state": "closed", "merged_at": None, "html_url": "u"}]}))
+    github.sync(repo, "build", github.Session("ada-dev/project", "t", {}, {}))
+    text = path.read_text()
+    assert "status: in-progress" in text and "Pull request #7 closed without merging" in text
+
+
+def test_a_new_pull_request_after_a_change_request_is_marked_again():  # K-403
+    from test_branch import TEXT as single
+    first = github._mark_on_merge(single, 7, "u", "2026-11-20", [])
+    head, lines = approve._split(first)
+    approve._append_row(lines, "| Result | Changes requested | 2026-11-21 | Changes requested on GitHub by ada-dev (r) |")
+    reopened = github._mark_on_merge(head + "\n".join(lines), 7, "u", "2026-11-22", [])
+    assert approve.decision_rows(reopened)[-1].decision == "Approved on merge of pull request #7"
 
 
 def test_protect_sets_code_owner_reviews_and_merge_commits_only(repo):
@@ -227,7 +262,8 @@ def test_setup_runs_the_manifest_flow_and_saves_the_key_privately(repo, monkeypa
         if url.startswith("http://127.0.0.1"):
             page = urllib.request.urlopen(url).read().decode()  # noqa: S310  (local test server)
             assert "settings/apps/new" in page and "pull_requests" in page
-            threading.Thread(target=lambda: urllib.request.urlopen(url + "callback?code=abc").read()).start()  # noqa: S310
+            state = page.split("state=", 1)[1].split('"', 1)[0]
+            threading.Thread(target=lambda: urllib.request.urlopen(f"{url}callback?code=abc&state={state}").read()).start()  # noqa: S310
     monkeypatch.delenv("HTTPS_PROXY", raising=False)
     monkeypatch.delenv("https_proxy", raising=False)
     monkeypatch.setenv("NO_PROXY", "127.0.0.1")
@@ -254,7 +290,49 @@ def test_settings_refuse_a_committed_key():
 
 def test_sync_denies_the_connectors_writing_tools(repo):
     from kanon import sync as ksync
-    deny = ksync.deny_rules(repo)
-    for tool in ("merge_pull_request", "pull_request_review_write", "create_pull_request", "push_files"):
-        assert f"mcp__github__{tool}" in deny
-    assert "mcp__github__pull_request_read" not in deny
+    assert "mcp__github" in ksync.deny_rules(repo)  # the whole connector (K-408)
+
+
+def test_setup_ignores_a_callback_without_its_state(repo, monkeypatch, tmp_path):  # K-409
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+    monkeypatch.setenv("NO_PROXY", "127.0.0.1")
+
+    def browser(url):
+        if url.startswith("http://127.0.0.1"):
+            urllib.request.urlopen(url + "callback?code=evil&state=guess").read()  # noqa: S310
+    with pytest.raises(github.GitHubError, match="no answer"):
+        github.setup(repo, open_browser=browser, wait=1)
+    assert not github.key_path().exists()
+
+
+def test_push_ignores_the_persons_git_configuration(repo, monkeypatch):  # K-406, K-410
+    seen = {}
+
+    def capture(cmd, **kwargs):
+        seen.update(cmd=cmd, env=kwargs.get("env") or {})
+        return subprocess.CompletedProcess(cmd, 0, "", "")
+    monkeypatch.setattr(github.subprocess, "run", lambda cmd, **kw: capture(cmd, **kw) if cmd[1] == "push"
+                        else subprocess.CompletedProcess(cmd, 1, "", ""))
+    github.push(repo, github.Session("ada-dev/project", "ghs_secret"), "kanon/build/plan")
+    assert seen["env"]["GIT_CONFIG_GLOBAL"] == os.devnull and seen["env"]["GIT_CONFIG_NOSYSTEM"] == "1"
+    assert not any("ghs_secret" in c or "Basic" in c for c in seen["cmd"])
+    assert "ghs_secret" not in repr(github.Session("ada-dev/project", "ghs_secret"))
+
+
+def test_a_url_rewrite_in_the_repository_stops_the_push(repo):  # K-406
+    git(repo, "config", "url.git@github.com:.insteadOf", "https://github.com/")
+    with pytest.raises(github.GitHubError, match="rewrites URLs"):
+        github.push(repo, github.Session("ada-dev/project", "t"), "kanon/build/plan")
+
+
+def test_a_malformed_key_gives_a_clear_error():  # K-414
+    with pytest.raises(github.GitHubError, match="not a valid RSA private key"):
+        github.make_jwt("1", b"-----BEGIN RSA PRIVATE KEY-----\nAAAA\n-----END RSA PRIVATE KEY-----\n")
+
+
+def test_check_prints_toml_that_can_be_pasted(repo, monkeypatch):  # K-411
+    import tomllib
+    monkeypatch.setattr(github, "call", FakeGitHub(SIGN_IN))
+    lines = github.check(repo)
+    block = "\n".join(lines[lines.index("[github]"):])
+    assert tomllib.loads(block) == {"github": {"app_id": 123, "app_slug": "kanon-ada"}}

@@ -264,3 +264,200 @@ def approvals(review_list: list[dict], approvers: list[str], head_sha: str) -> l
         if user.lower() in allowed and review.get("state") in ("APPROVED", "CHANGES_REQUESTED"):
             latest[user.lower()] = review
     return [r for r in latest.values() if r.get("commit_id") == head_sha]
+
+
+# ---------------------------------------------------------------- commands
+
+CACHE = "kanon/local/pull-requests.json"
+ON_MERGE = "Approved on merge of pull request"
+
+
+def _git(root: Path, *args: str) -> str:
+    result = subprocess.run(["git", *args], cwd=root, capture_output=True, text=True)
+    if result.returncode != 0:
+        raise GitHubError(result.stderr.strip() or f"git {' '.join(args)} failed")
+    return result.stdout.strip()
+
+
+def read_cache(root: Path) -> dict:
+    try:
+        data = json.loads((root / CACHE).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def write_cache(root: Path, data: dict) -> None:
+    path = root / CACHE
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def _mark_on_merge(text: str, number: int, url: str, today: str, merged_items: list[str]) -> str:
+    """Record that the pull request's merge is the approval (owner, 2026-11-20)."""
+    from kanon import approve
+    rows = [f"| {item} | {ON_MERGE} #{number} | {today} | {url}; a code owner's review is required to merge |"
+            for item in merged_items] or \
+           [f"| Result | {ON_MERGE} #{number} | {today} | {url}; a code owner's review is required to merge |"]
+    if any(f"{ON_MERGE} #{number} |" in line for line in text.split("\n")):
+        return text
+    head, lines = approve._split(text)
+    for row in rows:
+        approve._append_row(lines, row)
+    if not merged_items:  # a single-item work file becomes complete when the pull request merges
+        head = re.sub(r"^status: .*$", "status: complete", head, count=1, flags=re.M)
+        approve._set_summary(lines, f"Approved when pull request #{number} merges.")
+    return head + "\n".join(lines)
+
+
+def open_pull_request(root: Path, work: str, base: str = "main", session: Session | None = None,
+                      today: str | None = None) -> dict:
+    """Push the plan branch and open or update its pull request into base. Returns the pull request."""
+    import datetime as dt
+    from kanon import branch as branches
+    plan = branches.plan_branch(work)
+    if _git(root, "symbolic-ref", "--short", "HEAD") != plan:
+        raise GitHubError(f"switch to {plan} first (kanon branch start {work})")
+    if _git(root, "status", "--porcelain", "--untracked-files=no"):
+        raise GitHubError("the working tree has uncommitted changes; commit them first")
+    session = session or sign_in(root)
+    rel, text = branches.work_file(root, work)
+    title = next((l[2:].strip() for l in text.split("\n") if l.startswith("# ")), work)
+    push(root, session, plan)
+    pull = open_or_update(session, plan, base, title, describe(root, rel, text, plan, base))
+    merged = [i for i in branches.items(text)
+              if re.search(rf"merge {re.escape(i)} into", _git(root, "log", "--merges", "--format=%s", f"{base}..{plan}"))]
+    marked = _mark_on_merge(text, pull["number"], pull["html_url"], today or dt.date.today().isoformat(), merged)
+    if marked != text:
+        (root / rel).write_text(marked, encoding="utf-8")
+        _git(root, "add", rel)
+        _git(root, "commit", "-q", "-m", f"MODIFIED: {work} approved when pull request #{pull['number']} merges")
+        push(root, session, plan)
+        pull = open_or_update(session, plan, base, title, describe(root, rel, marked, plan, base))
+    cache = read_cache(root)
+    cache[work] = {"number": pull["number"], "url": pull["html_url"], "state": "open", "work": rel}
+    write_cache(root, cache)
+    return pull
+
+
+def sync(root: Path, work: str, session: Session | None = None) -> list[str]:
+    """Read the pull request back: merged state, and change requests from listed approvers."""
+    from kanon import approve, branch as branches
+    entry = read_cache(root).get(work)
+    session = session or sign_in(root)
+    plan = branches.plan_branch(work)
+    pull = call("GET", f"/repos/{session.repo}/pulls/{entry['number']}", session.token) if entry else \
+        _pull_for(session, plan, "main")
+    if not pull:
+        return [f"no pull request for {plan}"]
+    cache = read_cache(root)
+    lines = []
+    if pull.get("merged_at"):
+        cache.pop(work, None)
+        lines.append(f"pull request #{pull['number']} was merged: the work is approved")
+    elif pull.get("state") == "closed":
+        cache.pop(work, None)
+        lines.append(f"pull request #{pull['number']} was closed without merging")
+    else:
+        rel, text = branches.work_file(root, work)
+        approvers = branches._approvers(root)
+        for review in approvals(reviews(session, pull["number"]), approvers, pull["head"]["sha"]):
+            user = review["user"]["login"]
+            if review["state"] == "CHANGES_REQUESTED" and review["html_url"] not in text:
+                approve.record(root, rel, user, approvers, changes=review.get("body") or "see the review",
+                               github_review=review["html_url"])
+                text = (root / rel).read_text(encoding="utf-8")
+                lines.append(f"{user} requested changes: recorded in {rel}")
+            elif review["state"] == "APPROVED":
+                lines.append(f"{user} approved; merge the pull request on GitHub to complete the decision")
+        cache[work] = {"number": pull["number"], "url": pull["html_url"], "state": "open",
+                       "work": branches.work_file(root, work)[0]}
+    write_cache(root, cache)
+    return lines
+
+
+def protect(root: Path, approvers: list[str], branch: str = "main", run=subprocess.run) -> list[str]:
+    """Branch protection with the person's own `gh` login (the App has no Administration permission)."""
+    repo = repository(root)
+    rules = {"required_status_checks": None, "enforce_admins": True, "restrictions": None,
+             "required_pull_request_reviews": {"required_approving_review_count": 1, "require_code_owner_reviews": True,
+                                               "dismiss_stale_reviews": True, "require_last_push_approval": True},
+             "allow_force_pushes": False, "allow_deletions": False, "required_linear_history": False}
+    steps = [["gh", "api", "-X", "PUT", f"repos/{repo}/branches/{branch}/protection", "--input", "-"],
+             ["gh", "api", "-X", "PATCH", f"repos/{repo}", "-F", "allow_squash_merge=false",
+              "-F", "allow_rebase_merge=false", "-F", "allow_merge_commit=true"]]
+    out = []
+    owners = root / ".github" / "CODEOWNERS"
+    if not owners.exists():
+        owners.parent.mkdir(parents=True, exist_ok=True)
+        owners.write_text("# Written by kanon github protect: approvers review every change.\n* "
+                          + " ".join(f"@{a}" for a in approvers) + "\n", encoding="utf-8")
+        out.append(".github/CODEOWNERS written; commit it through a pull request")
+    for index, step in enumerate(steps):
+        result = run(step, cwd=root, input=json.dumps(rules) if index == 0 else None, capture_output=True, text=True)
+        if result.returncode != 0:
+            raise GitHubError(f"{' '.join(step[:4])} failed: {result.stderr.strip()}")
+    out.append(f"{branch} now needs a code owner's approving review; merge commits only")
+    return out
+
+
+def manifest(owner_name: str, redirect: str) -> dict:
+    return {"name": f"Kanon ({owner_name})", "url": "https://github.com/Bwalker01/Kanon", "redirect_url": redirect,
+            "public": False, "default_permissions": dict(PERMISSIONS), "default_events": []}
+
+
+def setup(root: Path, org: str | None = None, open_browser=None, port: int = 0) -> dict:
+    """GitHub's App Manifest flow, on the person's computer: create, save the key, fill kanon.toml."""
+    import html
+    import http.server
+    import threading
+    import webbrowser
+    open_browser = open_browser or webbrowser.open
+    result: dict = {}
+
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def log_message(self, *args):
+            pass
+
+        def do_GET(self):
+            from urllib.parse import parse_qs, urlparse
+            query = parse_qs(urlparse(self.path).query)
+            if self.path.startswith("/callback") and "code" in query:
+                result["code"] = query["code"][0]
+                page = "<p>Kanon received GitHub's answer. You can close this tab.</p>"
+            else:
+                target = f"https://github.com/organizations/{org}/settings/apps/new" if org else \
+                    "https://github.com/settings/apps/new"
+                data = html.escape(json.dumps(manifest(org or repository(root).split("/")[0],
+                                                       f"http://127.0.0.1:{server.server_port}/callback")))
+                page = (f'<form id="f" method="post" action="{target}"><input type="hidden" name="manifest" '
+                        f'value="{data}"><button>Create the Kanon App on GitHub</button></form>'
+                        '<script>document.getElementById("f").submit()</script>')
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.end_headers()
+            self.wfile.write(page.encode())
+
+    server = http.server.HTTPServer(("127.0.0.1", port), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    open_browser(f"http://127.0.0.1:{server.server_port}/")
+    deadline = time.time() + 600
+    while "code" not in result and time.time() < deadline:
+        time.sleep(0.2)
+    server.shutdown()
+    if "code" not in result:
+        raise GitHubError("no answer from GitHub within 10 minutes; run kanon github setup again")
+    app = call("POST", f"/app-manifests/{result['code']}/conversions", None, {})
+    path = key_path()
+    path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(descriptor, "w") as handle:
+        handle.write(app["pem"])
+    settings_path = root / "kanon" / "kanon.toml"
+    text = settings_path.read_text(encoding="utf-8")
+    block = f'[github]\napp_id = {int(app["id"])}\napp_slug = "{app["slug"]}"\n'
+    text = re.sub(r"\[github\]\n(?:[^\[\n].*\n?)*", block, text) if "[github]" in text else text.rstrip("\n") + "\n\n" + block
+    settings_path.write_text(text, encoding="utf-8")
+    open_browser(f"https://github.com/apps/{app['slug']}/installations/new")
+    return {"id": app["id"], "slug": app["slug"], "key": str(path)}

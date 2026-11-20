@@ -322,7 +322,8 @@ def check(text: str, approvers: list[str], status: str | None) -> list[tuple[int
                 problems.append((row.line, f"the approved {kind} has changed since it was approved; "
                                            "a new decision is needed"))
     final = [r for r in approvals if not r.kind.startswith("item ")]
-    if status == "complete" and final and not final[-1].hash:
+    on_merge = final and "on merge of pull request" in final[-1].decision.lower()  # P1-10: the merge approves
+    if status == "complete" and final and not final[-1].hash and not on_merge:
         try:
             day = dt.date.fromisoformat(final[-1].date)
         except ValueError:

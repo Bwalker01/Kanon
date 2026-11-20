@@ -38,6 +38,7 @@ class Decision:
     title: str
     summary: str
     needed: str
+    url: str = ""  # a pull request decided on GitHub (P1-10)
 
 
 @dataclass
@@ -218,6 +219,14 @@ def build(root: Path, today: dt.datetime | None = None) -> Desk:
             reviews += revs
     for decision in decisions:
         decision.id = slug(decision.work)
+    if may_approve:  # open pull requests recorded by kanon github; no network call (P1-10)
+        from kanon.github import read_cache
+        for work_name, entry in sorted(read_cache(root).items()):
+            if isinstance(entry, dict) and entry.get("state") == "open" and str(entry.get("url", "")).startswith("https://"):
+                decisions.append(Decision(work_name, str(entry.get("work", "")), f"Pull request #{entry.get('number')}",
+                                          "Merging it is the final approval of the work it carries.",
+                                          f"Review and merge pull request #{entry.get('number')} on GitHub.",
+                                          str(entry["url"])))
     recent = [l for l in _git(root, "log", "-n", "40", "--format=%as %s").splitlines()
               if re.match(r"^\S+ (ADDED|MODIFIED|REMOVED):", l)][:12]
     when = (today or dt.datetime.now()).strftime("%Y-%m-%d %H:%M")
@@ -234,7 +243,8 @@ def render_markdown(desk: Desk) -> str:
            f"{len(desk.reviews)} late reviews on branch `{desk.branch}`. Generated {desk.generated}; "
            "never edit or commit this file.", ""]
     out += ["## Decide", ""]
-    out += [f"- **{d.title}:** {d.needed} Read `{d.work}`. Reply `approve {d.id}` or `changes {d.id}: ...`."
+    out += [f"- **{d.title}:** {d.needed} {d.url}" if d.url else
+            f"- **{d.title}:** {d.needed} Read `{d.work}`. Reply `approve {d.id}` or `changes {d.id}: ...`."
             for d in desk.decisions] or ["Nothing to decide."]
     out += ["", "## Do", ""]
     for a in desk.actions:
@@ -297,8 +307,9 @@ def render_html(desk: Desk) -> str:
     decide = "".join(_card(
         "decision", chip("Decision", "accent"), d.title, e(d.needed),
         f'<p>{_inline(d.summary)}</p><p class="path">{e(d.work)}</p>'
-        f'<h4>Reply</h4>{_reply_box(f"approve {d.id}", "Approve reply")}'
-        f'{_reply_box(f"changes {d.id}: ", "Request changes reply")}')
+        + (f'<p><a class="btn primary" href="{e(d.url)}" rel="noopener">Open on GitHub</a></p>' if d.url else
+           f'<h4>Reply</h4>{_reply_box(f"approve {d.id}", "Approve reply")}'
+           f'{_reply_box(f"changes {d.id}: ", "Request changes reply")}'))
         for d in desk.decisions) or '<p class="empty">Nothing to decide.</p>'
 
     do = ""

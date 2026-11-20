@@ -466,6 +466,35 @@ def reviewer_write(command: str, cwd: str, home: str, project: str, scratch: lis
     return judge(command)
 
 
+GH_WRITES = {"pr": {"create", "merge", "review", "comment", "edit", "close", "reopen", "ready", "lock"},
+             "issue": {"create", "comment", "edit", "close", "reopen", "delete", "transfer", "lock"},
+             "repo": {"create", "edit", "delete", "fork", "rename", "archive"},
+             "release": {"create", "edit", "delete", "upload"}, "workflow": {"run", "enable", "disable"},
+             "label": {"create", "edit", "delete"}}
+
+
+def gh_write(command: str) -> str | None:
+    """Reason to block a `gh` command that would act on GitHub as the person (owner, 2026-11-19), or None.
+
+    Kanon acts on GitHub only as its App, through `kanon github`. Reading with `gh` stays allowed.
+    """
+    for unit in _units(_shell_words(_without_heredoc_bodies(command))):
+        for stage in _stages(unit):
+            word, args = _command(stage)
+            if word != "gh" or not args:
+                continue
+            group, action = args[0], (args[1] if len(args) > 1 else "")
+            if action in GH_WRITES.get(group, set()):
+                return f"`gh {group} {action}` would act on GitHub as you; Kanon acts only as its App (kanon github)"
+            if group == "api":
+                method = next((args[i + 1] for i, a in enumerate(args[:-1]) if a in ("-X", "--method")), None)
+                method = method or next((a.split("=", 1)[1] for a in args if a.startswith("--method=")), None)
+                fields = any(a in ("-f", "-F", "--field", "--raw-field", "--input") for a in args)
+                if (method or ("POST" if fields else "GET")).upper() != "GET":
+                    return "`gh api` with a writing method would act on GitHub as you; Kanon acts only as its App"
+    return None
+
+
 def main() -> int:
     try:
         event = json.load(sys.stdin)
@@ -476,7 +505,7 @@ def main() -> int:
     command = str((event.get("tool_input") or {}).get("command", ""))
     cwd = str(event.get("cwd") or os.getcwd())
     extra = [os.environ.get("CLAUDE_PROJECT_DIR", ""), str(event.get("scratchpad_dir") or "")]
-    reason = check(command, cwd, os.path.expanduser("~"), extra)
+    reason = check(command, cwd, os.path.expanduser("~"), extra) or gh_write(command)
     if not reason and event.get("agent_type") == REVIEWER:
         write = reviewer_write(command, cwd, os.path.expanduser("~"), extra[0] or cwd, extra[1:])
         if write:  # its own advice (K-368)

@@ -253,3 +253,14 @@ def test_reviewer_misses_from_round_c2_are_blocked(command):
 ])
 def test_reviewer_branch_commands(command, blocked):
     assert bool(guard.reviewer_write(command, PROJECT, HOME, PROJECT, SCRATCH)) is blocked
+
+
+@pytest.mark.parametrize("command,blocked", [  # P1-10: agents never act on GitHub as the person
+    ("gh pr merge 3", True), ("gh pr review 3 --approve", True), ("gh pr comment 3 -b hi", True),
+    ("gh api -X PUT repos/o/r/pulls/3/merge", True), ("gh api repos/o/r/issues/3/comments -f body=x", True),
+    ("gh api --method=POST repos/o/r/pulls", True), ("gh issue create -t x", True),
+    ("gh pr view 3", False), ("gh pr list", False), ("gh api repos/o/r/pulls", False),
+    ("gh api -X GET search/code -f q=x", False), ("echo 'gh pr merge 3'", False),
+])
+def test_gh_writes_are_blocked_for_every_agent(command, blocked):
+    assert bool(guard.gh_write(command)) is blocked

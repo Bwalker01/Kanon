@@ -62,6 +62,21 @@ def build_parser() -> argparse.ArgumentParser:
     b_status.add_argument("work", help="work file name without its date")
     actions.add_parser("check-merge", help="used by the pre-merge-commit hook")
 
+    gh = commands.add_parser("github", help="GitHub mode: Kanon acts only as its own GitHub App")
+    gh_actions = gh.add_subparsers(dest="github_command", metavar="<action>", required=True)
+    g_setup = gh_actions.add_parser("setup", help="create the App with GitHub's manifest flow (on your own computer)")
+    g_setup.add_argument("--org", help="create the App for this organisation instead of your account")
+    gh_actions.add_parser("check", help="sign in as the App and report its installation and permissions")
+    g_pr = gh_actions.add_parser("pr", help="push the plan branch and open or update its pull request")
+    g_pr.add_argument("work", help="work file name without its date")
+    g_pr.add_argument("--base", default="main", help="branch to merge into (default main)")
+    g_notes = gh_actions.add_parser("notes", help="post reviewer notes on the pull request as a comment-only review")
+    g_notes.add_argument("work", help="work file name without its date")
+    g_notes.add_argument("file", type=Path, help="text file holding the notes")
+    g_sync = gh_actions.add_parser("sync", help="read the pull request back: merged, closed or changes requested")
+    g_sync.add_argument("work", help="work file name without its date")
+    gh_actions.add_parser("protect", help="require a code owner's review on main (run by you, with your own gh login)")
+
     tra = commands.add_parser("transcribe", help="record an approver's decision given in chat, in their exact words")
     tra.add_argument("work", help="work file name without its date, or its path")
     tra.add_argument("--quote", required=True, help="the approver's exact words")
@@ -261,6 +276,44 @@ def run_branch(args) -> int:
     return 0
 
 
+def run_github(args) -> int:
+    from kanon import approve, github
+    name = args.github_command
+    if name in ("setup", "protect") and approve.in_assistant():
+        print(f"kanon github {name}: refused inside an assistant session; run it yourself in your own terminal")
+        return 2
+    root = init_module.repo_root(Path.cwd())
+    if root is None or not init_module.has_settings(root):
+        print(f"kanon github {name}: Kanon is not set up here; run kanon init first")
+        return 2
+    try:
+        if name == "setup":
+            app = github.setup(root, args.org)
+            print(f"Created {app['slug']} (ID {app['id']}); key saved to {app['key']}; kanon/kanon.toml updated.")
+            print("Install the App on this repository in the page that opened, then run kanon github check.")
+        elif name == "check":
+            print("\n".join(github.check(root)))
+        elif name == "pr":
+            pull = github.open_pull_request(root, args.work, args.base)
+            print(f"Pull request #{pull['number']}: {pull['html_url']}")
+        elif name == "notes":
+            entry = github.read_cache(root).get(args.work)
+            if not entry:
+                raise github.GitHubError(f"no pull request recorded for {args.work}; run kanon github pr first")
+            github.comment_review(github.sign_in(root), entry["number"], args.file.read_text(encoding="utf-8"))
+            print(f"Notes posted on pull request #{entry['number']}")
+        elif name == "sync":
+            print("\n".join(github.sync(root, args.work)) or "nothing new")
+        else:
+            import tomllib
+            approvers = tomllib.loads((root / "kanon/kanon.toml").read_text(encoding="utf-8"))["kanon"]["approvers"]
+            print("\n".join(github.protect(root, approvers)))
+    except (github.GitHubError, OSError) as error:
+        print(f"kanon github {name}: {error}")
+        return 2
+    return 0
+
+
 def run_verify() -> int:
     root = init_module.repo_root(Path.cwd())
     if root is None:
@@ -313,6 +366,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return run_verify()
     if args.command == "usage":
         return run_usage(args)
+    if args.command == "github":
+        return run_github(args)
     if args.command == "branch":
         return run_branch(args)
     if args.command in ("approve", "request-changes", "transcribe"):

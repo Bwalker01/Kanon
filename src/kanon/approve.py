@@ -25,7 +25,7 @@ DECISION_HEADER = "| Item | Decision | Date | Basis |\n|---|---|---|---|"
 HASH = re.compile(r"sha256:(\S+)")
 VALID_HASH = re.compile(r"[0-9a-f]{64}")
 MATERIAL = re.compile(r"material: (plan|result|item [A-Za-z0-9._-]+)")
-FORMS = ("with kanon approve", "Transcribed by the assistant for", "material:")
+FORMS = ("with kanon approve", "Transcribed by the assistant for", "on GitHub by", "material:")
 LATE = "owner decides"
 CELL_SPLIT = re.compile(r"(?<!\\)\|")
 
@@ -166,7 +166,8 @@ class Row:
         if marker in self.basis:
             match = re.match(r"@?([A-Za-z0-9-]+)", self.basis[self.basis.rindex(marker) + len(marker):])
         else:
-            match = re.match(r"(?:Approved by|Changes requested by) @?([A-Za-z0-9-]+) with kanon", self.basis)
+            match = re.match(r"(?:Approved by|Changes requested by) @?([A-Za-z0-9-]+) with kanon", self.basis) or \
+                re.match(r"(?:Approved|Changes requested) on GitHub by @?([A-Za-z0-9-]+) \(", self.basis)
         return match.group(1) if match else None
 
     @property
@@ -238,7 +239,8 @@ def _append_row(lines: list[str], row: str) -> None:
 
 
 def record(root: Path, rel: str, approver: str, approvers: list[str], *, changes: str | None = None,
-           plan: bool = False, quote: str | None = None, today: str | None = None, item: str | None = None) -> str:
+           plan: bool = False, quote: str | None = None, today: str | None = None, item: str | None = None,
+           github_review: str | None = None) -> str:
     """Record a decision in the work file at rel. Returns the new Decision row.
 
     quote: the person's words, when the assistant transcribes them; None when the person runs it.
@@ -262,9 +264,13 @@ def record(root: Path, rel: str, approver: str, approvers: list[str], *, changes
     text = head + "\n".join(lines)
     commit = _git_head(root, rel)
     clean = lambda words: " ".join(words.split()).replace("|", "\\|")  # noqa: E731
-    who = f'Owner in chat: "{clean(quote)}". Transcribed by the assistant for {approver}' if quote is not None \
-        else (f"Changes requested by {approver} with kanon request-changes" if changes is not None
-              else f"Approved by {approver} with kanon approve")
+    if github_review is not None:  # read back through the App by kanon github sync (P1-10)
+        who = f"{'Changes requested' if changes is not None else 'Approved'} on GitHub by {approver} ({github_review})"
+    elif quote is not None:
+        who = f'Owner in chat: "{clean(quote)}". Transcribed by the assistant for {approver}'
+    else:
+        who = (f"Changes requested by {approver} with kanon request-changes" if changes is not None
+               else f"Approved by {approver} with kanon approve")
     if changes is not None:
         row = f"| {label} | Changes requested | {today} | {who}; changes: {clean(changes)}; commit {commit} |"
         status, decided = "in-progress", f"Changes requested by {approver} on {today}."

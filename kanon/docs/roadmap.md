@@ -1,7 +1,7 @@
 ---
 type: doc
 status: current
-updated: 2026-11-19
+updated: 2026-11-20
 ---
 
 # Roadmap
@@ -19,3 +19,4 @@ updated: 2026-11-19
 | 3 | Engine mode, AutoBuild | Not yet planned |
 | 4 | Pantheon marketplace; core roles packaged in the Pantheon format and a wider specialist roster considered here (owner, 2026-11-19) | Not yet planned |
 | 5 | First outside project; other assistants | Not yet planned |
+| Later | A standalone Kanon GitHub App managed by the owner, which teams grant access to instead of creating their own (owner, 2026-11-19) | Not yet planned |

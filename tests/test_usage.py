@@ -1,5 +1,6 @@
 import datetime as dt
 import json
+import os
 import shutil
 from pathlib import Path
 
@@ -60,7 +61,7 @@ def test_empty_window_is_zero_with_a_note():
 def test_unrecognised_format_is_unknown_not_zero(tmp_path):
     entry = {"type": "assistant", "timestamp": "2026-11-16T14:54:01Z",
              "message": {"id": "m1", "usage": {"outputTokens": 10}}}
-    (tmp_path / "s.jsonl").write_text(json.dumps(entry) + "\n")
+    (tmp_path / "s.jsonl").write_text(json.dumps(entry) + "\n", encoding="utf-8")
     rep = usage.report(tmp_path)
     assert rep.status == "unknown"
     assert "Usage: unknown" in usage.format_report(rep)
@@ -81,16 +82,20 @@ def test_parse_time_accepts_git_refs_and_rejects_nonsense():
 
 def test_default_log_dir_follows_claude_code_naming(monkeypatch, tmp_path):
     monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(tmp_path))
-    assert usage.default_log_dir(Path("/home/user/Mercatus")) == tmp_path / "projects" / "-home-user-Mercatus"
+    if os.name == "nt":
+        repo, expected = Path("C:/Users/Ada Dev/Mercatus"), "C--Users-Ada-Dev-Mercatus"
+    else:
+        repo, expected = Path("/home/user/Mercatus"), "-home-user-Mercatus"
+    assert usage.default_log_dir(repo) == tmp_path / "projects" / expected
 
 
 def test_record_appends_rows_to_the_cost_section(tmp_path):
     work = tmp_path / "work.md"
-    work.write_text(render("work.md", date="2026-11-16", title="T", summary="S."))
+    work.write_text(render("work.md", date="2026-11-16", title="T", summary="S."), encoding="utf-8")
     rep = usage.report(LOGS)
     usage.record(rep, work, "Step A")
     usage.record(rep, work, "Step B")
-    text = work.read_text()
+    text = work.read_text(encoding="utf-8")
     cost = text[text.index("## 5. Cost"):]
     assert cost.count(usage.COST_HEADER) == 1
     assert "| Step A | 3,552 | 700 | 13,037 | 1,492,401 | incomplete: $20.11 so far |" in cost
@@ -99,7 +104,7 @@ def test_record_appends_rows_to_the_cost_section(tmp_path):
 
 def test_record_refuses_a_file_without_cost_section(tmp_path):
     work = tmp_path / "x.md"
-    work.write_text("# No cost\n")
+    work.write_text("# No cost\n", encoding="utf-8")
     with pytest.raises(ValueError):
         usage.record(usage.report(LOGS), work, "A")
 
@@ -117,7 +122,7 @@ def test_cli_rejects_bad_time(capsys):
 
 def write_log(path, entries):
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text("".join(json.dumps(e) + "\n" for e in entries))
+    path.write_text("".join(json.dumps(e) + "\n" for e in entries), encoding="utf-8")
 
 
 def reply(mid, when, out, session="s"):
@@ -193,12 +198,12 @@ def test_record_keeps_crlf_line_endings(tmp_path):
 
 def test_record_places_rows_inside_the_table_before_trailing_text(tmp_path):
     work = tmp_path / "w.md"
-    work.write_text(render("work.md", date="2026-11-16", title="T", summary="S."))
+    work.write_text(render("work.md", date="2026-11-16", title="T", summary="S."), encoding="utf-8")
     rep = usage.report(LOGS)
     usage.record(rep, work, "A")
-    work.write_text(work.read_text().rstrip("\n") + "\nNote: trailing.\n")
+    work.write_text(work.read_text().rstrip("\n") + "\nNote: trailing.\n", encoding="utf-8")
     usage.record(rep, work, "B")
-    lines = work.read_text().splitlines()
+    lines = work.read_text(encoding="utf-8").splitlines()
     row_b = next(n for n, l in enumerate(lines) if l.startswith("| B"))
     assert lines[row_b - 1].startswith("| A") and row_b < lines.index("Note: trailing.")
 

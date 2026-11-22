@@ -201,7 +201,7 @@ def test_record_places_rows_inside_the_table_before_trailing_text(tmp_path):
     work.write_text(render("work.md", date="2026-11-16", title="T", summary="S."), encoding="utf-8")
     rep = usage.report(LOGS)
     usage.record(rep, work, "A")
-    work.write_text(work.read_text().rstrip("\n") + "\nNote: trailing.\n", encoding="utf-8")
+    work.write_text(work.read_text(encoding="utf-8").rstrip("\n") + "\nNote: trailing.\n", encoding="utf-8")
     usage.record(rep, work, "B")
     lines = work.read_text(encoding="utf-8").splitlines()
     row_b = next(n for n, l in enumerate(lines) if l.startswith("| B"))

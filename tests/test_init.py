@@ -177,7 +177,7 @@ def test_profile_reaches_the_person_rules(repo, monkeypatch):
 def test_kanon_rules_embed_the_projects_conduct_standard(repo):
     kinit.init(repo, APPROVERS, TODAY)
     path = repo / "kanon/docs/conduct-and-writing.md"
-    path.write_text(path.read_text().replace("## 1. Working with People", "## 1. Working with People Here"), encoding="utf-8")
+    path.write_text(path.read_text(encoding="utf-8").replace("## 1. Working with People", "## 1. Working with People Here"), encoding="utf-8")
     ksync.sync(repo)
     assert "### 1. Working with People Here" in (repo / ".claude/rules/kanon.md").read_text(encoding="utf-8")
 

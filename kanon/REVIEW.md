@@ -1,12 +1,12 @@
 ---
 type: review-list
 status: current
-updated: 2026-11-18
+updated: 2026-11-22
 ---
 
 # Awaiting You
 
-> **Summary:** One decision and six actions. Decide with the item number and **approve** or
+> **Summary:** Two decisions and six actions. Decide with the item number and **approve** or
 > **changes:**; mark an action done by telling the assistant. Steps: `kanon/docs/owner-setup.md`.
 
 ## Decisions
@@ -15,6 +15,11 @@ updated: 2026-11-18
 
 - **Decide:** approve tracking owner actions here, with steps in `kanon/docs/owner-setup.md`.
 - **Read:** `kanon/work/2026-11-18-owner-actions.md`, section 1.
+
+### R-2: Windows Test Portability
+
+- **Decide:** approve merging `claude/windows-tests`; tests only, suite passes on Windows, Kritos passed it with notes.
+- **Read:** `kanon/work/2026-11-22-windows-test-portability.md`, sections 1 and 3.
 
 ## Actions
 

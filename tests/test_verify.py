@@ -130,7 +130,7 @@ def test_review_without_an_earlier_plan_fails(tmp_path):
 
 def test_an_accepted_exception_covers_only_its_finding(tmp_path):
     test_review_without_an_earlier_plan_fails(tmp_path)
-    with (tmp_path / "kanon/kanon.toml").open("a") as f:
+    with (tmp_path / "kanon/kanon.toml").open("a", encoding="utf-8") as f:
         f.write(f'\n[[verify.exceptions]]\npath = "{WORK}"\nrule = "loop"\ncontains = "not committed on its own"\nreason = "Record written after the work."\n')
     open_, covered = kv.verify_with_exceptions(tmp_path)
     assert open_ == [] and len(covered) == 1
@@ -139,7 +139,7 @@ def test_an_accepted_exception_covers_only_its_finding(tmp_path):
 
 
 def test_an_incomplete_exception_is_itself_a_problem(repo):
-    with (repo / "kanon/kanon.toml").open("a") as f:
+    with (repo / "kanon/kanon.toml").open("a", encoding="utf-8") as f:
         f.write('\n[[verify.exceptions]]\npath = "x"\nrule = "loop"\n')
     only(repo, "settings", "needs path, rule, reason")
 
@@ -287,13 +287,13 @@ def test_question_in_a_table_cell_is_found(repo):
 
 
 def test_unused_exception_is_reported(repo):
-    with (repo / "kanon/kanon.toml").open("a") as f:
+    with (repo / "kanon/kanon.toml").open("a", encoding="utf-8") as f:
         f.write('\n[[verify.exceptions]]\npath = "kanon/x.md"\nrule = "loop"\ncontains = "something long"\nreason = "r"\n')
     only(repo, "settings", "matches nothing")
 
 
 def test_short_exception_match_is_refused(repo):
-    with (repo / "kanon/kanon.toml").open("a") as f:
+    with (repo / "kanon/kanon.toml").open("a", encoding="utf-8") as f:
         f.write(f'\n[[verify.exceptions]]\npath = "{WORK}"\nrule = "loop"\ncontains = "e"\nreason = "r"\n')
     only(repo, "settings", "at least 8 characters")
 

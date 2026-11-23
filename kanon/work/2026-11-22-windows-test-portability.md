@@ -7,8 +7,8 @@ updated: 2026-11-23
 # Windows Test Portability
 
 > **Summary:** The test suite passes on Windows (199 passed, 1 skipped). Round 2 adds a pull request
-> check on Ubuntu and Windows; when it runs is set by ADR-011.
-> **Decision needed:** R-2 in `kanon/REVIEW.md`, after CI passes on pull request #4.
+> check on Ubuntu and Windows; when it runs is set by ADR-015.
+> **Decision needed:** Merge pull request #4 once its check passes, after ADR-015 is decided.
 
 ## 1. Plan
 
@@ -33,7 +33,7 @@ updated: 2026-11-23
 
 | Item | Choice | Basis |
 |---|---|---|
-| Trigger | `pull_request` into `main`, when opened, reopened or marked ready; drafts skipped; no run on push | ADR-011 (owner, 2026-11-23), amending ADR-007's "once per pull request" |
+| Trigger | `pull_request` into `main`, when opened, reopened or marked ready; drafts skipped; no run on push | ADR-015 (owner, 2026-11-23), amending ADR-007's "once per pull request" |
 | Jobs | Ubuntu with Python 3.11 (the minimum in `pyproject.toml`) and Windows with Python 3.13 | The minimum version on Ubuntu and one current version on Windows; Python 3.12 and 3.14 are not tested (assessment: adequate for this project's size) |
 | Steps | Full-depth checkout without stored credentials; `uv sync --locked`; `uv run pytest -q`; `uv run kanon verify` | `kanon verify` needs full history (Phase 1 plan, K-52) |
 | Cost | No model calls; Actions minutes are free for public repositories, and `Bwalker01/Kanon` is public | `gh repo view` (2026-11-23); [GitHub Actions billing](https://docs.github.com/en/billing/managing-billing-for-your-products/managing-billing-for-github-actions/about-billing-for-github-actions) |
@@ -45,18 +45,19 @@ updated: 2026-11-23
 | 2026-11-22 | Fix the Windows test failures? | Owner: "Yes, fix them" |
 | 2026-11-22 | Should `usage.default_log_dir` match Claude Code's drive-letter case (a `c--...` folder exists beside `C--...` folders on the owner's machine)? | Open; outside this work. Recorded for the usage code. |
 | 2026-11-23 | Add CI checks on pull requests? | Owner: add capability to run CI checks on pull request creation, as part of this work |
-| 2026-11-23 | ADR-007 says the check runs "once per pull request". Keep runs on each push (recommended, so fixes pushed to a pull request are checked), or run only when the pull request is opened? Default: each push. | Owner (2026-11-23): neither; the check runs when the pull request is marked ready, and drafts are skipped. Recorded in ADR-011 and `2026-11-23-pull-request-lifecycle.md`. |
+| 2026-11-23 | ADR-007 says the check runs "once per pull request". Keep runs on each push (recommended, so fixes pushed to a pull request are checked), or run only when the pull request is opened? Default: each push. | Owner (2026-11-23): neither; the check runs when the pull request is marked ready, and drafts are skipped. Recorded in ADR-015 and `2026-11-23-pull-request-lifecycle.md`. |
 
 ## 3. Review
 
-| Round | Reviewer | Verdict | Findings |
-|---|---|---|---|
-| 1 | Kritos | Pass with notes | F1: six test calls still used the default encoding; fixed. F2: drive-letter case in `default_log_dir`; recorded as a question. F3: work file not updated after the build; fixed. F4: Windows privacy untested and the `os.chmod` claim unsourced; source cited, gap stated in the summary. Kritos did not run the suite on Linux; the POSIX assessment comes from reading the diff. |
-| 2 | Kritos | Correct | F1 (blocking): CI run 45204560417 failed on both jobs; `git pull` in a test needed a committer identity; fixed in the test and confirmed locally with an empty global git config. F2 (blocking, owner): per-push runs against ADR-007's "once"; question raised in section 2. F3 (blocking): R-2 was stale; reworded. F4, F6: Jobs and Cost rows corrected and sourced. F5: actions pinned by commit SHA to `checkout` v7.0.1 and `setup-uv` v10.3.3 (`setup-uv` publishes no major tag; run 45205703211 failed on `@v10`), credentials not persisted. F7: this row. |
+| Round | Items | Reviewer | Verdict | Blocking | Outcome |
+|---|---|---|---|---|---|
+| 1 | Test fixes (d118f54) | Kritos | Pass with notes | None | F1: six test calls still used the default encoding; fixed. F2: drive-letter case in `default_log_dir`; recorded as a question. F3: work file not updated after the build; fixed. F4: Windows privacy untested and the `os.chmod` claim unsourced; source cited, gap stated in the summary. Kritos did not run the suite on Linux; the POSIX assessment comes from reading the diff. |
+| 2 | Check workflow (89c1357) | Kritos | Correct | F1, F2, F3 | F1: CI run 45204560417 failed on both jobs; `git pull` in a test needed a committer identity; fixed in the test and confirmed locally with an empty global git config. F2 (blocking, owner): per-push runs against ADR-007's "once"; question raised in section 2. F3 (blocking): the decision entry was stale; reworded. F4, F6: Jobs and Cost rows corrected and sourced. F5: actions pinned by commit SHA to `checkout` v7.0.1 and `setup-uv` v10.3.3 (`setup-uv` publishes no major tag; run 45205703211 failed on `@v10`), credentials not persisted. F7: this row. |
+| M1 | Merge of `main` | Kritos | Pending | | Conflicts in `tests/test_init.py` resolved; reviewed with the lifecycle work. |
 
 ## 4. Decision
 
-Awaiting the owner (R-2).
+Pending: the merge of pull request #4 is the approval (ADR-014).
 
 ## 5. Cost
 

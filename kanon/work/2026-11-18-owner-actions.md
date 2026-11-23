@@ -1,6 +1,6 @@
 ---
 type: work
-status: in-progress
+status: parked
 updated: 2026-11-18
 ---
 
@@ -26,7 +26,9 @@ updated: 2026-11-18
 
 ## 3. Review
 
-Not yet reviewed.
+| Round | Items | Reviewer | Verdict | Blocking | Outcome |
+|---|---|---|---|---|---|
+| 1 | Owner actions list | Owner | park | Superseded | Owner redirected to the Desk design (`2026-11-18-desk-and-atlas.md`) |
 
 ## 4. Decision
 

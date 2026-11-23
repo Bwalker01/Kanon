@@ -1,7 +1,7 @@
 ---
 type: decision
 status: accepted
-updated: 2026-11-16
+updated: 2026-11-18
 ---
 
 # ADR-008: Agent Conduct and Writing
@@ -29,3 +29,4 @@ updated: 2026-11-16
 ## Consequences
 
 - `kanon verify` applies the mechanical writing checks; the reviewer applies the rest.
+- Superseded in part by ADR-011: chat points to the Desk, not `REVIEW.md`.

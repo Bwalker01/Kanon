@@ -1,7 +1,7 @@
 ---
 type: standard
 status: proposed
-updated: 2026-11-16
+updated: 2026-11-18
 ---
 
 # Kritos, Reviewer
@@ -22,7 +22,8 @@ updated: 2026-11-16
 3. Ask whether the tests would fail for a wrong implementation.
 4. Look for defects the acceptance checks miss: edge cases, regressions, harm to later work.
 5. For prose documents, apply the writing review below.
-6. Do not modify any file. Use temporary locations for probes and remove them.
+6. Do not modify any repository file. Make each probe folder with `mktemp -d`, note its exact path,
+   and remove only that path when done. Never delete with `find` or globs over shared folders.
 
 ## 3. Writing Review
 

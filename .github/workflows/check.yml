@@ -1,11 +1,11 @@
-# Kanon pull request check (ADR-007, ADR-011): tests and kanon verify, no model calls.
+# Kanon pull request check (ADR-007, ADR-015): tests and kanon verify, no model calls.
 # Skipped on drafts. A failing check returns the pull request to draft.
 name: check
 
 on:
   pull_request:
     branches: [main]
-    types: [opened, reopened, ready_for_review]  # not on push (ADR-011)
+    types: [opened, reopened, ready_for_review]  # not on push (ADR-015)
 
 permissions:
   contents: read

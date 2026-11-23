@@ -1,13 +1,13 @@
 ---
 type: work
-status: in-progress
-updated: 2026-11-18
+status: complete
+updated: 2026-11-19
 ---
 
 # Agent Files and Profiles
 
 > **Summary:** Keep every Kanon-generated agent file and every personal profile out of Git, so teams never overwrite each other and nothing personal is published.
-> **Decision:** Design approved by the owner on 2026-11-18 (R-1). Build in progress.
+> **Decision needed:** None. Approved by the owner on 2026-11-19, including the round 3 fixes.
 
 ## 1. Plan
 
@@ -85,7 +85,8 @@ updated: 2026-11-18
 | Round | Items | Reviewer | Verdict | Blocking | Outcome |
 |---|---|---|---|---|---|
 | 1 | Build and migration | Kritos (`kritos-reviewer` agent) | correct | K-56, K-57, K-58 | K-56, K-57, K-59 to K-63, K-68, K-69 fixed; K-64 to the owner |
-| 2 | Round 1 fixes | Kritos (`kritos-reviewer` agent) | correct | K-70 | K-70: the round 1 record wrongly listed K-58, K-65 and K-66 as fixed (edits lost in a worker restart, then recorded without checking the commit). All three, K-72 and K-74 to K-76 fixed after the final round; not independently reviewed. Owner decides at the review point |
+| 2 | Round 1 fixes | Kritos (`kritos-reviewer` agent) | correct | K-70 | K-70: the round 1 record wrongly listed K-58, K-65 and K-66 as fixed (edits lost in a worker restart, then recorded without checking the commit). All three, K-72 and K-74 to K-76 fixed; reviewed in round 3 |
+| 3 | Round 2 fixes (1f219f3, 0c405e3) | Kritos (`kritos-reviewer` agent) | correct | K-220 | K-220 (profile save changed permissions on a folder the person chose), K-221 to K-225 fixed with tests after the final round; not independently reviewed. Owner decides at the review point. Owner reviewed 2026-11-19 |
 
 **Deviation from the plan (K-67):** cloud setup scripts cannot read the environment's saved
 variables, so the owner's profile is written by the setup script with `kanon profile` instead of
@@ -96,6 +97,7 @@ coming from `KANON_PROFILE`. Both keep the profile outside the repository.
 | Item | Decision | Date | Basis |
 |---|---|---|---|
 | Design | Approved | 2026-11-18 | Owner in chat: "R-1 approve". Transcribed by the assistant; applies to commit `dfdfcfb` |
+| Built result, with round 3 fixes | Approved | 2026-11-19 | Owner in chat: "approve agent-files-and-profiles". Transcribed by the assistant; applies to commit `c17d301` |
 
 ## 5. Cost
 

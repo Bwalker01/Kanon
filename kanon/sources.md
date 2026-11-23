@@ -88,7 +88,55 @@ Phase 1 work file's plan-first exception is accepted.
 
 > give me everything that needs doing on my side, and make sure that its reflected easily and kept up to date in the project in some way to make it easier to do
 
-## 12. Pull Request Lifecycle (2026-11-23)
+## 12. Desk and Atlas (2026-11-18)
+
+> owner setup doesn't need to be kept in the repo, instructions for the creation of things relating directly to the setup of this repo can be kept as current actions within the REVIEW file (which could be better named now that it includes actions). for all general repos, REVIEW.md and STATUS.md shouldn't be committed right? maybe status can, but REVIEW again pertains to the current local user's actions and decisions so these may be useful on the current branch if people switch between them but in the core project, where multiple features are being done at once, these will end up overlapping. consider this and identify a fix.
+
+> could Atlas be an agent archetype extension to koine's existing ones that manages the review and actions required by the user, managing the DESK.md file that gives these steps in an ordered, structured, and easily interactable file? it may require the DESK being expanded out into something more than an md file so that reviews can be more interactive, and actions can be more visually helpful
+
+Chosen in questions: roadmap committed, status generated; the Desk as a self-contained page with no server.
+
+> R-1 approved. actions all complete
+
+The owner also reported the A-5 test session: the setup script is safe and valid, but that session had no Kanon checkout, so the real install was not proven; `uv` may not be on the PATH before the script adds `~/.local/bin`.
+
+## 13. Commit Signing (2026-11-18)
+
+> identify the cause of the commit signing error and ensure it doesn't happen again
+
+Chosen in a question before this: commit unsigned until the signing helper returns.
+
+## 14. Desk Layout (2026-11-18)
+
+> the copy button doesn't work in the desk.html file. its also not very clearly laid out or easy to skim and read. make it generate more interactively (headers as clear tabs, proper buttons, items split into cards that can be expanded for more info
+
+> approve destructive-command-guard
+
+## 15. Review and Action Records (2026-11-19)
+
+> is there a way that the desk can become more integrated with either vscode, claude code or another application as an actual interactive reviewing method, and action step record that you can access without it taking too many excess tokens to recreate every time? it would preferably allow you to see steps ticked with any necessary notes users give about them, and allow users to add review notes to specific files or even directly to any line(s). I'm aiming to make it as easy as possible for any user to explore and use but it also shouldn't take too much away from time or cost of the project that Kanon is doing.
+
+> I like A, I think it would be a good starting point, but it does tie Kanon heavily to github. this may also run into problems on github enterprise where users may not have very elevated permissions with use of Kanon, or the enterprise limits use of projects  or other github features altogether
+
+> does a new agent role need to be added for repository interaction management and tracking or will that be done via communication between Atlas and the scribe one?
+
+Chosen in questions: option A with capability tiers and a Git-only floor; no new role. Plan as P1-11: "yes".
+
+> the github integration review work can be done in the same phase as the github projects integration work, as it won't be necessary until then anyway
+
+## 16. Role Packaging and Roster (2026-11-19)
+
+> can the existing roles be split into their own agents, as expansions that are added via the pantheon as required later? and can the roster of roles be expanded into other possibilities to improve the variety in what Kanon can facilitate?
+
+> this seems okay as is and will be looked into closer to phase 4
+
+## 17. Approvals (2026-11-19)
+
+> approve agent-files-and-profiles
+> approve desk-and-atlas
+> approve destructive-command-guard
+
+## 18. Pull Request Lifecycle (2026-11-23)
 
 > as part of fixing the test suites, add capability to run CI checks on the PR creation so that this can be checked
 
@@ -96,3 +144,5 @@ Phase 1 work file's plan-first exception is accepted.
 
 Chosen in questions: changes-requested and comment reviews return a pull request to draft; approvals
 and bot reviews do not. A small Actions job, not the assistant, returns it to draft.
+
+> when finished: update branch from main and fix your local configuration

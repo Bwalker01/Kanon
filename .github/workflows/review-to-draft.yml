@@ -1,4 +1,4 @@
-# ADR-011: a human review that is not an approval returns the pull request to draft.
+# ADR-015: a human review that is not an approval returns the pull request to draft.
 name: review-to-draft
 
 on:

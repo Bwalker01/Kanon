@@ -208,9 +208,10 @@ def push(root: Path, session: Session, branch: str) -> None:
         raise GitHubError(f"push of {branch} failed: {message}")
 
 
-def _pull_for(session: Session, head: str, base: str) -> dict | None:
+def _pull_for(session: Session, head: str, base: str | None) -> dict | None:
     owner = session.repo.split("/")[0]
-    found = call("GET", f"/repos/{session.repo}/pulls?state=open&head={owner}:{head}&base={base}", session.token)
+    into = f"&base={base}" if base else ""  # None: the open pull request from head into any base
+    found = call("GET", f"/repos/{session.repo}/pulls?state=open&head={owner}:{head}{into}", session.token)
     return found[0] if found else None
 
 
@@ -248,19 +249,24 @@ def set_draft(session: Session, number: int, draft: bool) -> str:
     wanted = "a draft" if draft else "ready for review"
     if bool(pull.get("draft")) == draft:
         return f"pull request #{number} is already {wanted}"
+    if not pull.get("node_id"):
+        raise GitHubError(f"GitHub gave no node ID for pull request #{number}")
     mutation = MUTATIONS[draft]
     graphql(session, f"mutation($id: ID!) {{ {mutation}(input: {{pullRequestId: $id}}) "
                      "{ pullRequest { number isDraft } } }", {"id": pull["node_id"]})
     return f"pull request #{number} is now {wanted}"
 
 
-def find_pull(root: Path, session: Session, work: str, base: str = "main") -> int:
-    """The number of the work's pull request: the cache first, then the open one for its plan branch."""
+def find_pull(root: Path, session: Session, work: str) -> int:
+    """The number of the work's open pull request: the cached one while it is open, else the open one
+    from its plan branch into any base (so `pr --base` is found too)."""
     from kanon import branch as branches
     entry = read_cache(root).get(work)
     if entry:
-        return int(entry["number"])
-    pull = _pull_for(session, branches.plan_branch(work), base)
+        cached = call("GET", f"/repos/{session.repo}/pulls/{entry['number']}", session.token) or {}
+        if cached.get("state") == "open" and not cached.get("merged_at"):
+            return int(entry["number"])
+    pull = _pull_for(session, branches.plan_branch(work), None)
     if not pull:
         raise GitHubError(f"no open pull request for {branches.plan_branch(work)}; run kanon github pr {work} first")
     return int(pull["number"])

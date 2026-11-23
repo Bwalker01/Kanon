@@ -427,6 +427,14 @@ def test_a_session_without_the_apps_slug_changes_nothing(monkeypatch):
         github.set_draft(github.Session("ada-dev/project", "t", {}, {}), 7, False)
 
 
+def test_a_pull_request_without_a_node_id_gives_a_clear_error(monkeypatch):
+    fake = state_fake(True)
+    del fake.responses[("GET", "/repos/ada-dev/project/pulls/7")]["node_id"]
+    monkeypatch.setattr(github, "call", fake)
+    with pytest.raises(github.GitHubError, match="no node ID"):
+        github.set_draft(APP_SESSION, 7, False)
+
+
 def test_graphql_errors_are_reported(monkeypatch):
     monkeypatch.setattr(github, "call", state_fake(True, graphql={"data": None, "errors": [
         {"message": "Resource not accessible by integration"}]}))
@@ -435,12 +443,15 @@ def test_graphql_errors_are_reported(monkeypatch):
 
 
 def test_the_pull_request_is_found_in_the_cache_then_on_github(repo, monkeypatch):
-    fake = FakeGitHub({("GET", "/repos/ada-dev/project/pulls?state=open"): [{"number": 12}]})
+    fake = FakeGitHub({("GET", "/repos/ada-dev/project/pulls?state=open"): [{"number": 12}],
+                       ("GET", "/repos/ada-dev/project/pulls/7"): {"number": 7, "state": "open"}})
     monkeypatch.setattr(github, "call", fake)
     assert github.find_pull(repo, APP_SESSION, "build") == 12
-    assert "head=ada-dev:kanon/build/plan" in fake.calls[0][1]
+    assert "head=ada-dev:kanon/build/plan" in fake.calls[0][1] and "base=" not in fake.calls[0][1]  # any base
     github.write_cache(repo, {"build": {"number": 7}})
     assert github.find_pull(repo, APP_SESSION, "build") == 7
+    fake.responses[("GET", "/repos/ada-dev/project/pulls/7")] = {"number": 7, "state": "closed"}
+    assert github.find_pull(repo, APP_SESSION, "build") == 12  # a closed cached pull request is passed over
     fake.responses[("GET", "/repos/ada-dev/project/pulls?state=open")] = []
     with pytest.raises(github.GitHubError, match="run kanon github pr other"):
         github.find_pull(repo, APP_SESSION, "other")
@@ -458,3 +469,20 @@ def test_an_assistant_may_mark_ready_and_return_to_draft_as_the_app(repo, monkey
     assert "now ready for review" in capsys.readouterr().out
     assert any(c[1] == "/graphql" for c in fake.calls)
     assert main(["github", "draft", "build"]) == 0 and "already a draft" in capsys.readouterr().out
+
+
+def test_the_cli_returns_to_draft_and_refuses_a_pull_request_the_app_did_not_open(repo, monkeypatch, capsys):
+    monkeypatch.chdir(repo)
+    monkeypatch.setenv("CLAUDECODE", "1")
+    github.write_cache(repo, {"build": {"number": 7}})
+    answers = dict(SIGN_IN)
+    answers.update(state_fake(False).responses)
+    fake = FakeGitHub(answers)
+    monkeypatch.setattr(github, "call", fake)
+    assert main(["github", "draft", "build"]) == 0 and "now a draft" in capsys.readouterr().out
+    assert "convertPullRequestToDraft" in next(c for c in fake.calls if c[1] == "/graphql")[2]["query"]
+    answers.update(state_fake(True, user="ada-dev").responses)
+    monkeypatch.setattr(github, "call", FakeGitHub(answers))
+    assert main(["github", "ready", "build"]) == 2
+    out = capsys.readouterr().out
+    assert "not by the App" in out and "ghs_secret" not in out

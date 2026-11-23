@@ -37,5 +37,5 @@ updated: 2026-11-23
 - Requiring both matrix test jobs on `main` blocks merging a commit pushed after the check ran; it must be returned to draft and marked ready again (owner action in the work file). The requirement lives in a ruleset, because `kanon github protect` replaces the classic branch rule and would drop it.
 - Rule 14 (`rules-kanon.md`) states the push and draft steps alongside Metis step 11.
 - Pull requests from forks get a read-only token, so they are not returned to draft automatically.
-- `kanon github pr` opens drafts; `kanon github ready` and `kanon github draft` change the state as the App (`kanon/work/2026-11-23-pull-request-draft-support.md`). Not yet run against GitHub.
+- `kanon github pr` opens drafts; `kanon github ready` and `kanon github draft` change the state as the App (`kanon/work/2026-11-23-pull-request-draft-support.md`). Not yet run against GitHub. GitHub offers drafts on private repositories only on paid plans (assessment); on GitHub Free there `kanon github pr` fails with GitHub's message. GraphQL is reached at `<API>/graphql`, so GitHub Enterprise Server is not supported.
 - On acceptance, ADR-007 and ADR-014 are annotated as amended by this record.

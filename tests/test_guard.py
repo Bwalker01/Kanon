@@ -335,6 +335,15 @@ def test_windows_escape_arguments_beside_a_deletion_are_allowed(windows, command
     assert guard.check(command, WIN_CWD, WIN_HOME, [WIN_CWD]) is None
 
 
+def test_windows_drive_root_paths_follow_the_current_drive(windows):
+    r"""Review round 5, N3: `\Users` names a path on the current folder's drive, and `\\server` is no drive."""
+    assert guard.check("python -c \"import shutil; shutil.rmtree(r'\\Users\\ada')\"", WIN_CWD, WIN_HOME, [WIN_CWD])
+    assert guard.check("cd /d && rm -rf '\\Users\\ada'", WIN_CWD, WIN_HOME, [WIN_CWD]) is None
+    assert guard.check("rm -rf '\\Users\\ada'", "D:\\work\\project", WIN_HOME, ["D:\\work\\project"]) is None
+    assert guard.check("rm -rf '\\work'", "D:\\work\\project", WIN_HOME, ["D:\\work\\project"])
+    assert guard._from_drive_root("\\\\server\\share", WIN_CWD) == "\\\\server\\share"
+
+
 def test_windows_8_3_short_names_are_protected(windows, monkeypatch):
     """Windows names one folder twice; both names are protected (review round 4, F3)."""
     shorts = {"c:/users/ada": "C:\\Users\\ADA~1", "c:/users/ada/project": "C:\\Users\\ADA~1\\PROJEC~1",

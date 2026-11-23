@@ -28,7 +28,10 @@ folders are protected as well.
 Limits: it reads command text only. It cannot see what variables hold, what scripts do, or deletions
 made by other programs, and patterns with literal text (such as `/tmp/tmp*`) are allowed. On Windows,
 a path that mixes long and 8.3 short folder names is not recognised, and folders inside the system
-folders (such as `C:\\Windows\\System32`) are not protected, as on POSIX (`/usr/bin`).
+folders (such as `C:\\Windows\\System32`) are not protected, as on POSIX (`/usr/bin`). Paths with three or
+more leading backslashes, the device forms `\\\\.\\C:\\` and `\\\\?\\C:\\`, and `/Users/x` inside code run by a
+native Windows program (`python -c`, `node -e`), which that program reads from the current drive's
+root, are not recognised.
 """
 
 from __future__ import annotations

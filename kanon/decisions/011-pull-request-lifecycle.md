@@ -33,6 +33,6 @@ updated: 2026-11-23
 
 - `.github/workflows/check.yml` and `.github/workflows/review-to-draft.yml`; Metis procedure step for pull requests.
 - P1-10 (pull requests through the GitHub App) follows this lifecycle; its "no Actions minutes" check is relaxed to these workflows.
-- Requiring both check jobs in the `main` ruleset (A-3) blocks merging a commit pushed after the check ran; it must be returned to draft and marked ready again.
+- Requiring both matrix test jobs in the `main` ruleset (A-3) blocks merging a commit pushed after the check ran; it must be returned to draft and marked ready again.
 - Pull requests from forks get a read-only token, so they are not returned to draft automatically.
 - On acceptance, ADR-007 and P1-10 are annotated as amended by this record.

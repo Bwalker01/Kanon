@@ -55,6 +55,7 @@ updated: 2026-11-23
 |---|---|---|---|
 | 1 | Kritos | Correct | F-1 (blocking): the check also ran on pushes to a ready PR; `synchronize` removed, ADR-011 states it replaces ADR-007's "once". F-2 (blocking): the PR step came after "stop"; now step 10, before Prepare the decision. F-3: return to draft untested with `GITHUB_TOKEN`; open, tested at the first failure or review. F-4: a single inline comment or a reply also counts as a `commented` review and returns the PR to draft; accepted, owner may narrow it in R-3. F-5: A-3 and setup section 3 now require both check jobs. F-6, F-10: R-2, R-3, STATUS and summary updated. F-7: draft jobs limited to same-repository PRs; fork limit stated in ADR-011. F-8: none required. F-9: ADR-007 and P1-10 annotated on acceptance. |
 | 2 | Kritos | Correct | All round 1 findings resolved as recorded. N-1 (blocking): stale Trigger row in the Windows work file; fixed. N-2: R-2 now follows R-3. N-3: PR #4 is a draft; it is marked ready after the push, which starts the check. N-4: "both matrix test jobs". N-5: skipped-draft and required-check behaviour are assessments, confirmed at the first GitHub run with F-3. |
+| 3 | Kritos | Pass | N-1, N-2 and N-4 confirmed. Note applied: ADR-011 now says "both matrix test jobs". |
 
 ## 4. Decision
 

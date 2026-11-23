@@ -148,3 +148,7 @@ and bot reviews do not. A small Actions job, not the assistant, returns it to dr
 ## 19. Branch Update and Local Configuration (2026-11-23)
 
 > when finished: update branch from main and fix your local configuration
+
+## 20. Remote Session Limits (2026-11-23)
+
+> branch has been merged. that local setup is continuing to work on further local fixes. in the meantime, can you investigate the reasons behind not being able to properly complete tasks in remote sessions and find fixes yourself to manage this problem or suggest to me fixes and ways in which those problems can be circumvented.

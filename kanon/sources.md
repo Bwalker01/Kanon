@@ -135,3 +135,7 @@ Chosen in questions: option A with capability tiers and a Git-only floor; no new
 > approve agent-files-and-profiles
 > approve desk-and-atlas
 > approve destructive-command-guard
+
+## 18. Remote Session Limits (2026-11-23)
+
+> branch has been merged. that local setup is continuing to work on further local fixes. in the meantime, can you investigate the reasons behind not being able to properly complete tasks in remote sessions and find fixes yourself to manage this problem or suggest to me fixes and ways in which those problems can be circumvented.

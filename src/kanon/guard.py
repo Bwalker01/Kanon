@@ -27,7 +27,8 @@ folders are protected as well.
 
 Limits: it reads command text only. It cannot see what variables hold, what scripts do, or deletions
 made by other programs, and patterns with literal text (such as `/tmp/tmp*`) are allowed. On Windows,
-a path that mixes long and 8.3 short folder names is not recognised.
+a path that mixes long and 8.3 short folder names is not recognised, and folders inside the system
+folders (such as `C:\\Windows\\System32`) are not protected, as on POSIX (`/usr/bin`).
 """
 
 from __future__ import annotations
@@ -79,9 +80,23 @@ def _norm(path: str) -> str:
     return path.lower() if WINDOWS else path
 
 
+def _from_drive_root(token: str, here: str) -> str:
+    """On Windows, a token starting with one `\\` names a path from the current drive's root.
+
+    Git Bash reads `\\Users\\x` as `C:\\Users\\x` when the current folder is on `C:`. A current folder
+    outside any drive (such as `/tmp`) is taken to be on the system drive (assessment: Git Bash's own
+    folders live there in a default install).
+    """
+    if not WINDOWS or not token.startswith("\\") or token.startswith("\\\\"):
+        return token
+    match = GIT_BASH_DRIVE.match(_norm(here))
+    drive = match.group(1) if match else (os.environ.get("SystemDrive", "C:")[:1] or "c").lower()
+    return f"/{drive}/" + token[1:]
+
+
 def _join(here: str, token: str) -> str:
     """The path a token names from folder `here`, normalised."""
-    token = _posix(token)
+    token = _posix(_from_drive_root(token, here))
     return _norm(token if token.startswith("/") else posixpath.join(here, token))
 
 
@@ -131,7 +146,7 @@ def _system_paths() -> frozenset[str]:
 
 def _quoted_paths(token: str) -> list[str]:
     """Absolute paths quoted inside a token, such as code passed to `python -c` (spaces allowed)."""
-    drive = r"|[A-Za-z]:[\\/][^\"']*" if WINDOWS else ""
+    drive = r"|[A-Za-z]:[\\/][^\"']*|\\(?!\\)[^\"']+" if WINDOWS else ""
     return re.findall(rf"[\"'](/[^\"']*|~[^\"']*{drive})[\"']", token)
 
 
@@ -214,7 +229,7 @@ def resolve(token: str, cwd: str, home: str) -> str | None:
             token = home + token[len(prefix):]
     if "$" in token or "`" in token:
         return None
-    token = _posix(token)
+    token = _posix(_from_drive_root(token, cwd))
     path = token if token.startswith("/") else posixpath.join(cwd, token)
     path = re.sub(r"^/+", "/", path)  # normpath keeps a leading `//`
     parts = path.split("/")

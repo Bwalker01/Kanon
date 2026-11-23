@@ -313,6 +313,41 @@ def test_windows_deletions_of_protected_locations_are_blocked(windows, command):
     assert guard.check(command, WIN_CWD, WIN_HOME, [WIN_CWD])
 
 
+@pytest.mark.parametrize("command", [
+    "rm -rf '\\Users\\ada'", "rm -rf '\\Users\\ada\\project'", "rm -rf '\\Windows'", "rm -rf '\\Program Files'",
+    "find '\\Users\\ada\\AppData\\Local\\Temp' -maxdepth 1 -name 'tmp*' -delete",
+    "cd /tmp && rm -rf '\\Users\\ada'", "rm -f a.txt '\\'",
+])
+def test_windows_paths_from_the_drive_root_are_blocked(windows, command):
+    """Git Bash reads a single leading backslash as the current drive's root (review round 4, F1)."""
+    assert guard.check(command, WIN_CWD, WIN_HOME, [WIN_CWD])
+
+
+def test_windows_reviewer_writes_from_the_drive_root_are_blocked(windows):
+    assert guard.reviewer_write("echo x > '\\Users\\ada\\project\\a.md'", WIN_CWD, WIN_HOME, WIN_CWD, WIN_SCRATCH)
+
+
+@pytest.mark.parametrize("command", [
+    "xargs -d '\\n' rm -f < list.txt", "rm -fv a.txt | tr '\\n' ','", "rm -f a | tr -d '\\r'",
+])
+def test_windows_escape_arguments_beside_a_deletion_are_allowed(windows, command):
+    r"""Review round 4, F2: `'\n'` is an argument, not the drive root `/n`."""
+    assert guard.check(command, WIN_CWD, WIN_HOME, [WIN_CWD]) is None
+
+
+def test_windows_8_3_short_names_are_protected(windows, monkeypatch):
+    """Windows names one folder twice; both names are protected (review round 4, F3)."""
+    shorts = {"c:/users/ada": "C:\\Users\\ADA~1", "c:/users/ada/project": "C:\\Users\\ADA~1\\PROJEC~1",
+              "c:/users/ada/appdata/local/temp": "C:\\Users\\ADA~1\\AppData\\Local\\Temp"}
+    monkeypatch.setattr(guard.os, "name", "nt")
+    monkeypatch.setattr(guard.os.path, "realpath", lambda path: path)
+    monkeypatch.setattr(guard, "_short_name", lambda path: shorts.get(path.replace("\\", "/").lower()))
+    for command in ["rm -rf C:/Users/ADA~1", "rm -rf /c/Users/ADA~1/PROJEC~1",
+                    "find C:/Users/ADA~1/AppData/Local/Temp -maxdepth 1 -name 'tmp*' -delete"]:
+        assert guard.check(command, WIN_CWD, WIN_HOME, [WIN_CWD]), command
+    assert guard.check("rm -rf /c/Users/ADA~1/PROJEC~1/build", WIN_CWD, WIN_HOME, [WIN_CWD]) is None
+
+
 def test_a_unc_project_protects_its_parents(windows):
     assert guard.check("rm -rf ..", "\\\\server\\share\\proj", WIN_HOME, [])
 

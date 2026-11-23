@@ -145,4 +145,6 @@ Chosen in questions: option A with capability tiers and a Git-only floor; no new
 Chosen in questions: changes-requested and comment reviews return a pull request to draft; approvals
 and bot reviews do not. A small Actions job, not the assistant, returns it to draft.
 
+## 19. Branch Update and Local Configuration (2026-11-23)
+
 > when finished: update branch from main and fix your local configuration

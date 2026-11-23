@@ -8,7 +8,7 @@ updated: 2026-11-23
 
 > **Summary:** Pull requests are opened as drafts only for completed, reviewed work; CI runs when one
 > is marked ready; a CI failure or a human review that is not an approval returns it to draft.
-> **Decision needed:** Approve ADR-015 (`approve pull-request-lifecycle`). The return to draft is untested on GitHub.
+> **Decision needed:** Approve ADR-015 in chat (`approve pull-request-lifecycle`); then merge pull request #4. The return to draft is untested on GitHub.
 
 ## 1. Plan
 
@@ -58,7 +58,7 @@ updated: 2026-11-23
 ### A-1: Required Checks
 
 1. Mark pull request #4 ready once, so the check runs and GitHub lists its job names.
-2. In the repository, open Settings, Rules, and edit the ruleset for `main` (or the classic branch rule).
+2. In the repository, open Settings, Rules, Rulesets, and create or edit a branch ruleset for `main`. Use a ruleset, not the classic branch rule: `kanon github protect` (A-4 in the Phase 1 plan) replaces the classic rule and would remove the checks.
 3. Under "Require status checks to pass", add `ubuntu-latest / Python 3.11` and `windows-latest / Python 3.13`.
 
 **Confirmed when:** a pull request without a passing check on its latest commit cannot be merged.
@@ -70,7 +70,7 @@ updated: 2026-11-23
 | 1 | Lifecycle (f3fc649) | Kritos | Correct | F-1, F-2 | F-1: `synchronize` removed. F-2: the PR step moved before "stop". F-3: return to draft untested with the workflow token; open until the first failure or review. F-4: a single inline comment or reply also counts as a `commented` review; accepted, the owner may narrow it. F-5: required checks added as an owner action. F-7: draft jobs limited to same-repository PRs. Others: records updated. |
 | 2 | Lifecycle (3e9527b) | Kritos | Correct | N-1 | N-1: stale Trigger row in the Windows work file; fixed. N-2, N-4: wording. N-5: skipped-draft and required-check behaviour are assessments, confirmed at the first GitHub run. |
 | 3 | Lifecycle (9896a2a) | Kritos | Pass | None | Wording note applied. |
-| M1 | Merge of `main` | Kritos | Pending | | ADR renumbered to ADR-015; Metis step 11 and the lifecycle adapted to ADR-014 (the person opens and marks ready); REVIEW.md, STATUS.md and owner-setup.md removed as on `main`. |
+| M1 | Merge (1ca374d) | Kritos | Correct | F-1, F-2 | ADR renumbered to ADR-015 and fitted to ADR-014. F-2: A-1 uses a ruleset, since `kanon github protect` replaces the classic rule. F-3: `kanon github pr` opens ready; wording fixed. F-4: workflow token stated as a second identity, amending ADR-014. F-5: approval route stated in the summary. F-6: rule 14 updated. F-7: owner's message given its own sources section. F-1 is in the Windows work file. |
 
 ## 5. Decision
 

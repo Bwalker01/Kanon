@@ -6,9 +6,9 @@ updated: 2026-11-23
 
 # Windows Test Portability
 
-> **Summary:** The test suite passes on Windows (199 passed, 1 skipped). Round 2 adds a pull request
-> check on Ubuntu and Windows; when it runs is set by ADR-015.
-> **Decision needed:** Merge pull request #4 once its check passes, after ADR-015 is decided.
+> **Summary:** Fixes the 9 original Windows failures and adds a pull request check. After merging `main`,
+> 30 Windows failures from `main`'s newer code remain (492 passed); the scope question is open.
+> **Decision needed:** Scope of the remaining failures (section 2); then merging pull request #4 is the approval.
 
 ## 1. Plan
 
@@ -46,6 +46,8 @@ updated: 2026-11-23
 | 2026-11-22 | Should `usage.default_log_dir` match Claude Code's drive-letter case (a `c--...` folder exists beside `C--...` folders on the owner's machine)? | Open; outside this work. Recorded for the usage code. |
 | 2026-11-23 | Add CI checks on pull requests? | Owner: add capability to run CI checks on pull request creation, as part of this work |
 | 2026-11-23 | ADR-007 says the check runs "once per pull request". Keep runs on each push (recommended, so fixes pushed to a pull request are checked), or run only when the pull request is opened? Default: each push. | Owner (2026-11-23): neither; the check runs when the pull request is marked ready, and drafts are skipped. Recorded in ADR-015 and `2026-11-23-pull-request-lifecycle.md`. |
+| 2026-11-23 | Owner: update the branch from `main` and fix the local configuration (`kanon/sources.md`, section 19). | Done: `main` merged (1ca374d); `kanon sync` and `kanon init` installed the guard, Atlas skill and git hooks; uv added to the user PATH; `core.autocrlf=input` for this repository. Not done: the guard runs `python3`, which is the Microsoft Store stub on this machine, so it does not run; 82 files keep CRLF until checked out again. |
+| 2026-11-23 | After the merge, 30 tests fail on Windows in `main`'s code (25 `test_guard`, 2 `test_branch`, 2 `test_github`, 1 `test_init`), so the Windows check job fails. Fix them in this work (recommended), or narrow this work and stop requiring the Windows job until separate work fixes them? Default: fix them here. | Open; awaiting the owner. |
 
 ## 3. Review
 
@@ -53,11 +55,13 @@ updated: 2026-11-23
 |---|---|---|---|---|---|
 | 1 | Test fixes (d118f54) | Kritos | Pass with notes | None | F1: six test calls still used the default encoding; fixed. F2: drive-letter case in `default_log_dir`; recorded as a question. F3: work file not updated after the build; fixed. F4: Windows privacy untested and the `os.chmod` claim unsourced; source cited, gap stated in the summary. Kritos did not run the suite on Linux; the POSIX assessment comes from reading the diff. |
 | 2 | Check workflow (89c1357) | Kritos | Correct | F1, F2, F3 | F1: CI run 45204560417 failed on both jobs; `git pull` in a test needed a committer identity; fixed in the test and confirmed locally with an empty global git config. F2 (blocking, owner): per-push runs against ADR-007's "once"; question raised in section 2. F3 (blocking): the decision entry was stale; reworded. F4, F6: Jobs and Cost rows corrected and sourced. F5: actions pinned by commit SHA to `checkout` v7.0.1 and `setup-uv` v10.3.3 (`setup-uv` publishes no major tag; run 45205703211 failed on `@v10`), credentials not persisted. F7: this row. |
-| M1 | Merge of `main` | Kritos | Pending | | Conflicts in `tests/test_init.py` resolved; reviewed with the lifecycle work. |
+| M1 | Merge (1ca374d) | Kritos | Correct | F-1, F-2 | F-1: 30 Windows failures from `main` make the Acceptance row unreachable; summary corrected, scope question raised. F-2 (lifecycle work): required checks moved to a ruleset. F-5: decision route stated. Others in the lifecycle work file. |
 
 ## 4. Decision
 
-Pending: the merge of pull request #4 is the approval (ADR-014).
+| Item | Decision | Date | Basis |
+|---|---|---|---|
+| Windows test portability | Approved on merge of pull request #4 | 2026-11-23 | ADR-014: the merge is the approval; pending until the merge commit is in history |
 
 ## 5. Cost
 

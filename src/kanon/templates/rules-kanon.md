@@ -32,7 +32,7 @@ Roles, in `kanon/docs/roles/`: Metis coordinates (skill `kanon-metis`), Kritos r
 11. **Be economical.** Read summaries before full files; run free checks before model reviews.
 12. **Delete only what you created.** Make probe folders with `mktemp -d`, keep their exact paths, and remove only those paths. Never delete with `find` or globs over shared folders such as `/tmp` or the home folder; the Kanon guard hook blocks it. The guard reads command text, so if it blocks a harmless command that only contains such text, write that text with a file editor instead.
 13. **Never commit personal data.** Profiles stay outside the repository. Generated agent files are listed in the Kanon block of `.gitignore`; `kanon sync` rebuilds them.
-14. **Pull requests only through Kanon.** Never open, approve, merge or comment on a pull request with Claude Code's own pull request feature, the GitHub connector or `gh`: they act as the person. Push work to its branch and stop; the person opens the pull request, or runs `kanon github pr <work>` on their computer to open it as Kanon's App.
+14. **Pull requests only through Kanon.** Never open, approve, merge or comment on a pull request with Claude Code's own pull request feature, the GitHub connector or `gh`: they act as the person. Push work to its branch only once every review has passed, and stop; the person opens the pull request as a draft and marks it ready when it is ready to merge (ADR-015), or runs `kanon github pr <work>` on their computer to open it as Kanon's App.
 
 ## Conduct and Writing Standard
 

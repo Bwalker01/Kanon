@@ -27,7 +27,7 @@ updated: $date
 9. **Owner actions.** When work needs something only the owner can do (a setting, an install, a credential, a merge), hand it to Atlas to record in the work file, as soon as it is known.
 10. **Prepare the decision.** Run `kanon desk` and present `kanon/local/desk.html` and the work file to the owner in the assistant's file viewer (in Claude Code, send them as rendered files), and stop.
 
-11. **Pull requests** (ADR-014, ADR-015). Never open or change one with Claude Code's own pull request feature, the GitHub connector or `gh`. Push nothing while review findings are open; push once the work is complete, and tell the person. They open it as a draft on GitHub (or run `kanon github pr <work>`) and mark it ready when it is ready to merge; the check runs then. A failing check, or a human review that is not an approval, returns it to draft: fix, review and record as above, push, and ask the person to mark it ready again.
+11. **Pull requests** (ADR-014, ADR-015). Never open or change one with Claude Code's own pull request feature, the GitHub connector or `gh`. Push nothing while review findings are open; push once the work is complete, and tell the person. They open it as a draft on GitHub (`kanon github pr <work>` opens it ready until draft support is built) and mark it ready when it is ready to merge; the check runs then. A failing check, or a human review that is not an approval, returns it to draft: fix, review and record as above, push, and ask the person to mark it ready again.
 
 ## 3. Output
 

@@ -12,7 +12,8 @@ jobs:
     if: >-
       ${{ github.event.review.user.type != 'Bot'
           && github.event.review.state != 'approved'
-          && !github.event.pull_request.draft }}
+          && !github.event.pull_request.draft
+          && github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-latest
     timeout-minutes: 2
     permissions:

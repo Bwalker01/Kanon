@@ -19,10 +19,10 @@ updated: 2026-11-23
 
 - **Before pushing:** all Kritos reviews, corrections and record updates are finished. Nothing is pushed while findings are open.
 - **Opening:** the pull request is the last step of a piece of work, opened as a draft.
-- **Ready:** Metis marks it ready for review once the work is complete and ready to merge into `main`. The check runs then.
+- **Ready:** Metis marks it ready for review once the work is complete and ready to merge into `main`. The check runs then, and not on later pushes.
 - **Back to draft:** a failing check, or a human review that requests changes or comments, returns the pull request to draft. Approvals and bot reviews do not.
 - **Again:** after the fix and its review, Metis marks it ready, and the check runs again.
-- **Actions:** one check workflow, skipped on drafts, and small jobs that return a pull request to draft. No model calls. This replaces "all GitHub operations run locally through `gh`" for these two events only.
+- **Actions:** one check workflow, skipped on drafts, and small jobs that return a pull request to draft. No model calls. This replaces ADR-007's "runs once per pull request" with once per ready state, and "all GitHub operations run locally through `gh`" for the return to draft only.
 
 ## Basis
 
@@ -33,4 +33,6 @@ updated: 2026-11-23
 
 - `.github/workflows/check.yml` and `.github/workflows/review-to-draft.yml`; Metis procedure step for pull requests.
 - P1-10 (pull requests through the GitHub App) follows this lifecycle; its "no Actions minutes" check is relaxed to these workflows.
-- Requiring the check in the `main` ruleset (A-3) blocks a merge of a commit that the check has not passed.
+- Requiring both check jobs in the `main` ruleset (A-3) blocks merging a commit pushed after the check ran; it must be returned to draft and marked ready again.
+- Pull requests from forks get a read-only token, so they are not returned to draft automatically.
+- On acceptance, ADR-007 and P1-10 are annotated as amended by this record.

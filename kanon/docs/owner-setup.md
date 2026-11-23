@@ -35,9 +35,10 @@ Do this after step 2.
 
 1. In the repository, open **Settings**, **Rules**, **Rulesets**, and create a branch ruleset for `main` (or use **Branches** for a classic rule).
 2. Require a pull request before merging, with one approval.
-3. Do not add the Kanon Agent App to the bypass list.
+3. Require status checks to pass: `ubuntu-latest / Python 3.11` and `windows-latest / Python 3.13` (ADR-011). They appear in the list after the check has run once.
+4. Do not add the Kanon Agent App to the bypass list.
 
-**Confirmed when:** a direct push to `main` is refused.
+**Confirmed when:** a direct push to `main` is refused, and a pull request without a passing check cannot be merged.
 
 ## 4. Point the Cloud Environment at the Renamed Repository
 

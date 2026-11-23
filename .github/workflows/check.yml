@@ -5,7 +5,7 @@ name: check
 on:
   pull_request:
     branches: [main]
-    types: [opened, reopened, ready_for_review, synchronize]
+    types: [opened, reopened, ready_for_review]  # not on push (ADR-011)
 
 permissions:
   contents: read
@@ -42,7 +42,7 @@ jobs:
 
   to-draft-on-failure:
     needs: check
-    if: ${{ failure() }}
+    if: ${{ failure() && github.event.pull_request.head.repo.full_name == github.repository }}  # fork tokens are read-only
     runs-on: ubuntu-latest
     timeout-minutes: 2
     permissions:

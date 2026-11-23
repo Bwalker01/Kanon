@@ -1,13 +1,13 @@
 ---
 type: work
-status: in-progress
+status: awaiting-approval
 updated: 2026-11-23
 ---
 
 # Windows Test Portability
 
 > **Summary:** The test suite passes on Windows (199 passed, 1 skipped). Round 2 adds a pull request
-> check on Ubuntu and Windows. One question on how often it runs is open.
+> check on Ubuntu and Windows; when it runs is set by ADR-011.
 > **Decision needed:** R-2 in `kanon/REVIEW.md`, after CI passes on pull request #4.
 
 ## 1. Plan

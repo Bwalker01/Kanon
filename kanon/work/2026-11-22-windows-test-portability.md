@@ -1,20 +1,20 @@
 ---
 type: work
-status: awaiting-approval
+status: in-progress
 updated: 2026-11-23
 ---
 
 # Windows Test Portability
 
 > **Summary:** Fixes the 9 original Windows failures and adds a pull request check. After merging `main`,
-> 30 Windows failures from `main`'s newer code remain (492 passed); the scope question is open.
-> **Decision needed:** Scope of the remaining failures (section 2); then merging pull request #4 is the approval.
+> 30 Windows failures from `main`'s newer code remain (492 passed); the owner chose to fix them here.
+> **Decision needed:** None until review passes; then merging pull request #4 is the approval.
 
 ## 1. Plan
 
 | Field | Value |
 |---|---|
-| Output | Test changes in `tests/`; one GitHub Actions workflow, `.github/workflows/check.yml` |
+| Output | Test changes in `tests/`; one GitHub Actions workflow, `.github/workflows/check.yml`; round 3: Windows fixes in `src/kanon/guard.py`, the guard hook command in `src/kanon/sync.py`, and tests from `main` |
 | Inputs | Local run on Windows 11, Python 3.13.7: 9 failed, 191 passed (2026-11-22); owner request for CI on pull requests (2026-11-23); ADR-007 |
 | Acceptance | All tests pass on Windows and Ubuntu in CI on pull request #4; no assertion is weakened on POSIX; `kanon verify` passes in CI with full history |
 | Creator | Claude (assistant) |
@@ -28,6 +28,14 @@ updated: 2026-11-23
 | `test_init_writes_shared_files_and_generated_files` | `files_in` builds paths with `str()`, giving backslashes | Use `as_posix()` |
 | `test_profile_sources_and_precedence`, `test_profile_folder_is_private` | Windows `os.chmod` sets only the read-only flag ([Python `os.chmod` documentation](https://docs.python.org/3/library/os.html#os.chmod)), so POSIX mode bits cannot be asserted | Assert the mode bits on POSIX only; the profile folder relies on the user profile's ACL on Windows (assessment) |
 | `test_default_log_dir_follows_claude_code_naming` | Expected value assumes a POSIX path; on Windows the path resolves to `C:\home\user\Mercatus` | Use a platform-appropriate example path; the code already matches Claude Code's Windows naming (observed folder `C--Users-...-Kanon`) |
+
+### Round 3: Failures From `main` (30)
+
+| Tests | Cause | Fix |
+|---|---|---|
+| 25 in `test_guard.py` | The guard judges Bash commands but uses `os.path`, which on Windows applies Windows path rules (`\home\user`), so project and protected paths never match | Use POSIX path rules on every platform; convert Windows paths (`C:\Users\x`, `C:/Users/x`) to the Git Bash form (`/c/Users/x`); compare case-insensitively on Windows; treat `rm.exe` as `rm` |
+| Guard hook command (local finding) | It runs `python3`, which on Windows can be the Microsoft Store stub, so the guard silently never runs | Try `python3`, `python` and `py` in turn and use the first that runs |
+| Others in `test_guard.py`, `test_branch.py`, `test_github.py`, `test_init.py` | To be diagnosed: text written without `encoding`, POSIX permission bits, a Windows path written into a shell script | Fix the tests, or the code where a test exposes a real defect |
 
 ### Pull Request Check
 
@@ -47,7 +55,7 @@ updated: 2026-11-23
 | 2026-11-23 | Add CI checks on pull requests? | Owner: add capability to run CI checks on pull request creation, as part of this work |
 | 2026-11-23 | ADR-007 says the check runs "once per pull request". Keep runs on each push (recommended, so fixes pushed to a pull request are checked), or run only when the pull request is opened? Default: each push. | Owner (2026-11-23): neither; the check runs when the pull request is marked ready, and drafts are skipped. Recorded in ADR-015 and `2026-11-23-pull-request-lifecycle.md`. |
 | 2026-11-23 | Owner: update the branch from `main` and fix the local configuration (`kanon/sources.md`, section 19). | Done: `main` merged (1ca374d); `kanon sync` and `kanon init` installed the guard, Atlas skill and git hooks; uv added to the user PATH; `core.autocrlf=input` for this repository. Not done: the guard runs `python3`, which is the Microsoft Store stub on this machine, so it does not run; 82 files keep CRLF until checked out again. |
-| 2026-11-23 | After the merge, 30 tests fail on Windows in `main`'s code (25 `test_guard`, 2 `test_branch`, 2 `test_github`, 1 `test_init`), so the Windows check job fails. Fix them in this work (recommended), or narrow this work and stop requiring the Windows job until separate work fixes them? Default: fix them here. | Open; awaiting the owner. |
+| 2026-11-23 | After the merge, 30 tests fail on Windows in `main`'s code (25 `test_guard`, 2 `test_branch`, 2 `test_github`, 1 `test_init`), so the Windows check job fails. Fix them in this work (recommended), or narrow this work and stop requiring the Windows job until separate work fixes them? Default: fix them here. | Owner: "Fix them here" |
 
 ## 3. Review
 

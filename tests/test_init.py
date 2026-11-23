@@ -140,7 +140,7 @@ def test_two_people_with_different_profiles_merge_cleanly_and_publish_nothing(re
         git(clone, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--no-verify", "-m", who)
         clones.append(clone)
     a, b = clones
-    git(b, "pull", "-q", "--no-rebase", "--no-edit", str(a))
+    git(b, "-c", "user.name=t", "-c", "user.email=t@t", "pull", "-q", "--no-rebase", "--no-edit", str(a))
     assert "Ada secret" not in git(b, "log", "-p", "--all") and "Bo secret" not in git(b, "log", "-p", "--all")
     assert "Bo secret" in (b / ".claude/rules/kanon-person.md").read_text(encoding="utf-8")
 

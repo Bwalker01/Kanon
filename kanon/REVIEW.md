@@ -1,7 +1,7 @@
 ---
 type: review-list
 status: current
-updated: 2026-11-22
+updated: 2026-11-23
 ---
 
 # Awaiting You
@@ -18,7 +18,7 @@ updated: 2026-11-22
 
 ### R-2: Windows Test Portability
 
-- **Decide:** approve merging `claude/windows-tests`; tests only, suite passes on Windows, Kritos passed it with notes.
+- **Decide:** approve merging `claude/windows-tests` (test fixes and a pull request check) once CI passes on pull request #4; and answer whether the check runs on each push (recommended) or only at opening.
 - **Read:** `kanon/work/2026-11-22-windows-test-portability.md`, sections 1 and 3.
 
 ## Actions

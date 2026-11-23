@@ -27,10 +27,11 @@ jobs:
           - os: windows-latest
             python: "3.13"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0  # kanon verify reads the full commit history (K-52)
-      - uses: astral-sh/setup-uv@v6
+          persist-credentials: false  # uv sync runs package build code; keep the token out of .git/config
+      - uses: astral-sh/setup-uv@v10
         with:
           python-version: ${{ matrix.python }}
       - run: uv sync --locked

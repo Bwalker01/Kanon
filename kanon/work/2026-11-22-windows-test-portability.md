@@ -7,8 +7,8 @@ updated: 2026-11-23
 # Windows Test Portability
 
 > **Summary:** The test suite passes on Windows (199 passed, 1 skipped). Round 2 adds a pull request
-> check that runs the tests and `kanon verify` on Ubuntu and Windows.
-> **Decision needed:** None until the check is reviewed (R-2 in `kanon/REVIEW.md`).
+> check on Ubuntu and Windows. One question on how often it runs is open.
+> **Decision needed:** R-2 in `kanon/REVIEW.md`, after CI passes on pull request #4.
 
 ## 1. Plan
 
@@ -33,10 +33,10 @@ updated: 2026-11-23
 
 | Item | Choice | Basis |
 |---|---|---|
-| Trigger | `pull_request` into `main`, on open, push and reopen; earlier runs on the same branch are cancelled | ADR-007 allows one optional check per pull request, without model calls |
-| Jobs | Ubuntu with Python 3.11 (the minimum in `pyproject.toml`) and Windows with Python 3.13 | Covers both platforms in this work and the supported range |
-| Steps | Full-depth checkout; `uv sync --locked`; `uv run pytest -q`; `uv run kanon verify` | `kanon verify` needs full history (Phase 1 plan, K-52) |
-| Cost | No model calls; Actions minutes are free for public repositories, and `Bwalker01/Kanon` is public | `gh repo view` (2026-11-23); assessment that the free tier applies |
+| Trigger | `pull_request` into `main`, on open, push and reopen; earlier runs on the same branch are cancelled | ADR-007: "One optional check runs once per pull request, without model calls." Running on each push departs from "once"; awaiting the owner (section 2) |
+| Jobs | Ubuntu with Python 3.11 (the minimum in `pyproject.toml`) and Windows with Python 3.13 | The minimum version on Ubuntu and one current version on Windows; Python 3.12 and 3.14 are not tested (assessment: adequate for this project's size) |
+| Steps | Full-depth checkout without stored credentials; `uv sync --locked`; `uv run pytest -q`; `uv run kanon verify` | `kanon verify` needs full history (Phase 1 plan, K-52) |
+| Cost | No model calls; Actions minutes are free for public repositories, and `Bwalker01/Kanon` is public | `gh repo view` (2026-11-23); [GitHub Actions billing](https://docs.github.com/en/billing/managing-billing-for-your-products/managing-billing-for-github-actions/about-billing-for-github-actions) |
 
 ## 2. Questions
 
@@ -45,12 +45,14 @@ updated: 2026-11-23
 | 2026-11-22 | Fix the Windows test failures? | Owner: "Yes, fix them" |
 | 2026-11-22 | Should `usage.default_log_dir` match Claude Code's drive-letter case (a `c--...` folder exists beside `C--...` folders on the owner's machine)? | Open; outside this work. Recorded for the usage code. |
 | 2026-11-23 | Add CI checks on pull requests? | Owner: add capability to run CI checks on pull request creation, as part of this work |
+| 2026-11-23 | ADR-007 says the check runs "once per pull request". Keep runs on each push (recommended, so fixes pushed to a pull request are checked), or run only when the pull request is opened? Default: each push. | Open; awaiting the owner. |
 
 ## 3. Review
 
 | Round | Reviewer | Verdict | Findings |
 |---|---|---|---|
 | 1 | Kritos | Pass with notes | F1: six test calls still used the default encoding; fixed. F2: drive-letter case in `default_log_dir`; recorded as a question. F3: work file not updated after the build; fixed. F4: Windows privacy untested and the `os.chmod` claim unsourced; source cited, gap stated in the summary. Kritos did not run the suite on Linux; the POSIX assessment comes from reading the diff. |
+| 2 | Kritos | Correct | F1 (blocking): CI run 45204560417 failed on both jobs; `git pull` in a test needed a committer identity; fixed in the test and confirmed locally with an empty global git config. F2 (blocking, owner): per-push runs against ADR-007's "once"; question raised in section 2. F3 (blocking): R-2 was stale; reworded. F4, F6: Jobs and Cost rows corrected and sourced. F5: actions moved to `checkout@v7` and `setup-uv@v10`, credentials not persisted; tags not pinned by SHA (accepted: low risk with `pull_request` and read-only token). F7: this row. |
 
 ## 4. Decision
 
@@ -61,3 +63,4 @@ Awaiting the owner (R-2).
 | Step | Output (main) | Output (subagents) | Cache writes | Cache reads | Estimated cost |
 |---|---|---|---|---|---|
 | plan, build, review | 5,890 | 5,090 | 42,606 | 1,252,978 | unavailable |
+| round 2: CI check | 6,641 | 9,709 | 47,160 | 1,906,492 | incomplete: $0.00 so far |

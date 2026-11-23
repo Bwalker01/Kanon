@@ -349,5 +349,19 @@ def test_a_stale_install_in_kanons_own_repository_is_reported(tmp_path, monkeypa
     assert ksync.stale_install(root) is None
     (root / "src" / "kanon" / "guard.py").write_text("# changed\n")
     assert "uv tool install --force ." in ksync.stale_install(root)
+    (root / "src" / "kanon" / "guard.py").write_text((Path(str(package_files("kanon"))) / "guard.py").read_text())
+    extra = root / "src" / "kanon" / "extra.py"
+    extra.write_text("x = 1\n")  # an added file
+    assert ksync.stale_install(root)
+    extra.rename(root / "extra.py")
+    (root / "pyproject.toml").write_text('[project]\nname="kanon-engine"\n')  # other spacing
+    assert ksync.stale_install(root) is None
     (root / "pyproject.toml").write_text('[project]\nname = "other"\n')
     assert ksync.stale_install(root) is None
+
+
+def test_an_editable_install_is_never_stale():
+    from importlib.resources import files as package_files
+    root = Path(str(package_files("kanon"))).parents[1]
+    if (root / "pyproject.toml").is_file():  # running from this repository's src (uv run)
+        assert ksync.stale_install(root) is None

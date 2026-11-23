@@ -360,8 +360,19 @@ def test_a_stale_install_in_kanons_own_repository_is_reported(tmp_path, monkeypa
     assert ksync.stale_install(root) is None
 
 
-def test_an_editable_install_is_never_stale():
+def test_an_editable_install_is_never_stale(tmp_path, monkeypatch):
+    import importlib.resources
+    import shutil
     from importlib.resources import files as package_files
-    root = Path(str(package_files("kanon"))).parents[1]
-    if (root / "pyproject.toml").is_file():  # running from this repository's src (uv run)
-        assert ksync.stale_install(root) is None
+    root = tmp_path / "engine"
+    shutil.copytree(Path(str(package_files("kanon"))), root / "src" / "kanon", ignore=shutil.ignore_patterns("__pycache__"))
+    (root / "pyproject.toml").write_text('[project]\nname = "kanon-engine"\n')
+    (root / "src" / "kanon" / "guard.py").write_text("# edited in the working tree\n")
+    monkeypatch.setattr(importlib.resources, "files", lambda name: root / "src" / "kanon")
+    assert ksync.stale_install(root) is None  # the running package is the working tree
+
+
+def test_a_malformed_pyproject_is_not_reported(tmp_path):
+    (tmp_path / "src" / "kanon").mkdir(parents=True)
+    (tmp_path / "pyproject.toml").write_text("[project\nname = ")
+    assert ksync.stale_install(tmp_path) is None

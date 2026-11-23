@@ -52,7 +52,7 @@ updated: 2026-11-23
 | Round | Reviewer | Verdict | Findings |
 |---|---|---|---|
 | 1 | Kritos | Pass with notes | F1: six test calls still used the default encoding; fixed. F2: drive-letter case in `default_log_dir`; recorded as a question. F3: work file not updated after the build; fixed. F4: Windows privacy untested and the `os.chmod` claim unsourced; source cited, gap stated in the summary. Kritos did not run the suite on Linux; the POSIX assessment comes from reading the diff. |
-| 2 | Kritos | Correct | F1 (blocking): CI run 45204560417 failed on both jobs; `git pull` in a test needed a committer identity; fixed in the test and confirmed locally with an empty global git config. F2 (blocking, owner): per-push runs against ADR-007's "once"; question raised in section 2. F3 (blocking): R-2 was stale; reworded. F4, F6: Jobs and Cost rows corrected and sourced. F5: actions moved to `checkout@v7` and `setup-uv@v10`, credentials not persisted; tags not pinned by SHA (accepted: low risk with `pull_request` and read-only token). F7: this row. |
+| 2 | Kritos | Correct | F1 (blocking): CI run 45204560417 failed on both jobs; `git pull` in a test needed a committer identity; fixed in the test and confirmed locally with an empty global git config. F2 (blocking, owner): per-push runs against ADR-007's "once"; question raised in section 2. F3 (blocking): R-2 was stale; reworded. F4, F6: Jobs and Cost rows corrected and sourced. F5: actions pinned by commit SHA to `checkout` v7.0.1 and `setup-uv` v10.3.3 (`setup-uv` publishes no major tag; run 45205703211 failed on `@v10`), credentials not persisted. F7: this row. |
 
 ## 4. Decision
 

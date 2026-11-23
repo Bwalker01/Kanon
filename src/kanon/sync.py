@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
+import tomllib
 from pathlib import Path
 
 from kanon import profile as profiles
@@ -98,13 +99,19 @@ def stale_install(root: Path) -> str | None:
     """In Kanon's own repository, a note when the installed package differs from `src/kanon`.
 
     Generated files (rules, skills, the guard hook) come from the installed package, so a stale install
-    writes stale protections. This happened four times in cloud sessions between 2026-11-18 and 2026-11-20.
+    writes stale protections (seen in a cloud session on 2026-11-18).
     """
     import hashlib
     from importlib.resources import files as package_files
     source = root / "src" / "kanon"
     pyproject = root / "pyproject.toml"
-    if not source.is_dir() or not pyproject.is_file() or 'name = "kanon-engine"' not in pyproject.read_text(encoding="utf-8"):
+    if not source.is_dir() or not pyproject.is_file():
+        return None
+    try:
+        name = tomllib.loads(pyproject.read_text(encoding="utf-8")).get("project", {}).get("name")
+    except tomllib.TOMLDecodeError:
+        return None
+    if name != "kanon-engine":
         return None
     installed = Path(str(package_files("kanon")))
     if installed.resolve() == source.resolve():

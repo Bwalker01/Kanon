@@ -84,8 +84,8 @@ def record_review(repo, row):
     row = row.replace(f"| {item} |", f"| {item} ({git(repo, 'rev-parse', '--short', f'kanon/build/{item}')}) |", 1)
     git(repo, "switch", "-q", "kanon/build/plan")
     path = repo / WORK
-    path.write_text(path.read_text().replace("Not yet reviewed.", REVIEW + row) if "Not yet reviewed." in path.read_text()
-                    else path.read_text().replace("## 4. Decision", row + "\n\n## 4. Decision").replace("\n\n" + row, "\n" + row), encoding="utf-8")
+    path.write_text(path.read_text(encoding="utf-8").replace("Not yet reviewed.", REVIEW + row) if "Not yet reviewed." in path.read_text(encoding="utf-8")
+                    else path.read_text(encoding="utf-8").replace("## 4. Decision", row + "\n\n## 4. Decision").replace("\n\n" + row, "\n" + row), encoding="utf-8")
     git(repo, "commit", "-q", "-am", "MODIFIED: review", "--no-verify")
 
 
@@ -141,7 +141,7 @@ def test_an_item_approval_allows_the_merge(repo):
 def test_an_item_branch_that_edits_work_files_is_refused(repo):
     branch.start(repo, "build", "P1-01")
     path = repo / WORK
-    path.write_text(path.read_text().replace("A build with two items.", "Changed on the item branch."), encoding="utf-8")
+    path.write_text(path.read_text(encoding="utf-8").replace("A build with two items.", "Changed on the item branch."), encoding="utf-8")
     git(repo, "commit", "-q", "-am", "MODIFIED: work file", "--no-verify")
     record_review(repo, "| 1 | P1-01 | Kritos | pass | None | Accepted |")
     with pytest.raises(branch.BranchError, match="changed work files"):

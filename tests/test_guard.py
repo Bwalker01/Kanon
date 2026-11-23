@@ -275,44 +275,70 @@ def test_gh_writes_are_blocked_for_every_agent(command, blocked):
     assert bool(guard.gh_write(command)) is blocked
 
 
-# Windows: Claude Code runs Bash through Git Bash, and the hook receives Windows paths.
+# Windows: Claude Code runs Bash through Git Bash, and the hook receives Windows paths. These tests
+# set the guard's WINDOWS flag, so they run on every platform (the 8.3 lookups run only on Windows).
 WIN_CWD, WIN_HOME = "C:\\Users\\ada\\project", "C:\\Users\\ada"
 WIN_SCRATCH = ["C:\\Users\\ada\\AppData\\Local\\Temp\\claude\\s\\scratchpad"]
 
 
-def test_windows_paths_are_read_in_git_bash_form():
+@pytest.fixture
+def windows(monkeypatch):
+    monkeypatch.setattr(guard, "WINDOWS", True)
+    monkeypatch.setattr(guard, "_SYSTEM_CACHE", {})
+    monkeypatch.setenv("TEMP", "C:\\Users\\ada\\AppData\\Local\\Temp")
+    monkeypatch.setenv("SystemRoot", "C:\\Windows")
+    monkeypatch.setenv("ProgramFiles", "C:\\Program Files")
+    monkeypatch.setenv("USERPROFILE", WIN_HOME)
+
+
+def test_windows_paths_are_read_in_git_bash_form(windows):
     assert guard._posix("C:\\Users\\ada") == "/c/Users/ada"
     assert guard._posix("C:/Users/ada/") == "/c/Users/ada"
     assert guard._posix("D:") == "/d"
+    assert guard._posix("..\\src") == "../src"
     assert guard._posix("src/x.py") == "src/x.py" and guard._posix("/tmp") == "/tmp"
     assert guard._verb("rm.exe") == "rm" and guard._verb("/usr/bin/rm.EXE") == "rm"
 
 
 @pytest.mark.parametrize("command", [
     "rm -rf /c/Users/ada", "rm -rf 'C:\\Users\\ada'", "rm -rf C:/Users/ada/project", "rm -rf .",
-    "rm.exe -rf /c/Users/ada/project", "rm -rf /c", "rm -rf ..",
+    "rm.exe -rf /c/Users/ada/project", "rm -rf /c", "rm -rf /d", "rm -rf ..",
+    "rm -rf '..\\'", "rm -rf '.\\'", "rm -rf '..\\..'", "rm -rf 'src\\..\\..'",
+    "rm -rf /C/USERS/ADA", "rm -rf C:/Windows", "rm -rf 'C:/Program Files'", "rm -rf /c/users",
+    "find C:/Users/ada/AppData/Local/Temp -maxdepth 1 -name 'tmp*' -delete",
     "python -c \"import shutil; shutil.rmtree('C:/Users/ada')\"",
+    "python -c \"import shutil; shutil.rmtree('/c/Users/ada/my project/..')\"",
 ])
-def test_windows_deletions_of_protected_locations_are_blocked(command):
-    assert guard.check(command, WIN_CWD, WIN_HOME, [WIN_CWD, *WIN_SCRATCH])
+def test_windows_deletions_of_protected_locations_are_blocked(windows, command):
+    assert guard.check(command, WIN_CWD, WIN_HOME, [WIN_CWD])
 
 
-@pytest.mark.parametrize("command", ["rm -rf build", "rm -f /c/Users/ada/project/x.pyc", "rm -rf src/__pycache__"])
-def test_windows_ordinary_cleanups_are_allowed(command):
+def test_a_unc_project_protects_its_parents(windows):
+    assert guard.check("rm -rf ..", "\\\\server\\share\\proj", WIN_HOME, [])
+
+
+@pytest.mark.parametrize("command", ["rm -rf build", "rm -f /c/Users/ada/project/x.pyc", "rm -rf src/__pycache__",
+                                     "rm -rf 'build\\out'"])
+def test_windows_ordinary_cleanups_are_allowed(windows, command):
     assert guard.check(command, WIN_CWD, WIN_HOME, [WIN_CWD, *WIN_SCRATCH]) is None
 
 
-@pytest.mark.skipif(os.name != "nt", reason="Windows paths are case-insensitive; POSIX paths are not")
-def test_windows_paths_are_compared_without_case():
-    assert guard.check("rm -rf /C/USERS/ADA", WIN_CWD, WIN_HOME, [WIN_CWD])
-    assert guard.reviewer_write("echo x > readme.MD", WIN_CWD, WIN_HOME, "c:\\users\\ADA\\Project", WIN_SCRATCH)
-
-
-def test_windows_reviewer_writes_are_judged_against_the_project():
+def test_windows_reviewer_writes_are_judged_against_the_project(windows):
     assert guard.reviewer_write("echo x > README.md", WIN_CWD, WIN_HOME, WIN_CWD, WIN_SCRATCH)
+    assert guard.reviewer_write("echo x > readme.MD", WIN_CWD, WIN_HOME, "c:\\users\\ADA\\Project", WIN_SCRATCH)
     assert guard.reviewer_write("cp /tmp/x C:/Users/ada/project/src/x.py", WIN_CWD, WIN_HOME, WIN_CWD, WIN_SCRATCH)
+    assert guard.reviewer_write("cd .. && echo x > 'project\\a'", WIN_CWD, WIN_HOME, WIN_CWD, WIN_SCRATCH)
     scratch_file = "/c/Users/ada/AppData/Local/Temp/claude/s/scratchpad/probe.txt"
     assert guard.reviewer_write(f"echo x > {scratch_file}", WIN_CWD, WIN_HOME, WIN_CWD, WIN_SCRATCH) is None
+
+
+def test_drive_letters_and_backslashes_keep_their_posix_meaning_elsewhere(monkeypatch):
+    """On Linux and macOS `C:/x` is a relative path and `\\` is not a separator (review B3)."""
+    monkeypatch.setattr(guard, "WINDOWS", False)
+    assert guard._posix("C:\\Users") == "C:\\Users"
+    assert guard.reviewer_write("echo x > C:", PROJECT, HOME, PROJECT, SCRATCH)
+    assert guard.reviewer_write("echo x > D:/", PROJECT, HOME, PROJECT, SCRATCH)
+    assert guard.check("rm -rf C:/../..", CWD, HOME, SCRATCH)
 
 
 @pytest.mark.skipif(shutil.which("sh") is None, reason="needs a POSIX shell")

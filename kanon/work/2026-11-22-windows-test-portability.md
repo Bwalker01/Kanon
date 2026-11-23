@@ -6,8 +6,8 @@ updated: 2026-11-23
 
 # Windows Test Portability
 
-> **Summary:** Fixes the 9 original Windows failures and adds a pull request check. After merging `main`,
-> 30 Windows failures from `main`'s newer code remain (492 passed); the owner chose to fix them here.
+> **Summary:** The suite passes on Windows (Windows 11: all pass but two POSIX-only tests), including `main`'s
+> code after the merge; the guard now works on Windows. A pull request check runs on Ubuntu and Windows.
 > **Decision needed:** None until review passes; then merging pull request #4 is the approval.
 
 ## 1. Plan
@@ -35,7 +35,8 @@ updated: 2026-11-23
 |---|---|---|
 | 25 in `test_guard.py` | The guard judges Bash commands but uses `os.path`, which on Windows applies Windows path rules (`\home\user`), so project and protected paths never match | Use POSIX path rules on every platform; convert Windows paths (`C:\Users\x`, `C:/Users/x`) to the Git Bash form (`/c/Users/x`); compare case-insensitively on Windows; treat `rm.exe` as `rm` |
 | Guard hook command (local finding) | It runs `python3`, which on Windows can be the Microsoft Store stub, so the guard silently never runs | Try `python3`, `python` and `py` in turn and use the first that runs |
-| Others in `test_guard.py`, `test_branch.py`, `test_github.py`, `test_init.py` | To be diagnosed: text written without `encoding`, POSIX permission bits, a Windows path written into a shell script | Fix the tests, or the code where a test exposes a real defect |
+| Others in `test_guard.py`, `test_branch.py`, `test_github.py`, `test_init.py` | Text written without `encoding` (a settings file with `café`); POSIX permission bits on the key and a chosen profile folder; an unquoted Windows Python path in a shell shim; a PEM key written in text mode, so with CRLF | `encoding="utf-8"` across `main`'s tests; permission bits asserted on POSIX only; quoted POSIX-form shim path; key written as bytes |
+| Review round 3 (guard) | Relative paths with `\` were not converted; the Windows temp folder was protected only as `/tmp`; drive conversion also ran on Linux and macOS | Windows rules apply only when `WINDOWS` is set; `\` is a separator on Windows; temp, system folders, drive roots and 8.3 short names protected; quoted paths may contain spaces |
 
 ### Pull Request Check
 
@@ -64,6 +65,7 @@ updated: 2026-11-23
 | 1 | Test fixes (d118f54) | Kritos | Pass with notes | None | F1: six test calls still used the default encoding; fixed. F2: drive-letter case in `default_log_dir`; recorded as a question. F3: work file not updated after the build; fixed. F4: Windows privacy untested and the `os.chmod` claim unsourced; source cited, gap stated in the summary. Kritos did not run the suite on Linux; the POSIX assessment comes from reading the diff. |
 | 2 | Check workflow (89c1357) | Kritos | Correct | F1, F2, F3 | F1: CI run 45204560417 failed on both jobs; `git pull` in a test needed a committer identity; fixed in the test and confirmed locally with an empty global git config. F2 (blocking, owner): per-push runs against ADR-007's "once"; question raised in section 2. F3 (blocking): the decision entry was stale; reworded. F4, F6: Jobs and Cost rows corrected and sourced. F5: actions pinned by commit SHA to `checkout` v7.0.1 and `setup-uv` v10.3.3 (`setup-uv` publishes no major tag; run 45205703211 failed on `@v10`), credentials not persisted. F7: this row. |
 | M1 | Merge (1ca374d) | Kritos | Correct | F-1, F-2 | F-1: 30 Windows failures from `main` make the Acceptance row unreachable; summary corrected, scope question raised. F-2 (lifecycle work): required checks moved to a ruleset. F-5: decision route stated. Others in the lifecycle work file. |
+| 3 | Round 3 fixes (e6a9e38) | Kritos | Correct | B1, B2, B3 | B1: `\` paths such as `'..'` bypassed the guard on Windows; now a separator there. B2: the Windows temp folder was protected only as `/tmp`; now by its Windows names. B3: drive conversion ran on Linux and macOS; now Windows only, tested on every platform. N1, N2, N4: 8.3 names, drive roots, system folders and UNC parents protected; mixed long and short names recorded as a limit. N3: quoted paths may contain spaces (stricter on every platform). N5: hook comment labelled as an assessment. N6, N7: records and test reads. N8: out of scope (heredoc and `sed` false blocks predate this work). |
 
 ## 4. Decision
 

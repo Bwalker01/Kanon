@@ -25,8 +25,9 @@ GENERATED_DIRS = ["kanon/local/"]
 PERSONAL = [SETTINGS_LOCAL]
 # Allows the call when the script or project folder is missing, so a deleted hook never blocks every
 # command. Uses the first of python3, python and py that runs: on Windows `python3` may be the
-# Microsoft Store stub, which exists but runs nothing. Without a working Python it exits 1, which
-# Claude Code shows as a non-blocking error.
+# Microsoft Store stub, which exists but runs nothing. Without a working Python it exits 1 with a
+# message: a non-blocking error (assessment: shown in the transcript, not as a block). Each command
+# starts Python once more to find the interpreter.
 GUARD_COMMAND = ('f="$CLAUDE_PROJECT_DIR/.claude/hooks/kanon-guard.py"; '
                  '[ -n "$CLAUDE_PROJECT_DIR" ] && [ -f "$f" ] || exit 0; '
                  'for p in python3 python py; do "$p" -c "" >/dev/null 2>&1 && exec "$p" "$f"; done; '

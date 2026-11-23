@@ -31,7 +31,7 @@ updated: 2026-11-23
 | Errors | GraphQL answers `200` with an `errors` list on failure; the module raises `GitHubError` with GitHub's message. Tokens never appear in output (K-410). |
 | Identity | No `gh`, no person's login. The App's token is the only credential, as for `pr`, `notes` and `sync`. |
 | CI trigger | Assessment, untested on GitHub: a `ready_for_review` event caused by an App installation token starts workflows (only the workflow's own `GITHUB_TOKEN` is exempt), so `check.yml` runs when the App marks the pull request ready. |
-| Assistant sessions | Decided by question 1 (section 2). Allowed: `run_github` keeps refusing only `setup` and `protect`. Person only: `pr`, `ready` and `draft` are added to the refused set, with a test. |
+| Assistant sessions | Allowed (question 1): `run_github` keeps refusing only `setup` and `protect`; a test confirms `pr`, `ready` and `draft` are not refused. |
 | Records | Rule 14, Metis step 11 (both copies) and ADR-015 replace "opens it ready until draft support is built" with the new commands and the answer to question 1. |
 | Base | PR #4 (`claude/windows-tests`) is not merged, and it holds ADR-015, so this branch starts from it. The pull request for this work goes into `main` after PR #4, or into `claude/windows-tests` if the owner prefers. |
 
@@ -44,7 +44,7 @@ updated: 2026-11-23
 | `ready` and `draft` send the right GraphQL mutation with the pull request's `node_id` | Tests |
 | Closed, merged or non-App pull requests are refused; no-op when already in state | Tests |
 | GraphQL `errors` become a `GitHubError` | Test |
-| Assistant-session rule matches question 1 | Test through `main([...])` with `CLAUDECODE=1` |
+| `setup` and `protect` stay refused in an assistant session; `ready` and `draft` are not | Test through `main([...])` with `CLAUDECODE=1` |
 | `uv run pytest -q` and `uv run kanon verify` pass | Command output |
 | Kritos passes the work | Section 3 |
 
@@ -54,7 +54,7 @@ Not covered: a live run against GitHub. The App is not yet installed on the owne
 
 | Date | Question | Answer |
 |---|---|---|
-| 2026-11-23 | May an assistant session run `kanon github pr`, `ready` and `draft` itself? They act as the App and the merge stays the person's approval. Recommended: allow. Default: person only. | Pending |
+| 2026-11-23 | May an assistant session run `kanon github pr`, `ready` and `draft` itself? They act as the App and the merge stays the person's approval. Recommended: allow. Default: person only. | Owner, 2026-11-23: allow agents. `setup` and `protect` stay refused. |
 
 ## 3. Review
 

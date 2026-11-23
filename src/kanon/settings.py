@@ -49,6 +49,18 @@ def validate_settings(text: str) -> list[Problem]:
         for approver in approvers:
             if not (isinstance(approver, str) and GITHUB_USER.match(approver)):
                 problems.append(Problem("settings", f"approver '{approver}' is not a valid GitHub username"))
+    github = data.get("github")
+    if github is not None:
+        if not isinstance(github, dict):
+            problems.append(Problem("settings", "[github] must be a table"))
+        else:
+            if "app_id" in github and (not isinstance(github["app_id"], int) or isinstance(github["app_id"], bool)):
+                problems.append(Problem("settings", "github.app_id must be the App's numeric ID"))
+            if "app_slug" in github and not (isinstance(github["app_slug"], str) and re.fullmatch(r"[a-z0-9-]+", github["app_slug"])):
+                problems.append(Problem("settings", "github.app_slug must be the App's slug, as in github.com/apps/<slug>"))
+            for secret in ("key", "private_key", "pem", "token"):
+                if secret in github:
+                    problems.append(Problem("settings", f"github.{secret} must never be committed; use KANON_APP_KEY"))
     if "people" in data:
         problems.append(Problem("settings", "personal profiles must not be committed; move [people] to a profile "
                                             "(kanon profile) and remove it from kanon.toml"))

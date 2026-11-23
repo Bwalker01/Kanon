@@ -6,12 +6,12 @@ specialist AI agents through an independent review loop with owner approval.
 
 ## Status
 
-Phase 0 (foundation) is complete and awaiting approval. No code has been released yet.
+Phase 1 (core engine) is in progress. Run `kanon desk` to see what waits on you.
 
 | Start here | Purpose |
 |---|---|
-| [kanon/REVIEW.md](kanon/REVIEW.md) | Items awaiting the owner's decision |
-| [kanon/STATUS.md](kanon/STATUS.md) | Phases, progress and recent changes |
+| [kanon/docs/roadmap.md](kanon/docs/roadmap.md) | Phases and their scope |
+| [kanon/work/](kanon/work/) | Work in progress, one file per piece of work |
 | [kanon/decisions/](kanon/decisions/) | Decision records, one page each |
 
 ## Capabilities (planned)
@@ -21,6 +21,20 @@ Phase 0 (foundation) is complete and awaiting approval. No code has been release
 - Adds agents and tools on demand from the Pantheon marketplace.
 - Reviews every output independently and requests approval at defined points.
 - Keeps token and CI costs visible and controlled.
+
+## GitHub Mode (Optional)
+
+Kanon can open one pull request per approved plan as its own GitHub App, and agents are refused your GitHub
+connector and writing `gh` commands. Cloud sessions' own clone and branch pushes still use your connection.
+Set it up once, on your own computer, in a clone of your repository:
+
+1. `kanon github setup` opens GitHub with Kanon's permissions filled in. Create the App, then install it on the repository.
+2. `kanon github check` confirms the App signs in and has the right permissions.
+3. `kanon github protect`, run with your own `gh` login, makes a code owner's review required on `main`. As administrator you can still merge your own pull requests; the App and agents cannot.
+
+Merging the pull request is the approval. Cloud sessions cannot sign in as the App (their proxy refuses GitHub App
+paths), so pull requests are opened from your computer. A repository's own CI runs on the App's pull requests as on
+any other.
 
 ## Contributing
 

@@ -94,8 +94,7 @@ def init(path: Path, approvers: list[str], today: dt.date | None = None) -> Init
     date = (today or dt.date.today()).isoformat()
     result = InitResult()
     files = {
-        "kanon/REVIEW.md": render("review.md", date=date),
-        "kanon/STATUS.md": render("status.md", date=date),
+        "kanon/docs/roadmap.md": render("roadmap.md", date=date),
         "kanon/docs/conduct-and-writing.md": render("conduct-and-writing.md", date=date),
         "kanon/docs/learnings.md": render("learnings.md", date=date),
         "kanon/sources.md": render("sources.md", date=date),
@@ -111,11 +110,13 @@ def init(path: Path, approvers: list[str], today: dt.date | None = None) -> Init
             continue  # the folder already has content to keep it in Git
         _write_new(root, rel, content, result)
     synced = sync(root)
-    result.created += [f for f in synced.written if not f == ".gitignore"]
+    from kanon.desk import OUTPUTS
+    result.created += [f for f in synced.written if f != ".gitignore" and f not in OUTPUTS]
     if ".gitignore" in synced.written:
         result.updated.append(".gitignore")
     result.kept += synced.unchanged
-    result.warnings += [f"{f} exists and was not written by Kanon; it was left alone" for f in synced.refused]
+    result.warnings += [f"{f} exists and was not written by Kanon; it was left alone"
+                        for f in synced.refused if f != ".gitignore"]  # a damaged block is explained in the notes
     result.warnings += synced.notes
     hook_path = Path(hook_location(root))
     existed = hook_path.exists()
@@ -128,6 +129,17 @@ def init(path: Path, approvers: list[str], today: dt.date | None = None) -> Init
     else:
         result.warnings.append(f"an existing pre-commit hook was kept at {hook}; it does not run kanon verify "
                                "unless you add it")
+    from kanon.branch import MERGE_HOOK
+    merge_path = Path(hook_location(root, "pre-merge-commit"))
+    existed = merge_path.exists()
+    merge_hook, written = install_hook(root, "pre-merge-commit", MERGE_HOOK)
+    if written:
+        (result.updated if existed else result.created).append(".git/hooks/pre-merge-commit")
+    elif "# Installed by kanon init." in merge_path.read_text(encoding="utf-8", errors="replace"):
+        result.kept.append(".git/hooks/pre-merge-commit")
+    else:
+        result.warnings.append(f"an existing pre-merge-commit hook was kept at {merge_hook}; it does not check "
+                               "that item branches were reviewed before merging")
     return result
 
 
@@ -143,8 +155,10 @@ def new_work(path: Path, topic: str, today: dt.date | None = None) -> Path:
         raise ValueError("the topic needs at least one letter or digit")
     date = (today or dt.date.today()).isoformat()
     target = root / "kanon" / "work" / f"{date}-{slug}.md"
-    if target.exists():
-        raise FileExistsError(f"{target.relative_to(root)} already exists")
+    clash = sorted((root / "kanon" / "work").glob(f"????-??-??-{slug}.md"))
+    if target.exists() or clash:
+        existing = (clash or [target])[0].relative_to(root)
+        raise FileExistsError(f"{existing} already uses the topic '{slug}'; choose a distinct topic")
     title = topic.strip()[:1].upper() + topic.strip()[1:]
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(render("work.md", date=date, title=title, summary="To be written with the plan."),

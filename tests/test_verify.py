@@ -144,10 +144,9 @@ def test_an_incomplete_exception_is_itself_a_problem(repo):
     only(repo, "settings", "needs path, rule, reason")
 
 
-def test_open_question_in_review_list_fails(repo):
-    edit(repo, "kanon/REVIEW.md", "## Decisions\n\nNone.", "## Decisions\n\nShould we use Postgres?")
-    only(repo, "questions", "question in the review list")
-
+def test_question_in_decision_needed_line_fails(repo):
+    edit(repo, WORK, "> **Decision needed:** None yet.", "> **Decision needed:** Should we use Postgres?")
+    only(repo, "questions", "Decision needed")
 
 def test_code_fences_are_ignored(repo):
     edit(repo, WORK, "## 2. Questions", "```text\n## 9. Cost\nA seamless — thing?\n```\n\n## 2. Questions")
@@ -281,10 +280,12 @@ def test_conduct_exemption_is_by_exact_path(repo):
     assert any(r == "writing" for _, r, _ in rules(repo))
 
 
-def test_question_in_a_table_cell_is_found(repo):
-    edit(repo, "kanon/REVIEW.md", "|---|---|---|---|", "|---|---|---|---|\n| A-1 | Use Postgres? | x | y |")
-    only(repo, "questions", "question in the review list")
-
+def test_generated_desk_is_never_checked_or_committed(repo):
+    (repo / "kanon/local").mkdir(exist_ok=True)
+    (repo / "kanon/local/DESK.md").write_text("no frontmatter, a seamless \u2014 note")
+    assert rules(repo) == []
+    git(repo, "add", "-f", "kanon/local/DESK.md")
+    only(repo, "privacy", "generated agent file is committed")
 
 def test_unused_exception_is_reported(repo):
     with (repo / "kanon/kanon.toml").open("a") as f:
@@ -366,3 +367,31 @@ def test_new_work_requires_kanon_init(tmp_path):
     git(tmp_path, "init", "-q")
     with pytest.raises(RuntimeError, match="run kanon init first"):
         kinit.new_work(tmp_path, "x")
+
+
+@pytest.mark.parametrize("table,fragment", [
+    ("| ID | Action | Assignee | Done |\n|---|---|---|---|\n| A-1 | x | ada-dev | no |", "lacks column(s): blocks"),
+    ("| ID | Action | Assignee | Blocks | Done |\n|---|---|---|---|---|\n| A-1 | x | not valid! | | no |", "GitHub username"),
+    ("| ID | Action | Assignee | Blocks | Done |\n|---|---|---|---|---|\n| A-1 | x | ada-dev | | maybe |", "yes or no"),
+    ("| ID | Action | Assignee | Blocks | Done |\n|---|---|---|---|---|\n| A-1 | x | ada-dev | A-9 | no |", "unknown action 'A-9'"),
+    ("| ID | Action | Assignee | Blocks | Done |\n|---|---|---|---|---|\n| A-1 | `a|b` | ada-dev | | no |", "wrong number of cells"),
+    ("| ID | Action | Assignee | Blocks | Done |\n|---|---|---|---|---|\n| A-1 | x | ada-dev | | no |\n\n### A-7: Stray", "match no row"),
+])
+def test_actions_tables_are_checked(repo, table, fragment):
+    edit(repo, WORK, "## 3. Review", f"## 3. Actions\n\n{table}\n\n## 3. Review")
+    found = [m for _, r, m in rules(repo) if r == "actions"]
+    assert any(fragment in m for m in found), found
+
+
+def test_question_on_a_continuation_line_of_decision_needed_fails(repo):
+    edit(repo, WORK, "> **Decision needed:** None yet.", "> **Decision needed:** Choose a store.\n> Postgres or SQLite?")
+    only(repo, "questions", "Decision needed")
+
+
+def test_a_row_with_the_wrong_cell_count_is_reported_on_its_own_line(repo):  # K-241
+    table = "| ID | Action | Assignee | Blocks | Done |\n|---|---|---|---|---|\n| A-1 | `a|b` | ada-dev | | no |"
+    edit(repo, WORK, "## 3. Review", f"## 3. Actions\n\n{table}\n\n## 3. Review")
+    lines = (repo / WORK).read_text().splitlines()
+    row = next(i for i, l in enumerate(lines, 1) if l.startswith("| A-1 |"))
+    found = [f for f in kv.verify(repo) if f.rule == "actions" and "wrong number of cells" in f.message]
+    assert found and found[0].line == row

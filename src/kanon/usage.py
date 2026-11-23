@@ -175,8 +175,11 @@ def _cost(main_files, replies: dict[str, _Reply], since, until, notes: list[str]
     bound. Replies after a session's last record are not yet costed: the figure is incomplete.
     """
     sessions, activity = _cost_points(main_files)
+    for reply in replies.values():  # a subagent's reply is activity of its parent session
+        activity.setdefault(reply.session, []).append(reply.when)
     in_window = [r for r in replies.values() if _in_window(r.when, since, until)]
     if not sessions:
+        notes.append("no cost estimate found in the logs")
         return Cost(None, "unknown")
     total, incomplete, unknown_model, decreased = 0.0, 0, False, False
     for session, points in sessions.items():
@@ -188,7 +191,8 @@ def _cost(main_files, replies: dict[str, _Reply], since, until, notes: list[str]
         end = after[0] if after else points[-1]
         used = [p for p in points if (not start or p[0] >= start[-1][0]) and p[0] <= end[0]]
         unknown_model = unknown_model or any(p[2] for p in used)
-        if end[1] < start_cost:
+        values = [start_cost] + [p[1] for p in used]
+        if end[1] < start_cost or any(b < a for a, b in zip(values, values[1:])):
             decreased = True
         total += end[1] - start_cost
         incomplete += sum(1 for r in in_window if r.session == session and r.when > points[-1][0])
@@ -220,8 +224,6 @@ def report(log_dir: Path, since=None, until=None) -> UsageReport:
     sub_replies, bad_subs = _read_replies(sub_files)
     main, subs = _totals(main_replies, since, until), _totals(sub_replies, since, until)
     cost = _cost(main_files, main_replies | sub_replies, since, until, notes)
-    if cost.bound == "unknown" and cost.usd is None and not any("pricing" in n for n in notes):
-        notes.append("no cost estimate found in the logs")
 
     bad = bad_main + bad_subs
     if bad and main.replies + subs.replies == 0:
@@ -239,6 +241,8 @@ def cost_text(rep: UsageReport) -> str:
     if rep.cost_usd is None:
         return "unavailable"
     if rep.cost_bound == "incomplete":
+        if rep.cost_usd == 0:
+            return "not yet calculated (Claude Code has not updated its estimate)"
         return f"incomplete: ${rep.cost_usd:.2f} so far"
     return f"at most ${rep.cost_usd:.2f}"
 

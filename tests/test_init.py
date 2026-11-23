@@ -2,6 +2,7 @@ import datetime as dt
 import hashlib
 import json
 import subprocess
+import os
 import tomllib
 from pathlib import Path
 
@@ -19,7 +20,7 @@ ROOT = Path(__file__).resolve().parents[1]
 TODAY = dt.date(2026, 11, 16)
 APPROVERS = ["ada-dev"]
 COMMITTED = sorted([
-    "kanon/REVIEW.md", "kanon/STATUS.md", "kanon/kanon.toml", "kanon/sources.md",
+    "kanon/docs/roadmap.md", "kanon/kanon.toml", "kanon/sources.md",
     "kanon/docs/conduct-and-writing.md", "kanon/docs/learnings.md",
     "kanon/decisions/.gitkeep", "kanon/work/.gitkeep", "kanon/archive/.gitkeep",
     *ROLE_FILES, ".gitignore",
@@ -40,8 +41,12 @@ def files_in(root):
     return sorted(str(p.relative_to(root)) for p in root.rglob("*") if p.is_file() and ".git" not in p.parts)
 
 
+def committed_and_generated(root):
+    return [f for f in files_in(root) if not f.startswith("kanon/local/")]
+
+
 def snapshot(root):
-    return {f: (root / f).read_bytes() for f in files_in(root)}
+    return {f: (root / f).read_bytes() for f in committed_and_generated(root)}
 
 
 def untracked_or_changed(repo):
@@ -50,7 +55,8 @@ def untracked_or_changed(repo):
 
 def test_init_writes_shared_files_and_generated_files(repo):
     kinit.init(repo, APPROVERS, TODAY)
-    assert sorted(set(files_in(repo)) - set(ksync.GENERATED)) == COMMITTED
+    assert sorted(set(committed_and_generated(repo)) - set(ksync.GENERATED) - set(ksync.PERSONAL)) == COMMITTED
+    assert all((repo / p).exists() for p in ("kanon/local/DESK.md", "kanon/local/desk.html", "kanon/local/STATUS.md"))
     assert set(ksync.GENERATED) <= set(files_in(repo))
 
 
@@ -77,7 +83,8 @@ def test_existing_agents_and_claude_files_are_byte_identical(repo):
 def test_every_committed_document_is_valid(repo):
     kinit.init(repo, APPROVERS, TODAY)
     for doc in (repo / "kanon").rglob("*.md"):
-        assert validate(doc.read_text()) == [], doc
+        if "local" not in doc.parts:
+            assert validate(doc.read_text()) == [], doc
     assert validate_settings((repo / "kanon/kanon.toml").read_text()) == []
 
 
@@ -279,8 +286,31 @@ def test_profile_problems_are_reported_and_blank_env_is_unset(repo, monkeypatch)
 
 
 def test_profile_folder_is_private():
+    profiles.default_path().parent.mkdir(mode=0o755, parents=True)
+    os.chmod(profiles.default_path().parent, 0o755)
     path = profiles.save(profiles.Profile(github="ada-dev"))
     assert path.parent.stat().st_mode & 0o077 == 0 and path.stat().st_mode & 0o077 == 0
+
+
+def test_a_chosen_profile_folder_keeps_its_permissions(monkeypatch, tmp_path):
+    shared = tmp_path / "shared"
+    shared.mkdir()
+    os.chmod(shared, 0o755)
+    monkeypatch.setenv("KANON_PROFILE_FILE", str(shared / "p.toml"))
+    path = profiles.save(profiles.Profile(github="ada-dev"))
+    assert shared.stat().st_mode & 0o777 == 0o755 and path.stat().st_mode & 0o077 == 0
+
+
+def test_sync_explains_a_damaged_ignore_block(repo, monkeypatch, capsys):
+    from kanon.cli import main
+    from kanon.sync import IGNORE_START
+    kinit.init(repo, APPROVERS, TODAY)
+    (repo / ".gitignore").write_text(IGNORE_START + "\n/.claude/rules/kanon.md\n")
+    monkeypatch.chdir(repo)
+    assert main(["sync"]) == 1
+    out = capsys.readouterr().out
+    assert "Refused   .gitignore: its Kanon block is damaged (see note)" in out
+    assert "not written by Kanon" not in out.split("Refused   .gitignore")[1].splitlines()[0]
 
 
 def test_a_committed_generated_file_is_a_finding(repo):
@@ -295,3 +325,11 @@ def test_a_marker_on_line_one_outside_generated_paths_is_still_checked(repo):
     (repo / ".claude/rules/team.md").write_text(f"{ksync.MARKER}\n# Team\n\nA seamless note.\n")
     from kanon import verify as kv
     assert (".claude/rules/team.md", "writing") in [(f.path, f.rule) for f in kv.verify(repo)]
+
+
+def test_role_templates_never_send_agents_to_kanon_toml_for_profiles():
+    roles = Path(kinit.__file__).parent / "templates" / "roles"
+    for template in roles.glob("*.md"):
+        for line in template.read_text(encoding="utf-8").splitlines():
+            if "kanon.toml" in line:
+                assert not any(w in line.lower() for w in ("profile", "level", "preference")), (template.name, line)

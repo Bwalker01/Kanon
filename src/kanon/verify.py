@@ -266,11 +266,70 @@ def changed_files(root: Path, commit: str) -> list[str]:
 
 # ---------------------------------------------------------------- review list
 
-def check_review_list(rel: str, text: str) -> list[Finding]:
+def check_decision_needed(rel: str, text: str) -> list[Finding]:
+    """A pending decision states what to decide; open questions belong in the Questions section."""
     _, lines, offset = _body(text)
-    return [Finding(rel, offset + i, "questions",
-                    "question in the review list; ask it during the work and record it in the work file")
-            for i, line in enumerate(lines) if "?" in line]
+    findings, inside = [], False
+    for i, line in enumerate(lines):
+        if line.startswith("> **Decision needed:**"):
+            inside = True
+        elif not line.startswith(">") or line.startswith("> **"):
+            inside = False
+        if inside and "?" in line:
+            findings.append(Finding(rel, offset + i, "questions", "question in the 'Decision needed' line; "
+                                    "ask it during the work and record it in Questions"))
+    return findings
+
+
+ACTION_COLUMNS = ("id", "action", "assignee", "blocks", "done")
+
+
+def check_actions(rel: str, text: str) -> list[Finding]:
+    """Actions tables must be readable by the Desk, or actions vanish from it unnoticed."""
+    from kanon.settings import GITHUB_USER
+    _, lines, offset = _body(text)
+    span = _sections(lines).get("Actions")
+    if not span:
+        return []
+    where = offset + span[0]
+    raw = [l for l in lines[span[0]:span[1]] if l.startswith("|")]
+    rows = _table(lines[span[0]:span[1]])
+    if not rows:
+        return [Finding(rel, where, "actions", "Actions section has no table")]
+    header = [h.lower() for h in rows[0]]
+    missing = [c for c in ACTION_COLUMNS if c not in header]
+    if missing:
+        return [Finding(rel, where, "actions", f"Actions table lacks column(s): {', '.join(missing)}")]
+    findings, ids = [], []
+    width = raw[0].count("|")
+    for i, line in enumerate(lines[span[0]:span[1]]):
+        if line.startswith("|") and line != raw[0] and not re.fullmatch(r"\|[\s|:-]+\|", line.strip()) \
+                and line.count("|") != width:
+            findings.append(Finding(rel, offset + span[0] + i, "actions",
+                                    f"row has the wrong number of cells: {line.strip()[:40]}"))
+    for row in rows[1:]:
+        if len(row) != len(header):
+            continue
+        cell = dict(zip(header, row))
+        ids.append(cell["id"])
+        if not re.fullmatch(r"[A-Za-z]+-\d+", cell["id"]):
+            findings.append(Finding(rel, where, "actions", f"action ID '{cell['id']}' is not like A-1"))
+        names = [a.strip(" `@") for a in re.split(r"[,;]", cell["assignee"]) if a.strip(" `@")]
+        if not names or not all(GITHUB_USER.match(n) for n in names):
+            findings.append(Finding(rel, where, "actions", f"{cell['id']}: assignee must be GitHub username(s)"))
+        if cell["done"].lower() not in ("yes", "no"):
+            findings.append(Finding(rel, where, "actions", f"{cell['id']}: Done must be yes or no"))
+    for row in rows[1:]:
+        if len(row) == len(header):
+            cell = dict(zip(header, row))
+            for target in [t.strip(" `") for t in re.split(r"[,;]", cell["blocks"]) if t.strip(" `-")]:
+                if target not in ids:
+                    findings.append(Finding(rel, where, "actions", f"{cell['id']} blocks unknown action '{target}'"))
+    for i, line in enumerate(lines[span[0]:span[1]]):
+        heading = re.match(r"^### ([A-Za-z]+-\d+)\b", line)
+        if heading and heading.group(1) not in ids:
+            findings.append(Finding(rel, offset + span[0] + i, "actions", f"steps for '{heading.group(1)}' match no row"))
+    return findings
 
 
 # ---------------------------------------------------------------- exceptions
@@ -327,6 +386,18 @@ def verify_with_exceptions(root: Path) -> tuple[list[Finding], list[tuple[Findin
     return open_, covered
 
 
+def check_approvals(rel: str, text: str, settings: dict, merged: set[int] | None = None) -> list[Finding]:
+    """P1-05: the latest approval still matches its hash and names a listed approver."""
+    from kanon.approve import check
+    meta, _ = split_frontmatter(text)
+    if not meta or meta.get("type") != "work":
+        return []
+    approvers = settings.get("kanon", {}).get("approvers", [])
+    approvers = [a for a in approvers if isinstance(a, str)] if isinstance(approvers, list) else []
+    return [Finding(rel, line, "approval", message)
+            for line, message in check(text, approvers, meta.get("status"), merged)]
+
+
 def _verify(root: Path) -> tuple[list[Finding], dict]:
     kanon = root / "kanon"
     if not kanon.is_dir():
@@ -346,15 +417,30 @@ def _verify(root: Path) -> tuple[list[Finding], dict]:
     limit = settings.get("kanon", {}).get("review_round_limit", 3)
     limit = limit if isinstance(limit, int) and not isinstance(limit, bool) and limit > 0 else 3
 
+    seen_topics: dict[str, str] = {}
+    merged: set[int] | None = None
+    for path in sorted((kanon / "work").glob("*.md")):
+        topic = re.sub(r"^\d{4}-\d{2}-\d{2}-", "", path.stem)
+        rel = path.relative_to(root).as_posix()
+        if topic in seen_topics:
+            findings.append(Finding(rel, 1, "layout", f"topic '{topic}' is also used by {seen_topics[topic]}; "
+                                                      "replies on the Desk would be ambiguous"))
+        seen_topics.setdefault(topic, rel)
     for path in sorted(kanon.rglob("*.md")):
         rel = path.relative_to(root).as_posix()
+        if rel.startswith("kanon/local/"):
+            continue  # generated views, never committed
         text = path.read_text(encoding="utf-8")
         findings += check_document(rel, text)
         if rel.startswith("kanon/work/"):
             findings += check_work_file(rel, text, limit, lambda rel=rel: history_of(root, rel),
                                         lambda commit: changed_files(root, commit))
-        if rel == "kanon/REVIEW.md":
-            findings += check_review_list(rel, text)
+            findings += check_decision_needed(rel, text)
+            findings += check_actions(rel, text)
+            if merged is None:
+                from kanon.approve import merged_pull_requests
+                merged = merged_pull_requests(root)
+            findings += check_approvals(rel, text, settings, merged)
 
     # Hand-written instruction files are checked; generated ones are checked through their sources.
     from kanon.sync import GENERATED, is_generated
@@ -365,7 +451,14 @@ def _verify(root: Path) -> tuple[list[Finding], dict]:
             text = path.read_text(encoding="utf-8")
             if not (rel in GENERATED and is_generated(text)):
                 findings += check_writing(rel, text)
-    tracked = set(_git(root, "ls-files", "--", *GENERATED).split())
+    # A merge in progress (for example `git commit` after the merge hook refused) is checked too (K-381).
+    merge_head = subprocess.run(["git", "rev-parse", "--git-path", "MERGE_HEAD"], cwd=root, capture_output=True, text=True)
+    if merge_head.returncode == 0 and (root / merge_head.stdout.strip()).is_file():
+        from kanon.branch import check_merge
+        reason = check_merge(root)
+        if reason:
+            findings.append(Finding(".git/MERGE_HEAD", 0, "loop", reason))
+    tracked = set(_git(root, "ls-files", "--", *GENERATED, "kanon/local").split())
     findings += [Finding(rel, 1, "privacy", "generated agent file is committed; remove it with git rm --cached")
                  for rel in sorted(tracked)]
     return findings, settings
@@ -374,6 +467,10 @@ def _verify(root: Path) -> tuple[list[Finding], dict]:
 HOOK = """#!/bin/sh
 # Installed by kanon init. Runs Kanon's checks on the working tree before each commit.
 # Limits: it checks files on disk, not only the staged changes; 'git commit --no-verify' skips it.
+# In Kanon's own repository, use the version being developed, never a stale global install.
+if grep -q '^name = "kanon-engine"' pyproject.toml 2>/dev/null && command -v uv >/dev/null 2>&1; then
+  exec uv run --quiet kanon verify
+fi
 if command -v kanon >/dev/null 2>&1; then exec kanon verify; fi
 if command -v uv >/dev/null 2>&1 && uv run --quiet kanon --version >/dev/null 2>&1; then exec uv run --quiet kanon verify; fi
 echo "kanon is not installed; kanon verify skipped"
@@ -381,24 +478,25 @@ exit 0
 """
 
 
-def hook_location(root: Path) -> str:
-    """Path of the repository's pre-commit hook (it may not exist yet)."""
-    result = subprocess.run(["git", "rev-parse", "--git-path", "hooks/pre-commit"], cwd=root,
+def hook_location(root: Path, name: str = "pre-commit") -> str:
+    """Path of one of the repository's hooks (it may not exist yet)."""
+    result = subprocess.run(["git", "rev-parse", "--git-path", f"hooks/{name}"], cwd=root,
                             capture_output=True, text=True, check=True)
     return str((root / result.stdout.strip()).resolve())
 
 
-def install_hook(root: Path) -> tuple[str, bool]:
-    """Install or update Kanon's pre-commit hook; never replace someone else's.
+def install_hook(root: Path, name: str = "pre-commit", content: str | None = None) -> tuple[str, bool]:
+    """Install or update one of Kanon's hooks; never replace someone else's.
 
     Returns (hook path, whether it was written).
     """
-    hook = Path(hook_location(root))
+    content = HOOK if content is None else content
+    hook = Path(hook_location(root, name))
     if hook.exists():
         current = hook.read_text(encoding="utf-8", errors="replace")
-        if "# Installed by kanon init." not in current or current == HOOK:
+        if "# Installed by kanon init." not in current or current == content:
             return str(hook), False  # someone else's hook, or already current
     hook.parent.mkdir(parents=True, exist_ok=True)
-    hook.write_text(HOOK, encoding="utf-8")
+    hook.write_text(content, encoding="utf-8")
     hook.chmod(0o755)
     return str(hook), True

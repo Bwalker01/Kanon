@@ -18,7 +18,7 @@ updated: 2026-11-23
 
 ### R-2: Windows Test Portability
 
-- **Decide:** approve merging pull request #4 (Windows test fixes, the check and R-3's workflows) once its check passes.
+- **Decide:** approve merging pull request #4 (Windows test fixes, the check and R-3's workflows) after R-3, once its check passes.
 - **Read:** `kanon/work/2026-11-22-windows-test-portability.md`, sections 1 and 3.
 
 ### R-3: Pull Request Lifecycle (ADR-011)
@@ -32,7 +32,7 @@ updated: 2026-11-23
 |---|---|---|---|
 | A-1 | Generate the GitHub App key pair and install the App on `Bwalker01/Kanon` | Setup, section 1 | P1-10 |
 | A-2 | Merge `claude/stoic-knuth-mud2jv` into `main` without squashing | Setup, section 2 | A-3, A-5 |
-| A-3 | Protect `main`: pull request with one approval and both check jobs required | Setup, section 3 | P1-10 |
+| A-3 | Protect `main`: pull request with one approval and both matrix test jobs required | Setup, section 3 | P1-10 |
 | A-4 | Point the "Kanon" cloud environment at `Bwalker01/Kanon` | Setup, section 4 | P1-10 |
 | A-5 | Start a fresh session to prove the setup script | Setup, section 5 | Next session |
 | A-6 | Optional: ask GitHub Support to purge the old commits | Setup, section 6 | No deadline |

@@ -33,7 +33,7 @@ updated: 2026-11-23
 
 | Item | Choice | Basis |
 |---|---|---|
-| Trigger | `pull_request` into `main`, on open, push and reopen; earlier runs on the same branch are cancelled | ADR-007: "One optional check runs once per pull request, without model calls." Running on each push departs from "once"; awaiting the owner (section 2) |
+| Trigger | `pull_request` into `main`, when opened, reopened or marked ready; drafts skipped; no run on push | ADR-011 (owner, 2026-11-23), amending ADR-007's "once per pull request" |
 | Jobs | Ubuntu with Python 3.11 (the minimum in `pyproject.toml`) and Windows with Python 3.13 | The minimum version on Ubuntu and one current version on Windows; Python 3.12 and 3.14 are not tested (assessment: adequate for this project's size) |
 | Steps | Full-depth checkout without stored credentials; `uv sync --locked`; `uv run pytest -q`; `uv run kanon verify` | `kanon verify` needs full history (Phase 1 plan, K-52) |
 | Cost | No model calls; Actions minutes are free for public repositories, and `Bwalker01/Kanon` is public | `gh repo view` (2026-11-23); [GitHub Actions billing](https://docs.github.com/en/billing/managing-billing-for-your-products/managing-billing-for-github-actions/about-billing-for-github-actions) |

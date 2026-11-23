@@ -426,7 +426,9 @@ def sync(root: Path, work: str, session: Session | None = None) -> list[str]:
 def protect(root: Path, approvers: list[str], branch: str = "main", run=subprocess.run) -> list[str]:
     """Branch protection with the person's own `gh` login (the App has no Administration permission)."""
     repo = repository(root)
-    rules = {"required_status_checks": None, "enforce_admins": True, "restrictions": None,
+    # Administrators may bypass so the owner can merge pull requests they authored; the App and agents
+    # are not administrators and cannot use the owner's login (owner, 2026-11-23, K-404).
+    rules = {"required_status_checks": None, "enforce_admins": False, "restrictions": None,
              "required_pull_request_reviews": {"required_approving_review_count": 1, "require_code_owner_reviews": True,
                                                "dismiss_stale_reviews": True, "require_last_push_approval": False},
              "allow_force_pushes": False, "allow_deletions": False, "required_linear_history": False}

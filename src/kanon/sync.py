@@ -140,6 +140,54 @@ def ensure_guard_hook(root: Path) -> str:
 # The GitHub connector acts as the person, so all of it is refused: agents never use the person's
 # login for anything (owner, 2026-11-19; K-408). Kanon reaches GitHub only as its App.
 GITHUB_CONNECTOR = "mcp__github"
+# Names the GitHub connector commonly has besides `github`: a claude.ai connector or a plugin.
+KNOWN_GITHUB_CONNECTORS = ("claude_ai_GitHub", "claude_ai_Github", "plugin_github_github")
+
+
+def _tool_prefix(server: str) -> str:
+    """Claude Code's tool-name prefix for an MCP server (characters outside [A-Za-z0-9_-] become _)."""
+    import re
+    return "mcp__" + re.sub(r"[^A-Za-z0-9_-]", "_", server)
+
+
+def github_connectors(root: Path, home: Path | None = None) -> list[str]:
+    """Deny rules for every GitHub MCP server configured for this person or project, whatever its name.
+
+    Reads the project's `.mcp.json`, the person's `~/.claude.json` (servers for all projects and for
+    this one) and enabled plugins in `~/.claude/settings.json`. A server counts as GitHub when its name,
+    command, arguments or URL mention GitHub. Connectors named only on claude.ai are not listed in
+    any local file, so the common names are denied as well.
+    """
+    import json
+    home = home or Path.home()
+    servers: dict[str, object] = {}
+
+    def load(path: Path) -> dict:
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return {}
+        return data if isinstance(data, dict) else {}
+
+    for source in (load(root / ".mcp.json"), load(home / ".claude.json")):
+        for name, spec in (source.get("mcpServers") or {}).items() if isinstance(source.get("mcpServers"), dict) else []:
+            servers[name] = spec
+        projects = source.get("projects")
+        if isinstance(projects, dict):
+            for project, entry in projects.items():
+                if isinstance(entry, dict) and Path(project).resolve() == root.resolve() \
+                        and isinstance(entry.get("mcpServers"), dict):
+                    servers.update(entry["mcpServers"])
+    rules = [GITHUB_CONNECTOR] + [f"mcp__{name}" for name in KNOWN_GITHUB_CONNECTORS]
+    for name, spec in sorted(servers.items()):
+        if "github" in (name + " " + json.dumps(spec)).lower():
+            rules.append(_tool_prefix(name))
+    plugins = load(home / ".claude" / "settings.json").get("enabledPlugins")
+    for plugin in (plugins if isinstance(plugins, dict) else {}):
+        if "github" in plugin.lower():
+            short = plugin.split("@", 1)[0]
+            rules.append(_tool_prefix(f"plugin_{short}_{short}"))
+    return list(dict.fromkeys(rules))
 
 
 def deny_rules(root: Path) -> list[str]:
@@ -150,7 +198,7 @@ def deny_rules(root: Path) -> list[str]:
     rules += [f"Bash({python} -m kanon.cli {command}:*)" for python in ("python3", "python")
               for command in ("approve", "request-changes")]
     # Agents never act on GitHub as the person (owner, 2026-11-19): the connector's writing tools are refused.
-    rules.append(GITHUB_CONNECTOR)
+    rules += github_connectors(root)
     local = (root / SETTINGS_LOCAL).resolve().as_posix()
     for tool in ("Edit", "Write"):  # the owner's settings, and the file holding these rules (K-347)
         for target in ("kanon/kanon.toml", settings_file, SETTINGS_LOCAL, local):

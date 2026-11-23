@@ -246,7 +246,8 @@ def test_protect_sets_code_owner_reviews_and_merge_commits_only(repo):
         return subprocess.CompletedProcess(cmd, 0, "", "")
     github.protect(repo, ["ada-dev"], run=run)
     rules = json.loads(seen[0][1])
-    assert rules["required_pull_request_reviews"]["require_code_owner_reviews"] and rules["enforce_admins"]
+    assert rules["required_pull_request_reviews"]["require_code_owner_reviews"]
+    assert rules["enforce_admins"] is False  # the owner may merge their own pull requests (K-404)
     assert "allow_squash_merge=false" in seen[1][0] and "allow_rebase_merge=false" in seen[1][0]
     assert (repo / ".github/CODEOWNERS").read_text().strip().endswith("* @ada-dev")
 
@@ -336,3 +337,20 @@ def test_check_prints_toml_that_can_be_pasted(repo, monkeypatch):  # K-411
     lines = github.check(repo)
     block = "\n".join(lines[lines.index("[github]"):])
     assert tomllib.loads(block) == {"github": {"app_id": 123, "app_slug": "kanon-ada"}}
+
+
+def test_github_connectors_are_found_under_any_name(repo, tmp_path):
+    from kanon import sync as ksync
+    home = tmp_path / "home"
+    (home / ".claude").mkdir(parents=True)
+    (home / ".claude.json").write_text(json.dumps({
+        "mcpServers": {"gh tools": {"command": "npx", "args": ["@modelcontextprotocol/server-github"]},
+                       "notes": {"command": "notes-server"}},
+        "projects": {str(repo): {"mcpServers": {"work-hub": {"url": "https://api.githubcopilot.com/mcp/"}}}}}))
+    (home / ".claude/settings.json").write_text(json.dumps({"enabledPlugins": {"github@claude-plugins": True}}))
+    (repo / ".mcp.json").write_text(json.dumps({"mcpServers": {"GitHub-Enterprise": {"url": "https://ghe.example/mcp"}}}))
+    rules = ksync.github_connectors(repo, home)
+    for rule in ("mcp__github", "mcp__claude_ai_GitHub", "mcp__gh_tools", "mcp__work-hub", "mcp__GitHub-Enterprise",
+                 "mcp__plugin_github_github"):
+        assert rule in rules
+    assert "mcp__notes" not in rules

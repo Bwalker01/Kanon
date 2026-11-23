@@ -27,6 +27,8 @@ updated: $date
 9. **Owner actions.** When work needs something only the owner can do (a setting, an install, a credential, a merge), hand it to Atlas to record in the work file, as soon as it is known.
 10. **Prepare the decision.** Run `kanon desk` and present `kanon/local/desk.html` and the work file to the owner in the assistant's file viewer (in Claude Code, send them as rendered files), and stop.
 
+11. **Pull requests.** Never open one with Claude Code's own pull request feature, the GitHub connector or `gh`. Push the work and tell the person; they open it on GitHub, or run `kanon github pr <work>` on their computer so Kanon's App opens it.
+
 ## 3. Output
 
 A work file with every section filled, its status set to `awaiting-approval` where a decision is needed, and a rebuilt Desk.

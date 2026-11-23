@@ -1,7 +1,7 @@
 ---
 type: decision
 status: proposed
-updated: 2026-11-20
+updated: 2026-11-23
 ---
 
 # ADR-014: GitHub App Identity
@@ -19,8 +19,8 @@ updated: 2026-11-20
 
 - **Identity:** one App per organisation or person, created with `kanon github setup` (GitHub's manifest flow) on the person's own computer. `app_id` and `app_slug` live in `[github]` of `kanon/kanon.toml`; a standalone Kanon-managed App is a later phase.
 - **Key:** `~/.config/kanon/github-app.pem` (mode 600) locally, or `KANON_APP_KEY` in an environment; never committed. Tokens last one hour, cover one repository and stay in memory.
-- **Owner's login:** agents never use it. `kanon sync` denies the GitHub connector's writing tools and the guard blocks writing `gh` commands.
-- **Approval:** `kanon github protect` requires a code owner's review on `main`, merge commits only, with no bypass. Merging the pull request is the approval; Kanon records "Approved on merge of pull request #N" when it opens it.
+- **Owner's login:** agents never use it. `kanon sync` denies every GitHub connector it finds, under any name, the guard allows only reading `gh` commands, and rule 14 forbids opening pull requests except through the person or `kanon github pr`.
+- **Approval:** `kanon github protect` requires a code owner's review on `main` and merge commits only; administrators may bypass, so the owner can merge their own pull requests (K-404). Merging the pull request is the approval; Kanon records "Approved on merge of pull request #N" when it opens it.
 - **Where it runs:** GitHub mode runs on the person's computer; cloud sessions do everything else (owner, 2026-11-20).
 
 ## Basis
@@ -29,6 +29,8 @@ updated: 2026-11-20
 - Tests against recorded GitHub responses (`tests/test_github.py`); the live check waits for owner action A-3.
 
 ## Consequences
+
+- Pull request #4 (2026-11-23) was opened through the owner's account by a session started from `main`, before these protections reached it; they apply only where this branch is merged.
 
 - A session's clone and the cloud harness's own branch pushes still use the owner's connection.
 - The key is readable by commands in any environment that holds `KANON_APP_KEY`.

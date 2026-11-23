@@ -86,8 +86,8 @@ def test_every_committed_document_is_valid(repo):
     kinit.init(repo, APPROVERS, TODAY)
     for doc in (repo / "kanon").rglob("*.md"):
         if "local" not in doc.parts:
-            assert validate(doc.read_text()) == [], doc
-    assert validate_settings((repo / "kanon/kanon.toml").read_text()) == []
+            assert validate(doc.read_text(encoding="utf-8")) == [], doc
+    assert validate_settings((repo / "kanon/kanon.toml").read_text(encoding="utf-8")) == []
 
 
 def test_second_run_changes_nothing(repo):
@@ -295,6 +295,7 @@ def test_profile_folder_is_private():
     assert path.parent.stat().st_mode & 0o077 == 0 and path.stat().st_mode & 0o077 == 0
 
 
+@pytest.mark.skipif(not POSIX_MODES, reason="POSIX permission bits do not apply on Windows")
 def test_a_chosen_profile_folder_keeps_its_permissions(monkeypatch, tmp_path):
     shared = tmp_path / "shared"
     shared.mkdir()
@@ -308,7 +309,7 @@ def test_sync_explains_a_damaged_ignore_block(repo, monkeypatch, capsys):
     from kanon.cli import main
     from kanon.sync import IGNORE_START
     kinit.init(repo, APPROVERS, TODAY)
-    (repo / ".gitignore").write_text(IGNORE_START + "\n/.claude/rules/kanon.md\n")
+    (repo / ".gitignore").write_text(IGNORE_START + "\n/.claude/rules/kanon.md\n", encoding="utf-8")
     monkeypatch.chdir(repo)
     assert main(["sync"]) == 1
     out = capsys.readouterr().out

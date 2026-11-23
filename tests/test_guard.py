@@ -1,4 +1,6 @@
 import json
+import os
+import shutil
 import subprocess
 import sys
 
@@ -103,7 +105,7 @@ def test_generated_hook_blocks_the_incident_and_allows_normal_work(tmp_path):
 
 def test_non_bash_tools_and_bad_input_are_allowed(tmp_path):
     hook = tmp_path / "guard.py"
-    hook.write_text(ksync.expected_files(tmp_path, None)[ksync.GUARD])
+    hook.write_text(ksync.expected_files(tmp_path, None)[ksync.GUARD], encoding="utf-8")
     write = {"tool_name": "Write", "tool_input": {"file_path": "/tmp/x", "content": "rm -rf /tmp"}}
     assert subprocess.run([sys.executable, str(hook)], input=json.dumps(write), text=True).returncode == 0
     assert subprocess.run([sys.executable, str(hook)], input="not json", text=True).returncode == 0
@@ -123,13 +125,13 @@ def test_hook_registration_keeps_other_settings_and_is_idempotent(tmp_path):
     subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
     settings = tmp_path / ksync.SETTINGS_LOCAL
     settings.parent.mkdir(parents=True)
-    settings.write_text(json.dumps({"permissions": {"allow": ["Bash(ls:*)"]}, "name": "café"}, ensure_ascii=False))
+    settings.write_text(json.dumps({"permissions": {"allow": ["Bash(ls:*)"]}, "name": "café"}, ensure_ascii=False), encoding="utf-8")
     kinit.init(tmp_path, ["ada-dev"])
     ksync.sync(tmp_path)
-    data = json.loads(settings.read_text())
+    data = json.loads(settings.read_text(encoding="utf-8"))
     assert data["permissions"]["allow"] == ["Bash(ls:*)"]
     assert data["permissions"]["deny"] == ksync.deny_rules(tmp_path)
-    assert "café" in settings.read_text()
+    assert "café" in settings.read_text(encoding="utf-8")
     commands = [h["command"] for e in data["hooks"]["PreToolUse"] for h in e["hooks"]]
     assert commands == [ksync.GUARD_COMMAND]
     status = subprocess.run(["git", "status", "--porcelain"], cwd=tmp_path, capture_output=True, text=True).stdout
@@ -141,9 +143,9 @@ def test_an_older_guard_entry_is_recognised_by_its_path(tmp_path):
     settings = tmp_path / ksync.SETTINGS_LOCAL
     settings.parent.mkdir(parents=True)
     old = {"type": "command", "command": 'python3 "$CLAUDE_PROJECT_DIR/.claude/hooks/kanon-guard.py"'}
-    settings.write_text(json.dumps({"hooks": {"PreToolUse": [{"matcher": "Bash", "hooks": [old]}]}}))
+    settings.write_text(json.dumps({"hooks": {"PreToolUse": [{"matcher": "Bash", "hooks": [old]}]}}), encoding="utf-8")
     kinit.init(tmp_path, ["ada-dev"])
-    entries = json.loads(settings.read_text())["hooks"]["PreToolUse"]
+    entries = json.loads(settings.read_text(encoding="utf-8"))["hooks"]["PreToolUse"]
     commands = [h["command"] for e in entries for h in e["hooks"]]
     assert commands == [ksync.GUARD_COMMAND]
 
@@ -155,9 +157,9 @@ def test_an_older_guard_entry_is_recognised_by_its_path(tmp_path):
 def test_unexpected_settings_are_left_alone_with_a_note(tmp_path, content):
     subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
     (tmp_path / ".claude").mkdir()
-    (tmp_path / ksync.SETTINGS_LOCAL).write_text(content)
+    (tmp_path / ksync.SETTINGS_LOCAL).write_text(content, encoding="utf-8")
     kinit.init(tmp_path, ["ada-dev"])
-    assert (tmp_path / ksync.SETTINGS_LOCAL).read_text() == content
+    assert (tmp_path / ksync.SETTINGS_LOCAL).read_text(encoding="utf-8") == content
     assert any("guard hook was not registered" in n for n in ksync.sync(tmp_path).notes)
 
 
@@ -271,3 +273,71 @@ def test_reviewer_branch_commands(command, blocked):
 ])
 def test_gh_writes_are_blocked_for_every_agent(command, blocked):
     assert bool(guard.gh_write(command)) is blocked
+
+
+# Windows: Claude Code runs Bash through Git Bash, and the hook receives Windows paths.
+WIN_CWD, WIN_HOME = "C:\\Users\\ada\\project", "C:\\Users\\ada"
+WIN_SCRATCH = ["C:\\Users\\ada\\AppData\\Local\\Temp\\claude\\s\\scratchpad"]
+
+
+def test_windows_paths_are_read_in_git_bash_form():
+    assert guard._posix("C:\\Users\\ada") == "/c/Users/ada"
+    assert guard._posix("C:/Users/ada/") == "/c/Users/ada"
+    assert guard._posix("D:") == "/d"
+    assert guard._posix("src/x.py") == "src/x.py" and guard._posix("/tmp") == "/tmp"
+    assert guard._verb("rm.exe") == "rm" and guard._verb("/usr/bin/rm.EXE") == "rm"
+
+
+@pytest.mark.parametrize("command", [
+    "rm -rf /c/Users/ada", "rm -rf 'C:\\Users\\ada'", "rm -rf C:/Users/ada/project", "rm -rf .",
+    "rm.exe -rf /c/Users/ada/project", "rm -rf /c", "rm -rf ..",
+    "python -c \"import shutil; shutil.rmtree('C:/Users/ada')\"",
+])
+def test_windows_deletions_of_protected_locations_are_blocked(command):
+    assert guard.check(command, WIN_CWD, WIN_HOME, [WIN_CWD, *WIN_SCRATCH])
+
+
+@pytest.mark.parametrize("command", ["rm -rf build", "rm -f /c/Users/ada/project/x.pyc", "rm -rf src/__pycache__"])
+def test_windows_ordinary_cleanups_are_allowed(command):
+    assert guard.check(command, WIN_CWD, WIN_HOME, [WIN_CWD, *WIN_SCRATCH]) is None
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows paths are case-insensitive; POSIX paths are not")
+def test_windows_paths_are_compared_without_case():
+    assert guard.check("rm -rf /C/USERS/ADA", WIN_CWD, WIN_HOME, [WIN_CWD])
+    assert guard.reviewer_write("echo x > readme.MD", WIN_CWD, WIN_HOME, "c:\\users\\ADA\\Project", WIN_SCRATCH)
+
+
+def test_windows_reviewer_writes_are_judged_against_the_project():
+    assert guard.reviewer_write("echo x > README.md", WIN_CWD, WIN_HOME, WIN_CWD, WIN_SCRATCH)
+    assert guard.reviewer_write("cp /tmp/x C:/Users/ada/project/src/x.py", WIN_CWD, WIN_HOME, WIN_CWD, WIN_SCRATCH)
+    scratch_file = "/c/Users/ada/AppData/Local/Temp/claude/s/scratchpad/probe.txt"
+    assert guard.reviewer_write(f"echo x > {scratch_file}", WIN_CWD, WIN_HOME, WIN_CWD, WIN_SCRATCH) is None
+
+
+@pytest.mark.skipif(shutil.which("sh") is None, reason="needs a POSIX shell")
+def test_registered_command_skips_a_python3_that_does_not_run(tmp_path):
+    """On Windows `python3` may be the Microsoft Store stub: it exists but runs nothing."""
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    stub = bin_dir / "python3"
+    stub.write_text("#!/bin/sh\nexit 9\n", encoding="utf-8", newline="\n")
+    stub.chmod(0o755)
+    real = bin_dir / "python"
+    real.write_text(f"#!/bin/sh\nexec \"{pathlib_posix(sys.executable)}\" \"$@\"\n", encoding="utf-8", newline="\n")
+    real.chmod(0o755)
+    hooks = tmp_path / ".claude" / "hooks"
+    hooks.mkdir(parents=True)
+    (hooks / "kanon-guard.py").write_text(ksync.expected_files(tmp_path, None)[ksync.GUARD], encoding="utf-8")
+    event = json.dumps({"tool_name": "Bash", "cwd": str(tmp_path), "tool_input": {"command": "rm -rf /tmp"}})
+    env = {**os.environ, "CLAUDE_PROJECT_DIR": str(tmp_path),
+           "PATH": f"{pathlib_posix(str(bin_dir))}:/usr/bin:/bin"}
+    result = subprocess.run(["sh", "-c", ksync.GUARD_COMMAND], input=event, text=True, env=env,
+                            capture_output=True)
+    assert result.returncode == 2 and "Kanon guard" in result.stderr
+
+
+def pathlib_posix(path: str) -> str:
+    """A path as a POSIX shell on this platform reads it (Git Bash form on Windows)."""
+    return guard._posix(path) if os.name == "nt" else path
+

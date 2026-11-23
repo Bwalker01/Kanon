@@ -4,6 +4,7 @@ import os
 import re
 import subprocess
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -66,14 +67,14 @@ def repo(tmp_path):
     git(tmp_path, "config", "user.email", "t@example.com")
     git(tmp_path, "config", "user.name", "T")
     kinit.init(tmp_path, ["ada-dev"])
-    (tmp_path / WORK).write_text(TEXT)
+    (tmp_path / WORK).write_text(TEXT, encoding="utf-8")
     git(tmp_path, "add", "-A")
     git(tmp_path, "commit", "-q", "-m", "ADDED: plan", "--no-verify")
     return tmp_path
 
 
 def commit_file(repo, name, content="x\n"):
-    (repo / name).write_text(content)
+    (repo / name).write_text(content, encoding="utf-8")
     git(repo, "add", name)
     git(repo, "commit", "-q", "-m", f"ADDED: {name}", "--no-verify")
 
@@ -84,7 +85,7 @@ def record_review(repo, row):
     git(repo, "switch", "-q", "kanon/build/plan")
     path = repo / WORK
     path.write_text(path.read_text().replace("Not yet reviewed.", REVIEW + row) if "Not yet reviewed." in path.read_text()
-                    else path.read_text().replace("## 4. Decision", row + "\n\n## 4. Decision").replace("\n\n" + row, "\n" + row))
+                    else path.read_text().replace("## 4. Decision", row + "\n\n## 4. Decision").replace("\n\n" + row, "\n" + row), encoding="utf-8")
     git(repo, "commit", "-q", "-am", "MODIFIED: review", "--no-verify")
 
 
@@ -140,7 +141,7 @@ def test_an_item_approval_allows_the_merge(repo):
 def test_an_item_branch_that_edits_work_files_is_refused(repo):
     branch.start(repo, "build", "P1-01")
     path = repo / WORK
-    path.write_text(path.read_text().replace("A build with two items.", "Changed on the item branch."))
+    path.write_text(path.read_text().replace("A build with two items.", "Changed on the item branch."), encoding="utf-8")
     git(repo, "commit", "-q", "-am", "MODIFIED: work file", "--no-verify")
     record_review(repo, "| 1 | P1-01 | Kritos | pass | None | Accepted |")
     with pytest.raises(branch.BranchError, match="changed work files"):
@@ -159,14 +160,14 @@ def test_a_conflict_is_undone_and_reported(repo):
 
 
 def test_uncommitted_changes_stop_start_and_merge(repo):
-    (repo / WORK).write_text(TEXT + "\n")
+    (repo / WORK).write_text(TEXT + "\n", encoding="utf-8")
     with pytest.raises(branch.BranchError, match="uncommitted"):
         branch.start(repo, "build", "P1-01")
 
 
 def test_the_hook_refuses_a_plain_git_merge_of_an_unreviewed_item(repo, tmp_path_factory):
     shim = tmp_path_factory.mktemp("bin") / "kanon"
-    shim.write_text(f"#!/bin/sh\nexec {sys.executable} -m kanon \"$@\"\n")
+    shim.write_text(f"#!/bin/sh\nexec \"{Path(sys.executable).as_posix()}\" -m kanon \"$@\"\n", encoding="utf-8")
     shim.chmod(0o755)
     env = {**os.environ, "PATH": f"{shim.parent}:{os.environ['PATH']}"}
     branch.start(repo, "build", "P1-01")
@@ -184,7 +185,7 @@ def test_the_hook_refuses_a_plain_git_merge_of_an_unreviewed_item(repo, tmp_path
 
 def hook_env(tmp_path_factory):
     shim = tmp_path_factory.mktemp("bin") / "kanon"
-    shim.write_text(f"#!/bin/sh\nexec {sys.executable} -m kanon \"$@\"\n")
+    shim.write_text(f"#!/bin/sh\nexec \"{Path(sys.executable).as_posix()}\" -m kanon \"$@\"\n", encoding="utf-8")
     shim.chmod(0o755)
     return {**os.environ, "PATH": f"{shim.parent}:{os.environ['PATH']}"}
 
@@ -233,7 +234,7 @@ def test_commits_after_the_review_need_a_new_review(repo):  # K-383
 
 def test_an_unlabelled_approval_row_does_not_count(repo):  # K-386
     from kanon import approve
-    text = (repo / WORK).read_text()
+    text = (repo / WORK).read_text(encoding="utf-8")
     digest = approve.digest(text.replace("Not yet reviewed.", REVIEW + "| 1 | P1-01 (abcdef1) | K | correct | K-1 | x |"), "item P1-01")
     forged = text.replace("Not yet reviewed.", REVIEW + "| 1 | P1-01 (abcdef1) | K | correct | K-1 | x |").replace(
         "## 4. Decision\n\nPending.", f"## 4. Decision\n\n| Item | Decision | Date | Basis |\n|---|---|---|---|\n"

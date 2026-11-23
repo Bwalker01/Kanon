@@ -19,6 +19,8 @@ from test_branch import REVIEW, TEXT, WORK, commit_file, git, record_review
 from test_branch import repo as branch_repo  # noqa: F401  (fixture)
 
 KEY = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+# Windows os.chmod sets only the read-only flag; the key relies on the user profile's ACL there.
+POSIX_MODES = os.name != "nt"
 PEM = KEY.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.TraditionalOpenSSL,
                         serialization.NoEncryption()).decode()
 
@@ -64,7 +66,7 @@ def test_the_key_is_read_as_pem_base64_or_file(monkeypatch, tmp_path):
         github.load_key()
     monkeypatch.delenv("KANON_APP_KEY")
     monkeypatch.setenv("KANON_APP_KEY_FILE", str(tmp_path / "k.pem"))
-    (tmp_path / "k.pem").write_text(PEM)
+    (tmp_path / "k.pem").write_bytes(PEM.encode())
     assert github.load_key() == PEM.encode()
 
 
@@ -153,7 +155,7 @@ def test_opening_the_pull_request_records_that_its_merge_approves(repo, monkeypa
     monkeypatch.setattr(github, "call", fake)
     session = github.Session("ada-dev/project", "t", {}, {})
     pull = github.open_pull_request(repo, "build", session=session, today="2026-11-20")
-    text = (repo / WORK).read_text()
+    text = (repo / WORK).read_text(encoding="utf-8")
     assert pull["number"] == 7 and pushes == ["kanon/build/plan", "kanon/build/plan"]
     assert "| P1-01 | Approved on merge of pull request #7 |" in text and "status: in-progress" in text
     assert "P1-02 | Approved on merge" not in text
@@ -188,7 +190,7 @@ def test_sync_records_change_requests_from_approvers_on_the_head_commit(repo, mo
         ("GET", "/repos/ada-dev/project/pulls/7"): {"number": 7, "state": "open", "html_url": "u", "head": {"sha": head}}})
     monkeypatch.setattr(github, "call", fake)
     lines = github.sync(repo, "build", github.Session("ada-dev/project", "t", {}, {}))
-    text = (repo / WORK).read_text()
+    text = (repo / WORK).read_text(encoding="utf-8")
     assert "Changes requested on GitHub by ada-dev (https://github.com/ada-dev/project/pull/7#r1)" in text
     assert "mallory" not in text and "https://x/old" not in text and lines
 
@@ -203,7 +205,7 @@ def test_sync_clears_a_merged_pull_request(repo, monkeypatch):
 
 def test_the_desk_lists_pull_requests_from_the_work_file_until_they_merge(repo):
     path = repo / WORK
-    path.write_text(github._mark_on_merge(path.read_text(), 7, "https://github.com/ada-dev/project/pull/7", "2026-11-20", []))
+    path.write_text(github._mark_on_merge(path.read_text(), 7, "https://github.com/ada-dev/project/pull/7", "2026-11-20", []), encoding="utf-8")
     git(repo, "commit", "-q", "-am", "MODIFIED: pr", "--no-verify")
     assert any("pull request #7" in d.needed for d in desk.build(repo).decisions)  # no cache needed (K-402)
     github.write_cache(repo, {"build": {"number": 7, "url": "https://github.com/ada-dev/project/pull/7",
@@ -219,13 +221,13 @@ def test_the_desk_lists_pull_requests_from_the_work_file_until_they_merge(repo):
 
 def test_a_closed_pull_request_reopens_the_work(repo, monkeypatch):  # K-401
     path = repo / WORK
-    path.write_text(github._mark_on_merge(path.read_text(), 7, "u", "2026-11-20", []))
+    path.write_text(github._mark_on_merge(path.read_text(), 7, "u", "2026-11-20", []), encoding="utf-8")
     git(repo, "commit", "-q", "-am", "MODIFIED: pr", "--no-verify")
     git(repo, "switch", "-q", "-c", "kanon/build/plan")
     monkeypatch.setattr(github, "call", FakeGitHub({("GET", "/repos/ada-dev/project/pulls"): [{
         "number": 7, "state": "closed", "merged_at": None, "html_url": "u"}]}))
     github.sync(repo, "build", github.Session("ada-dev/project", "t", {}, {}))
-    text = path.read_text()
+    text = path.read_text(encoding="utf-8")
     assert "status: in-progress" in text and "Pull request #7 closed without merging" in text
 
 
@@ -249,7 +251,7 @@ def test_protect_sets_code_owner_reviews_and_merge_commits_only(repo):
     assert rules["required_pull_request_reviews"]["require_code_owner_reviews"]
     assert rules["enforce_admins"] is False  # the owner may merge their own pull requests (K-404)
     assert "allow_squash_merge=false" in seen[1][0] and "allow_rebase_merge=false" in seen[1][0]
-    assert (repo / ".github/CODEOWNERS").read_text().strip().endswith("* @ada-dev")
+    assert (repo / ".github/CODEOWNERS").read_text(encoding="utf-8").strip().endswith("* @ada-dev")
 
 
 def test_setup_runs_the_manifest_flow_and_saves_the_key_privately(repo, monkeypatch, tmp_path):
@@ -270,10 +272,10 @@ def test_setup_runs_the_manifest_flow_and_saves_the_key_privately(repo, monkeypa
     monkeypatch.setenv("NO_PROXY", "127.0.0.1")
     app = github.setup(repo, open_browser=browser)
     key = github.key_path()
-    assert app["id"] == 456 and key.read_text() == PEM and key.stat().st_mode & 0o077 == 0
-    assert 'app_id = 456' in (repo / "kanon/kanon.toml").read_text()
+    assert app["id"] == 456 and key.read_text(encoding="utf-8") == PEM and (not POSIX_MODES or key.stat().st_mode & 0o077 == 0)
+    assert 'app_id = 456' in (repo / "kanon/kanon.toml").read_text(encoding="utf-8")
     assert opened[-1] == "https://github.com/apps/kanon-ada/installations/new"
-    assert validate_settings((repo / "kanon/kanon.toml").read_text()) == []
+    assert validate_settings((repo / "kanon/kanon.toml").read_text(encoding="utf-8")) == []
 
 
 def test_setup_and_protect_are_refused_inside_an_assistant(repo, monkeypatch, capsys):
@@ -346,9 +348,9 @@ def test_github_connectors_are_found_under_any_name(repo, tmp_path):
     (home / ".claude.json").write_text(json.dumps({
         "mcpServers": {"gh tools": {"command": "npx", "args": ["@modelcontextprotocol/server-github"]},
                        "notes": {"command": "notes-server"}},
-        "projects": {str(repo): {"mcpServers": {"work-hub": {"url": "https://api.githubcopilot.com/mcp/"}}}}}))
-    (home / ".claude/settings.json").write_text(json.dumps({"enabledPlugins": {"github@claude-plugins": True}}))
-    (repo / ".mcp.json").write_text(json.dumps({"mcpServers": {"GitHub-Enterprise": {"url": "https://ghe.example/mcp"}}}))
+        "projects": {str(repo): {"mcpServers": {"work-hub": {"url": "https://api.githubcopilot.com/mcp/"}}}}}), encoding="utf-8")
+    (home / ".claude/settings.json").write_text(json.dumps({"enabledPlugins": {"github@claude-plugins": True}}), encoding="utf-8")
+    (repo / ".mcp.json").write_text(json.dumps({"mcpServers": {"GitHub-Enterprise": {"url": "https://ghe.example/mcp"}}}), encoding="utf-8")
     rules = ksync.github_connectors(repo, home)
     for rule in ("mcp__github", "mcp__claude_ai_GitHub", "mcp__gh_tools", "mcp__work-hub", "mcp__GitHub-Enterprise",
                  "mcp__plugin_github_github"):

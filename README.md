@@ -36,6 +36,9 @@ Merging the pull request is the approval. Cloud sessions cannot sign in as the A
 paths), so pull requests are opened from your computer. A repository's own CI runs on the App's pull requests as on
 any other.
 
+Pull requests open as drafts (ADR-015). `kanon github ready <work>` marks one ready for review, which starts the
+check, and `kanon github draft <work>` returns it to draft; both act as the App, and agents may run them.
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). After cloning, run `kanon sync` to generate the agent files.

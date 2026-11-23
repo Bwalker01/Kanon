@@ -1,6 +1,6 @@
 ---
 type: work
-status: planning
+status: awaiting-approval
 updated: 2026-11-23
 ---
 
@@ -8,7 +8,7 @@ updated: 2026-11-23
 
 > **Summary:** `kanon github pr` opens pull requests as drafts; new `kanon github ready` and `kanon github draft`
 > mark the App's pull request ready or return it to draft, as the App, for the ADR-015 lifecycle.
-> **Decision needed:** None yet.
+> **Decision needed:** Approve the draft, ready and draft commands in chat (`approve pull-request-draft-support`); they act as the App and agents may run them. Untested against live GitHub; merge after PR #4.
 
 ## 1. Plan
 
@@ -58,7 +58,10 @@ Not covered: a live run against GitHub. The App is not yet installed on the owne
 
 ## 3. Review
 
-Not yet reviewed.
+| Round | Items | Reviewer | Verdict | Blocking | Outcome |
+|---|---|---|---|---|---|
+| 1 | Build (3895860) | Kritos | Pass | None | 1: rule 14 names `draft`; fixed. 2: a closed cached pull request is passed over, and the open one is found into any base; fixed with a test. 3: drafts need a paid plan on private repositories (assessment); recorded in ADR-015. 4: Enterprise Server GraphQL URL; recorded as unsupported in ADR-015. 5: missing `node_id` reported as `GitHubError`; fixed with a test. 6: CLI refusal and draft mutation tested. 7: work file records; filled here. 8: README mentions drafts and the commands. |
+| 2 | Fixes (a29c90f) | Kritos | Pass | None | All round 1 findings confirmed fixed or recorded; no regressions. |
 
 ## 4. Decision
 
@@ -66,4 +69,8 @@ Pending.
 
 ## 5. Cost
 
-Recorded when work starts.
+From the Plan commit (645f18c); reading before it is not counted.
+
+| Step | Output (main) | Output (subagents) | Cache writes | Cache reads | Estimated cost |
+|---|---|---|---|---|---|
+| plan, build, review | 18,623 | 10,108 | 77,374 | 3,502,663 | unavailable |

@@ -99,6 +99,31 @@ def kanon_rules(root: Path) -> str:
     return render("rules-kanon.md", conduct=conduct)
 
 
+def stale_install(root: Path) -> str | None:
+    """In Kanon's own repository, a note when the installed package differs from `src/kanon`.
+
+    Generated files (rules, skills, the guard hook) come from the installed package, so a stale install
+    writes stale protections. This happened four times in cloud sessions between 2026-11-18 and 2026-11-20.
+    """
+    import hashlib
+    from importlib.resources import files as package_files
+    source = root / "src" / "kanon"
+    pyproject = root / "pyproject.toml"
+    if not source.is_dir() or not pyproject.is_file() or 'name = "kanon-engine"' not in pyproject.read_text(encoding="utf-8"):
+        return None
+    installed = Path(str(package_files("kanon")))
+    if installed.resolve() == source.resolve():
+        return None  # running from the working tree (an editable install)
+
+    def digest(folder: Path) -> dict[str, str]:
+        return {p.relative_to(folder).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
+                for p in sorted(folder.rglob("*")) if p.is_file() and "__pycache__" not in p.parts}
+    if digest(installed) != digest(source):
+        return ("the installed kanon differs from this repository's src/kanon, so generated files may be out of date: "
+                "run `uv tool install --force .` here, then `kanon sync` again")
+    return None
+
+
 def expected_files(root: Path, person: profiles.Profile | None) -> dict[str, str]:
     files = {RULES: kanon_rules(root), PERSON: person_rules(person)}
     files.update({dest: render(src) for dest, src in CLAUDE_FILES.items()})
@@ -255,6 +280,9 @@ def ensure_gitignore(root: Path) -> bool:
 
 def sync(root: Path) -> SyncResult:
     result = SyncResult()
+    stale = stale_install(root)
+    if stale:
+        result.notes.append(stale)
     try:
         person = profiles.load()
     except ValueError as error:

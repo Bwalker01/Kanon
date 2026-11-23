@@ -337,3 +337,17 @@ def test_role_templates_never_send_agents_to_kanon_toml_for_profiles():
         for line in template.read_text(encoding="utf-8").splitlines():
             if "kanon.toml" in line:
                 assert not any(w in line.lower() for w in ("profile", "level", "preference")), (template.name, line)
+
+
+def test_a_stale_install_in_kanons_own_repository_is_reported(tmp_path, monkeypatch):
+    import shutil
+    from importlib.resources import files as package_files
+    root = tmp_path / "engine"
+    shutil.copytree(Path(str(package_files("kanon"))), root / "src" / "kanon",
+                    ignore=shutil.ignore_patterns("__pycache__"))
+    (root / "pyproject.toml").write_text('[project]\nname = "kanon-engine"\n')
+    assert ksync.stale_install(root) is None
+    (root / "src" / "kanon" / "guard.py").write_text("# changed\n")
+    assert "uv tool install --force ." in ksync.stale_install(root)
+    (root / "pyproject.toml").write_text('[project]\nname = "other"\n')
+    assert ksync.stale_install(root) is None

@@ -14,7 +14,7 @@ updated: 2026-11-23
 
 | Field | Value |
 |---|---|
-| Output | ADR-015; owner's words in `kanon/sources.md`; workflows in `.github/workflows/`; Metis procedure step 11 (`kanon/docs/roles/metis.md` and its template) |
+| Output | ADR-015; owner's words in `kanon/sources.md`; workflows in `.github/workflows/`; Metis procedure step 11 (`kanon/docs/roles/metis.md` and its template); rule 14 (`src/kanon/templates/rules-kanon.md`) |
 | Inputs | Owner instruction, 2026-11-23 (`kanon/sources.md`, section 18); ADR-007; ADR-014; `.github/workflows/check.yml` from `2026-11-22-windows-test-portability.md` |
 | Acceptance | A draft PR, or a push to one, starts no run; marking it ready starts the check; a failing check returns the PR to draft; a human review that is not an approval returns it to draft; an approval or a bot review does not; no agent acts on GitHub as the person; `kanon verify` passes |
 | Creator | Claude (assistant) |
@@ -25,7 +25,7 @@ updated: 2026-11-23
 | Stage | Who acts | Result |
 |---|---|---|
 | Work in progress | Creator, Kritos | Commits stay local; nothing is pushed while review findings are open |
-| Work complete | Metis, then the person | Metis pushes the branch; the person opens a draft PR (or runs `kanon github pr`) |
+| Work complete | Metis, then the person | Metis pushes the branch; the person opens a draft PR on GitHub (`kanon github pr` opens it ready until draft support is built) |
 | Ready | Person | PR marked ready for review; the check runs once |
 | Check fails | Workflow | PR returned to draft; Metis fixes, reviews and pushes; the person marks it ready again |
 | Human review, not an approval | Workflow | PR returned to draft; handled as above |
@@ -71,6 +71,7 @@ updated: 2026-11-23
 | 2 | Lifecycle (3e9527b) | Kritos | Correct | N-1 | N-1: stale Trigger row in the Windows work file; fixed. N-2, N-4: wording. N-5: skipped-draft and required-check behaviour are assessments, confirmed at the first GitHub run. |
 | 3 | Lifecycle (9896a2a) | Kritos | Pass | None | Wording note applied. |
 | M1 | Merge (1ca374d) | Kritos | Correct | F-1, F-2 | ADR renumbered to ADR-015 and fitted to ADR-014. F-2: A-1 uses a ruleset, since `kanon github protect` replaces the classic rule. F-3: `kanon github pr` opens ready; wording fixed. F-4: workflow token stated as a second identity, amending ADR-014. F-5: approval route stated in the summary. F-6: rule 14 updated. F-7: owner's message given its own sources section. F-1 is in the Windows work file. |
+| M2 | Merge fixes (63350cf) | Kritos | Pass | None | All M1 findings handled as recorded. N-1: ADR-015 names ADR-014's "only as a GitHub App" as amended, and both ADRs are annotated on acceptance. N-2, N-3: `kanon github pr` opens ready, stated in the lifecycle table and rule 14. N-4: rule 14 added to Output. |
 
 ## 5. Decision
 

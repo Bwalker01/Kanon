@@ -19,10 +19,11 @@ updated: 2026-11-23
 ## Decision
 
 - **Before pushing:** all Kritos reviews, corrections and record updates are finished. Nothing is pushed while findings are open.
-- **Opening:** the pull request is the last step of a piece of work, opened as a draft by the person on GitHub. `kanon github pr` opens it ready until draft support is built.
-- **Ready:** the person marks it ready once the work is complete and ready to merge into `main`. The check runs then, and not on later pushes.
+- **Opening:** the pull request is the last step of a piece of work, opened as a draft by `kanon github pr` as Kanon's App, or by the person on GitHub.
+- **Ready:** it is marked ready once the work is complete and ready to merge into `main`, by `kanon github ready` as the App or by the person. The check runs then, and not on later pushes.
 - **Back to draft:** a failing check, or a human review that requests changes or comments, returns the pull request to draft. Approvals and bot reviews do not.
-- **Again:** after the fix, its review and a push, the person marks it ready, and the check runs again.
+- **Again:** after the fix, its review and a push, it is marked ready again, and the check runs again.
+- **Agents:** an assistant session may run `kanon github pr`, `ready` and `draft`, which act only as the App; the person's merge stays the approval (owner, 2026-11-23).
 - **Actions:** one check workflow, skipped on drafts, and small jobs that return a pull request to draft using the workflow's own token (the GitHub Actions app), never the person's login; this is a second identity beside ADR-014's App, for that one action, amending ADR-014's "Kanon acts on GitHub only as a GitHub App". No model calls. This replaces ADR-007's "runs once per pull request" with once per ready state.
 
 ## Basis
@@ -36,5 +37,5 @@ updated: 2026-11-23
 - Requiring both matrix test jobs on `main` blocks merging a commit pushed after the check ran; it must be returned to draft and marked ready again (owner action in the work file). The requirement lives in a ruleset, because `kanon github protect` replaces the classic branch rule and would drop it.
 - Rule 14 (`rules-kanon.md`) states the push and draft steps alongside Metis step 11.
 - Pull requests from forks get a read-only token, so they are not returned to draft automatically.
-- Draft and ready support in `kanon github pr` is not built; until then the person does both on GitHub.
+- `kanon github pr` opens drafts; `kanon github ready` and `kanon github draft` change the state as the App (`kanon/work/2026-11-23-pull-request-draft-support.md`). Not yet run against GitHub.
 - On acceptance, ADR-007 and ADR-014 are annotated as amended by this record.

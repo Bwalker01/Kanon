@@ -1,7 +1,7 @@
 ---
 type: sources
 status: reference
-updated: 2026-11-16
+updated: 2026-11-23
 ---
 
 # Owner Sources
@@ -87,3 +87,12 @@ Phase 1 work file's plan-first exception is accepted.
 ## 11. Owner Actions (2026-11-18)
 
 > give me everything that needs doing on my side, and make sure that its reflected easily and kept up to date in the project in some way to make it easier to do
+
+## 12. Pull Request Lifecycle (2026-11-23)
+
+> as part of fixing the test suites, add capability to run CI checks on the PR creation so that this can be checked
+
+> to avoid using too many action minutes, all kanon reviewers and updates should be done before pushing to PR, to avoid triggering a run on work that fails review and needs changing anyway. the PR should be done on a COMPLETED piece of work, as the final step after all reviews, changes and edits are done. PRs should be opened as drafts, initially and then marked as open once the entire work is complete and its ready to be merged back into main itself - at which point the actions should run. when a human user submits a full review via github or when the CI tests fail, then the PR should be marked as draft again until such a point its ready for an actual review where it should be reopened and cause the CI to run again.
+
+Chosen in questions: changes-requested and comment reviews return a pull request to draft; approvals
+and bot reviews do not. A small Actions job, not the assistant, returns it to draft.

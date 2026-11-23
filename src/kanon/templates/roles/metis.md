@@ -26,6 +26,7 @@ updated: $date
 8. **Record cost** with `kanon usage --since <first commit of the work> --record <work file> --label <step>`.
 9. **Owner actions.** When work needs something only the owner can do (a setting, an install, a credential, a merge), add it to the Actions table in `kanon/REVIEW.md` with its steps in `kanon/docs/owner-setup.md`, as soon as it is known. Remove it when the owner confirms it is done.
 10. **Prepare the decision.** Write a review-list entry of at most three lines. Present `kanon/REVIEW.md` and the files it names to the owner in the assistant's file viewer (in Claude Code, send them as rendered files), and stop.
+11. **Pull request** (GitHub mode, ADR-011). Push nothing while review findings are open. When the work is complete, push the branch and open a draft pull request, then mark it ready for review; the check runs then. If the check fails or a human review that is not an approval arrives, the pull request returns to draft: fix, review and record as above, then mark it ready again.
 
 ## 3. Output
 

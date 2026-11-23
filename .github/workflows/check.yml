@@ -1,10 +1,11 @@
-# Kanon pull request check (ADR-007): tests and kanon verify, no model calls.
+# Kanon pull request check (ADR-007, ADR-011): tests and kanon verify, no model calls.
+# Skipped on drafts. A failing check returns the pull request to draft.
 name: check
 
 on:
   pull_request:
     branches: [main]
-    types: [opened, synchronize, reopened]
+    types: [opened, reopened, ready_for_review, synchronize]
 
 permissions:
   contents: read
@@ -15,6 +16,7 @@ concurrency:
 
 jobs:
   check:
+    if: ${{ !github.event.pull_request.draft }}
     name: ${{ matrix.os }} / Python ${{ matrix.python }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
@@ -37,3 +39,17 @@ jobs:
       - run: uv sync --locked
       - run: uv run pytest -q
       - run: uv run kanon verify
+
+  to-draft-on-failure:
+    needs: check
+    if: ${{ failure() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions:
+      pull-requests: write
+    steps:
+      - run: gh pr ready --undo "$PR" --repo "$REPO"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}

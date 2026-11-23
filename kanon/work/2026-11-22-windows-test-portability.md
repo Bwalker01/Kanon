@@ -45,7 +45,7 @@ updated: 2026-11-23
 | 2026-11-22 | Fix the Windows test failures? | Owner: "Yes, fix them" |
 | 2026-11-22 | Should `usage.default_log_dir` match Claude Code's drive-letter case (a `c--...` folder exists beside `C--...` folders on the owner's machine)? | Open; outside this work. Recorded for the usage code. |
 | 2026-11-23 | Add CI checks on pull requests? | Owner: add capability to run CI checks on pull request creation, as part of this work |
-| 2026-11-23 | ADR-007 says the check runs "once per pull request". Keep runs on each push (recommended, so fixes pushed to a pull request are checked), or run only when the pull request is opened? Default: each push. | Open; awaiting the owner. |
+| 2026-11-23 | ADR-007 says the check runs "once per pull request". Keep runs on each push (recommended, so fixes pushed to a pull request are checked), or run only when the pull request is opened? Default: each push. | Owner (2026-11-23): neither; the check runs when the pull request is marked ready, and drafts are skipped. Recorded in ADR-011 and `2026-11-23-pull-request-lifecycle.md`. |
 
 ## 3. Review
 

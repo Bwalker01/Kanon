@@ -67,9 +67,9 @@ def commit(repo, message):
 def repo(tmp_path):
     git(tmp_path, "init", "-q")
     kinit.init(tmp_path, APPROVERS, dt.date(2026, 11, 16))
-    (tmp_path / WORK).write_text(PLAN_ONLY)
+    (tmp_path / WORK).write_text(PLAN_ONLY, encoding="utf-8")
     commit(tmp_path, "plan")
-    (tmp_path / WORK).write_text(REVIEWED)
+    (tmp_path / WORK).write_text(REVIEWED, encoding="utf-8")
     commit(tmp_path, "review")
     return tmp_path
 
@@ -84,9 +84,9 @@ def test_a_correct_instance_passes(repo):
 
 def edit(repo, rel, old, new):
     path = repo / rel
-    text = path.read_text()
+    text = path.read_text(encoding="utf-8")
     assert old in text, old
-    path.write_text(text.replace(old, new, 1))
+    path.write_text(text.replace(old, new, 1), encoding="utf-8")
 
 
 def only(repo, rule, fragment):
@@ -123,14 +123,14 @@ def test_escalated_rounds_over_the_limit_are_allowed(repo):
 def test_review_without_an_earlier_plan_fails(tmp_path):
     git(tmp_path, "init", "-q")
     kinit.init(tmp_path, APPROVERS, dt.date(2026, 11, 16))
-    (tmp_path / WORK).write_text(REVIEWED)
+    (tmp_path / WORK).write_text(REVIEWED, encoding="utf-8")
     commit(tmp_path, "plan and review together")
     only(tmp_path, "loop", "not committed on its own")
 
 
 def test_an_accepted_exception_covers_only_its_finding(tmp_path):
     test_review_without_an_earlier_plan_fails(tmp_path)
-    with (tmp_path / "kanon/kanon.toml").open("a") as f:
+    with (tmp_path / "kanon/kanon.toml").open("a", encoding="utf-8") as f:
         f.write(f'\n[[verify.exceptions]]\npath = "{WORK}"\nrule = "loop"\ncontains = "not committed on its own"\nreason = "Record written after the work."\n')
     open_, covered = kv.verify_with_exceptions(tmp_path)
     assert open_ == [] and len(covered) == 1
@@ -139,7 +139,7 @@ def test_an_accepted_exception_covers_only_its_finding(tmp_path):
 
 
 def test_an_incomplete_exception_is_itself_a_problem(repo):
-    with (repo / "kanon/kanon.toml").open("a") as f:
+    with (repo / "kanon/kanon.toml").open("a", encoding="utf-8") as f:
         f.write('\n[[verify.exceptions]]\npath = "x"\nrule = "loop"\n')
     only(repo, "settings", "needs path, rule, reason")
 
@@ -154,7 +154,7 @@ def test_code_fences_are_ignored(repo):
 
 
 def test_conduct_standard_may_name_phrases_but_not_use_dashes(repo):
-    assert "seamless" in (repo / "kanon/docs/conduct-and-writing.md").read_text()
+    assert "seamless" in (repo / "kanon/docs/conduct-and-writing.md").read_text(encoding="utf-8")
     edit(repo, "kanon/docs/conduct-and-writing.md", "## 1. Working with People", "## 1. Working with People —")
     only(repo, "writing", "dash")
 
@@ -167,7 +167,7 @@ def test_sources_and_archive_are_exempt_from_writing_rules(repo):
 def test_decision_length_limit(repo):
     (repo / "kanon/decisions/001-long.md").write_text(
         "---\ntype: decision\nstatus: proposed\nupdated: 2026-11-16\n---\n\n# ADR-001: Long\n\n> **Decision:** x.\n\n"
-        "## Context\n\n## Decision\n\n## Basis\n\n## Consequences\n" + "- point\n" * 60)
+        "## Context\n\n## Decision\n\n## Basis\n\n## Consequences\n" + "- point\n" * 60, encoding="utf-8")
     only(repo, "length", "limit for a decision is 60")
 
 
@@ -184,9 +184,9 @@ def test_hook_is_installed_once_and_never_overwritten(tmp_path):
     git(tmp_path, "init", "-q")
     hook = tmp_path / ".git/hooks/pre-commit"
     hook.parent.mkdir(parents=True, exist_ok=True)
-    hook.write_text("#!/bin/sh\necho mine\n")
+    hook.write_text("#!/bin/sh\necho mine\n", encoding="utf-8")
     kinit.init(tmp_path, APPROVERS, dt.date(2026, 11, 16))
-    assert hook.read_text() == "#!/bin/sh\necho mine\n"
+    assert hook.read_text(encoding="utf-8") == "#!/bin/sh\necho mine\n"
 
 
 def test_cli_exit_codes(repo, monkeypatch, capsys):
@@ -236,8 +236,8 @@ def test_a_bare_template_plan_does_not_count_as_a_plan(tmp_path):
     kinit.init(tmp_path, APPROVERS, dt.date(2026, 11, 16))
     path = kinit.new_work(tmp_path, "example", dt.date(2026, 11, 16))
     commit(tmp_path, "empty template")
-    (tmp_path / "src.py").write_text("x = 1\n")
-    path.write_text(REVIEWED)
+    (tmp_path / "src.py").write_text("x = 1\n", encoding="utf-8")
+    path.write_text(REVIEWED, encoding="utf-8")
     commit(tmp_path, "plan, build and review together")
     found = rules(tmp_path)
     assert any("not committed on its own" in m for _, _, m in found), found
@@ -246,10 +246,10 @@ def test_a_bare_template_plan_does_not_count_as_a_plan(tmp_path):
 def test_plan_committed_with_build_files_fails(tmp_path):
     git(tmp_path, "init", "-q")
     kinit.init(tmp_path, APPROVERS, dt.date(2026, 11, 16))
-    (tmp_path / WORK).write_text(PLAN_ONLY)
-    (tmp_path / "src.py").write_text("x = 1\n")
+    (tmp_path / WORK).write_text(PLAN_ONLY, encoding="utf-8")
+    (tmp_path / "src.py").write_text("x = 1\n", encoding="utf-8")
     commit(tmp_path, "plan and build together")
-    (tmp_path / WORK).write_text(REVIEWED)
+    (tmp_path / WORK).write_text(REVIEWED, encoding="utf-8")
     commit(tmp_path, "review")
     only(tmp_path, "loop", "not committed on its own")
 
@@ -261,46 +261,46 @@ def test_length_limits_are_exact(repo, doc_type, limit):
     head = f"---\ntype: {doc_type}\nstatus: proposed\nupdated: 2026-11-16\n---\n\n# Title\n\n{marker}\n\n{sections}"
     filler = limit - len(head.splitlines())
     path = repo / f"kanon/docs/{doc_type}-limit.md"
-    path.write_text(head + "- point\n" * filler)
+    path.write_text(head + "- point\n" * filler, encoding="utf-8")
     assert rules(repo) == []
-    path.write_text(head + "- point\n" * (filler + 1))
+    path.write_text(head + "- point\n" * (filler + 1), encoding="utf-8")
     only(repo, "length", f"limit for a {doc_type} is {limit}")
 
 
 def test_sources_type_outside_its_path_is_a_finding(repo):
     (repo / "kanon/docs/notes.md").write_text(
-        "---\ntype: sources\nstatus: reference\nupdated: 2026-11-16\n---\n\n# Notes\n\n> **Summary:** x.\n\nA seamless thing.\n")
+        "---\ntype: sources\nstatus: reference\nupdated: 2026-11-16\n---\n\n# Notes\n\n> **Summary:** x.\n\nA seamless thing.\n", encoding="utf-8")
     found = rules(repo)
     assert any(r == "layout" and "only allowed at kanon/sources.md" in m for _, r, m in found)
     assert any(r == "writing" for _, r, _ in found)
 
 
 def test_conduct_exemption_is_by_exact_path(repo):
-    (repo / "kanon/work/my-conduct-and-writing.md").write_text(PLAN_ONLY.replace("A file", "A seamless file"))
+    (repo / "kanon/work/my-conduct-and-writing.md").write_text(PLAN_ONLY.replace("A file", "A seamless file"), encoding="utf-8")
     assert any(r == "writing" for _, r, _ in rules(repo))
 
 
 def test_generated_desk_is_never_checked_or_committed(repo):
     (repo / "kanon/local").mkdir(exist_ok=True)
-    (repo / "kanon/local/DESK.md").write_text("no frontmatter, a seamless \u2014 note")
+    (repo / "kanon/local/DESK.md").write_text("no frontmatter, a seamless \u2014 note", encoding="utf-8")
     assert rules(repo) == []
     git(repo, "add", "-f", "kanon/local/DESK.md")
     only(repo, "privacy", "generated agent file is committed")
 
 def test_unused_exception_is_reported(repo):
-    with (repo / "kanon/kanon.toml").open("a") as f:
+    with (repo / "kanon/kanon.toml").open("a", encoding="utf-8") as f:
         f.write('\n[[verify.exceptions]]\npath = "kanon/x.md"\nrule = "loop"\ncontains = "something long"\nreason = "r"\n')
     only(repo, "settings", "matches nothing")
 
 
 def test_short_exception_match_is_refused(repo):
-    with (repo / "kanon/kanon.toml").open("a") as f:
+    with (repo / "kanon/kanon.toml").open("a", encoding="utf-8") as f:
         f.write(f'\n[[verify.exceptions]]\npath = "{WORK}"\nrule = "loop"\ncontains = "e"\nreason = "r"\n')
     only(repo, "settings", "at least 8 characters")
 
 
 def test_root_instruction_files_get_the_writing_check(repo):
-    (repo / "AGENTS.md").write_text("# Team\n\nA note \u2014 here.\n")
+    (repo / "AGENTS.md").write_text("# Team\n\nA note \u2014 here.\n", encoding="utf-8")
     only(repo, "writing", "dash")
 
 
@@ -309,7 +309,7 @@ def test_new_work_creates_a_valid_file_once(tmp_path):
     kinit.init(tmp_path, APPROVERS, dt.date(2026, 11, 16))
     path = kinit.new_work(tmp_path, "Add caching", dt.date(2026, 11, 16))
     assert path.name == "2026-11-16-add-caching.md"
-    assert "# Add caching" in path.read_text()
+    assert "# Add caching" in path.read_text(encoding="utf-8")
     with pytest.raises(FileExistsError):
         kinit.new_work(tmp_path, "add caching", dt.date(2026, 11, 16))
 
@@ -318,7 +318,7 @@ def test_existing_hook_is_reported(tmp_path):
     git(tmp_path, "init", "-q")
     hook = tmp_path / ".git/hooks/pre-commit"
     hook.parent.mkdir(parents=True, exist_ok=True)
-    hook.write_text("#!/bin/sh\n")
+    hook.write_text("#!/bin/sh\n", encoding="utf-8")
     result = kinit.init(tmp_path, APPROVERS, dt.date(2026, 11, 16))
     assert any("existing pre-commit hook was kept" in w for w in result.warnings)
 
@@ -327,9 +327,9 @@ def test_an_outdated_kanon_hook_is_updated_but_others_are_not(tmp_path):
     git(tmp_path, "init", "-q")
     hook = tmp_path / ".git/hooks/pre-commit"
     hook.parent.mkdir(parents=True, exist_ok=True)
-    hook.write_text("#!/bin/sh\n# Installed by kanon init. Old version.\nexit 0\n")
+    hook.write_text("#!/bin/sh\n# Installed by kanon init. Old version.\nexit 0\n", encoding="utf-8")
     result = kinit.init(tmp_path, APPROVERS, dt.date(2026, 11, 16))
-    assert hook.read_text() == kv.HOOK and ".git/hooks/pre-commit" in result.updated
+    assert hook.read_text(encoding="utf-8") == kv.HOOK and ".git/hooks/pre-commit" in result.updated
     result = kinit.init(tmp_path, APPROVERS, dt.date(2026, 11, 16))
     assert ".git/hooks/pre-commit" in result.kept
 
@@ -342,10 +342,10 @@ def test_a_quote_before_the_summary_marker_fails(repo):
 def test_an_empty_output_row_means_the_plan_is_not_filled(tmp_path):
     git(tmp_path, "init", "-q")
     kinit.init(tmp_path, APPROVERS, dt.date(2026, 11, 16))
-    (tmp_path / WORK).write_text(PLAN_ONLY.replace("| Output | A file |", "| Output | |"))
+    (tmp_path / WORK).write_text(PLAN_ONLY.replace("| Output | A file |", "| Output | |"), encoding="utf-8")
     commit(tmp_path, "plan without an output")
-    (tmp_path / "src.py").write_text("x = 1\n")
-    (tmp_path / WORK).write_text(REVIEWED)
+    (tmp_path / "src.py").write_text("x = 1\n", encoding="utf-8")
+    (tmp_path / WORK).write_text(REVIEWED, encoding="utf-8")
     commit(tmp_path, "output, build and review together")
     only(tmp_path, "loop", "not committed on its own")
 
@@ -353,7 +353,7 @@ def test_an_empty_output_row_means_the_plan_is_not_filled(tmp_path):
 def test_archive_exemption_is_only_for_the_top_level_archive(repo):
     (repo / "kanon/docs/archive").mkdir()
     (repo / "kanon/docs/archive/x.md").write_text(
-        "---\ntype: doc\nstatus: draft\nupdated: 2026-11-16\n---\n\n# X\n\n> **Summary:** x.\n\nA seamless thing.\n")
+        "---\ntype: doc\nstatus: draft\nupdated: 2026-11-16\n---\n\n# X\n\n> **Summary:** x.\n\nA seamless thing.\n", encoding="utf-8")
     only(repo, "writing", "seamless")
 
 
@@ -391,7 +391,7 @@ def test_question_on_a_continuation_line_of_decision_needed_fails(repo):
 def test_a_row_with_the_wrong_cell_count_is_reported_on_its_own_line(repo):  # K-241
     table = "| ID | Action | Assignee | Blocks | Done |\n|---|---|---|---|---|\n| A-1 | `a|b` | ada-dev | | no |"
     edit(repo, WORK, "## 3. Review", f"## 3. Actions\n\n{table}\n\n## 3. Review")
-    lines = (repo / WORK).read_text().splitlines()
+    lines = (repo / WORK).read_text(encoding="utf-8").splitlines()
     row = next(i for i, l in enumerate(lines, 1) if l.startswith("| A-1 |"))
     found = [f for f in kv.verify(repo) if f.rule == "actions" and "wrong number of cells" in f.message]
     assert found and found[0].line == row

@@ -1,8 +1,8 @@
 import datetime as dt
 import hashlib
 import json
-import subprocess
 import os
+import subprocess
 import tomllib
 from pathlib import Path
 
@@ -17,6 +17,8 @@ from kanon.settings import render_settings, validate_settings
 from kanon.templates import ROLE_FILES, render
 
 ROOT = Path(__file__).resolve().parents[1]
+# Windows os.chmod sets only the read-only flag; the profile folder relies on the user profile's ACL there.
+POSIX_MODES = os.name != "nt"
 TODAY = dt.date(2026, 11, 16)
 APPROVERS = ["ada-dev"]
 COMMITTED = sorted([
@@ -38,7 +40,7 @@ def repo(tmp_path):
 
 
 def files_in(root):
-    return sorted(str(p.relative_to(root)) for p in root.rglob("*") if p.is_file() and ".git" not in p.parts)
+    return sorted(p.relative_to(root).as_posix() for p in root.rglob("*") if p.is_file() and ".git" not in p.parts)
 
 
 def committed_and_generated(root):
@@ -72,8 +74,8 @@ def test_init_never_creates_agents_claude_or_claude_local(repo):
 
 
 def test_existing_agents_and_claude_files_are_byte_identical(repo):
-    (repo / "AGENTS.md").write_text("# Team agents\nKeep.\n")
-    (repo / "CLAUDE.md").write_text("@AGENTS.md\n")
+    (repo / "AGENTS.md").write_text("# Team agents\nKeep.\n", encoding="utf-8")
+    (repo / "CLAUDE.md").write_text("@AGENTS.md\n", encoding="utf-8")
     before = {n: hashlib.sha256((repo / n).read_bytes()).hexdigest() for n in ("AGENTS.md", "CLAUDE.md")}
     kinit.init(repo, APPROVERS, TODAY)
     ksync.sync(repo)
@@ -84,8 +86,8 @@ def test_every_committed_document_is_valid(repo):
     kinit.init(repo, APPROVERS, TODAY)
     for doc in (repo / "kanon").rglob("*.md"):
         if "local" not in doc.parts:
-            assert validate(doc.read_text()) == [], doc
-    assert validate_settings((repo / "kanon/kanon.toml").read_text()) == []
+            assert validate(doc.read_text(encoding="utf-8")) == [], doc
+    assert validate_settings((repo / "kanon/kanon.toml").read_text(encoding="utf-8")) == []
 
 
 def test_second_run_changes_nothing(repo):
@@ -98,20 +100,20 @@ def test_second_run_changes_nothing(repo):
 
 def test_existing_files_are_never_overwritten(repo):
     (repo / "kanon").mkdir()
-    (repo / "kanon/STATUS.md").write_text("mine")
+    (repo / "kanon/STATUS.md").write_text("mine", encoding="utf-8")
     (repo / ".claude/rules").mkdir(parents=True)
-    (repo / ".claude/rules/kanon.md").write_text("my own rules")
+    (repo / ".claude/rules/kanon.md").write_text("my own rules", encoding="utf-8")
     result = kinit.init(repo, APPROVERS, TODAY)
-    assert (repo / "kanon/STATUS.md").read_text() == "mine"
-    assert (repo / ".claude/rules/kanon.md").read_text() == "my own rules"
+    assert (repo / "kanon/STATUS.md").read_text(encoding="utf-8") == "mine"
+    assert (repo / ".claude/rules/kanon.md").read_text(encoding="utf-8") == "my own rules"
     assert any("not written by Kanon" in w for w in result.warnings)
 
 
 def test_gitignore_block_is_added_once_and_keeps_other_lines(repo):
-    (repo / ".gitignore").write_text("node_modules/\n")
+    (repo / ".gitignore").write_text("node_modules/\n", encoding="utf-8")
     kinit.init(repo, APPROVERS, TODAY)
     ksync.sync(repo)
-    text = (repo / ".gitignore").read_text()
+    text = (repo / ".gitignore").read_text(encoding="utf-8")
     assert text.startswith("node_modules/\n") and text.count(ksync.IGNORE_START) == 1
     assert all(f"/{p}" in text for p in ksync.GENERATED)
 
@@ -139,20 +141,20 @@ def test_two_people_with_different_profiles_merge_cleanly_and_publish_nothing(re
         monkeypatch.setenv("KANON_PROFILE", json.dumps({"github": who, "level": "developer", "description": secret}))
         ksync.sync(clone)
         (clone / "kanon/work").mkdir(exist_ok=True)
-        (clone / f"kanon/work/{who}.txt").write_text(who)
+        (clone / f"kanon/work/{who}.txt").write_text(who, encoding="utf-8")
         git(clone, "add", "-A")
         git(clone, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--no-verify", "-m", who)
         clones.append(clone)
     a, b = clones
-    git(b, "pull", "-q", "--no-rebase", "--no-edit", str(a))
+    git(b, "-c", "user.name=t", "-c", "user.email=t@t", "pull", "-q", "--no-rebase", "--no-edit", str(a))
     assert "Ada secret" not in git(b, "log", "-p", "--all") and "Bo secret" not in git(b, "log", "-p", "--all")
-    assert "Bo secret" in (b / ".claude/rules/kanon-person.md").read_text()
+    assert "Bo secret" in (b / ".claude/rules/kanon-person.md").read_text(encoding="utf-8")
 
 
 def test_profile_sources_and_precedence(tmp_path, monkeypatch):
     assert profiles.load() is None
     saved = profiles.save(profiles.Profile(github="file-user", level="developer"))
-    assert saved.stat().st_mode & 0o077 == 0
+    assert not POSIX_MODES or saved.stat().st_mode & 0o077 == 0
     assert profiles.load().github == "file-user"
     other = tmp_path / "p.toml"
     profiles.save(profiles.Profile(github="pointed-user"), other)
@@ -167,23 +169,23 @@ def test_profile_sources_and_precedence(tmp_path, monkeypatch):
 
 def test_without_a_profile_agents_are_told_to_ask(repo):
     kinit.init(repo, APPROVERS, TODAY)
-    assert "At first contact, ask" in (repo / ".claude/rules/kanon-person.md").read_text()
+    assert "At first contact, ask" in (repo / ".claude/rules/kanon-person.md").read_text(encoding="utf-8")
 
 
 def test_profile_reaches_the_person_rules(repo, monkeypatch):
     monkeypatch.setenv("KANON_PROFILE", json.dumps(
         {"github": "ada-dev", "name": "Ada", "level": "developer", "preferences": ["Keep chat short."]}))
     kinit.init(repo, APPROVERS, TODAY)
-    text = (repo / ".claude/rules/kanon-person.md").read_text()
+    text = (repo / ".claude/rules/kanon-person.md").read_text(encoding="utf-8")
     assert "# Working With Ada" in text and "Keep chat short." in text and "precise technical language" in text
 
 
 def test_kanon_rules_embed_the_projects_conduct_standard(repo):
     kinit.init(repo, APPROVERS, TODAY)
     path = repo / "kanon/docs/conduct-and-writing.md"
-    path.write_text(path.read_text().replace("## 1. Working with People", "## 1. Working with People Here"))
+    path.write_text(path.read_text(encoding="utf-8").replace("## 1. Working with People", "## 1. Working with People Here"), encoding="utf-8")
     ksync.sync(repo)
-    assert "### 1. Working with People Here" in (repo / ".claude/rules/kanon.md").read_text()
+    assert "### 1. Working with People Here" in (repo / ".claude/rules/kanon.md").read_text(encoding="utf-8")
 
 
 def test_settings_hold_no_profiles():
@@ -235,7 +237,7 @@ def test_cli_init_asks_and_saves_the_profile_outside_the_repository(repo, monkey
     assert main(["init"]) == 0
     assert profiles.load().github == "ada-dev"
     assert not str(profiles.profile_path()).startswith(str(repo))
-    assert tomllib.loads((repo / "kanon/kanon.toml").read_text())["kanon"]["approvers"] == ["ada-dev"]
+    assert tomllib.loads((repo / "kanon/kanon.toml").read_text(encoding="utf-8"))["kanon"]["approvers"] == ["ada-dev"]
 
 
 def test_cli_profile_print_env_round_trips(monkeypatch, capsys):
@@ -251,30 +253,30 @@ def test_cli_profile_print_env_round_trips(monkeypatch, capsys):
 def test_this_repository_matches_its_templates():
     """Committed instance copies of the role prompts and conduct standard must not drift."""
     for dest, src in ROLE_FILES.items():
-        text = (ROOT / dest).read_text()
+        text = (ROOT / dest).read_text(encoding="utf-8")
         date = next(l.split(": ")[1] for l in text.splitlines() if l.startswith("updated:"))
         assert text == render(src, date=date), dest
-    conduct = (ROOT / "kanon/docs/conduct-and-writing.md").read_text()
+    conduct = (ROOT / "kanon/docs/conduct-and-writing.md").read_text(encoding="utf-8")
     date = next(l.split(": ")[1] for l in conduct.splitlines() if l.startswith("updated:"))
     assert conduct == render("conduct-and-writing.md", date=date)
 
 
 def test_marker_elsewhere_in_a_file_does_not_make_it_generated(repo):
     kinit.init(repo, APPROVERS, TODAY)
-    (repo / ".claude/rules/team.md").write_text(f"# Team\n\nA seamless note.\n{ksync.MARKER}\n")
-    (repo / "CLAUDE.md").write_text(f"# Mine\n\nA robust plan.\n{ksync.MARKER}\n")
+    (repo / ".claude/rules/team.md").write_text(f"# Team\n\nA seamless note.\n{ksync.MARKER}\n", encoding="utf-8")
+    (repo / "CLAUDE.md").write_text(f"# Mine\n\nA robust plan.\n{ksync.MARKER}\n", encoding="utf-8")
     from kanon import verify as kv
     found = [(f.path, f.rule) for f in kv.verify(repo)]
     assert (".claude/rules/team.md", "writing") in found and ("CLAUDE.md", "writing") in found
-    (repo / ".claude/rules/kanon.md").write_text(f"# Quoted\n\n{ksync.MARKER}\n")
+    (repo / ".claude/rules/kanon.md").write_text(f"# Quoted\n\n{ksync.MARKER}\n", encoding="utf-8")
     assert ".claude/rules/kanon.md" in ksync.sync(repo).refused
 
 
 def test_damaged_gitignore_block_is_refused_not_rewritten(repo):
-    (repo / ".gitignore").write_text(f"foo\n{ksync.IGNORE_START}\n/x\n")
+    (repo / ".gitignore").write_text(f"foo\n{ksync.IGNORE_START}\n/x\n", encoding="utf-8")
     result = ksync.sync(repo)
     assert ".gitignore" in result.refused
-    assert (repo / ".gitignore").read_text() == f"foo\n{ksync.IGNORE_START}\n/x\n"
+    assert (repo / ".gitignore").read_text(encoding="utf-8") == f"foo\n{ksync.IGNORE_START}\n/x\n"
 
 
 def test_profile_problems_are_reported_and_blank_env_is_unset(repo, monkeypatch):
@@ -285,6 +287,7 @@ def test_profile_problems_are_reported_and_blank_env_is_unset(repo, monkeypatch)
     assert profiles.load() is None
 
 
+@pytest.mark.skipif(not POSIX_MODES, reason="POSIX permission bits do not apply on Windows")
 def test_profile_folder_is_private():
     profiles.default_path().parent.mkdir(mode=0o755, parents=True)
     os.chmod(profiles.default_path().parent, 0o755)
@@ -292,6 +295,7 @@ def test_profile_folder_is_private():
     assert path.parent.stat().st_mode & 0o077 == 0 and path.stat().st_mode & 0o077 == 0
 
 
+@pytest.mark.skipif(not POSIX_MODES, reason="POSIX permission bits do not apply on Windows")
 def test_a_chosen_profile_folder_keeps_its_permissions(monkeypatch, tmp_path):
     shared = tmp_path / "shared"
     shared.mkdir()
@@ -305,7 +309,7 @@ def test_sync_explains_a_damaged_ignore_block(repo, monkeypatch, capsys):
     from kanon.cli import main
     from kanon.sync import IGNORE_START
     kinit.init(repo, APPROVERS, TODAY)
-    (repo / ".gitignore").write_text(IGNORE_START + "\n/.claude/rules/kanon.md\n")
+    (repo / ".gitignore").write_text(IGNORE_START + "\n/.claude/rules/kanon.md\n", encoding="utf-8")
     monkeypatch.chdir(repo)
     assert main(["sync"]) == 1
     out = capsys.readouterr().out
@@ -322,7 +326,7 @@ def test_a_committed_generated_file_is_a_finding(repo):
 
 def test_a_marker_on_line_one_outside_generated_paths_is_still_checked(repo):
     kinit.init(repo, APPROVERS, TODAY)
-    (repo / ".claude/rules/team.md").write_text(f"{ksync.MARKER}\n# Team\n\nA seamless note.\n")
+    (repo / ".claude/rules/team.md").write_text(f"{ksync.MARKER}\n# Team\n\nA seamless note.\n", encoding="utf-8")
     from kanon import verify as kv
     assert (".claude/rules/team.md", "writing") in [(f.path, f.rule) for f in kv.verify(repo)]
 

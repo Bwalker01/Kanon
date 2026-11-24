@@ -88,14 +88,14 @@ def repo(tmp_path, monkeypatch):
 
 
 def test_desk_lists_only_this_persons_open_actions_in_dependency_order(repo):
-    (repo / "kanon/work/2026-11-18-setup.md").write_text(work_file("Setup", ACTIONS))
+    (repo / "kanon/work/2026-11-18-setup.md").write_text(work_file("Setup", ACTIONS), encoding="utf-8")
     built = desk.build(repo)
     assert [a.id for a in built.actions] == ["A-1", "A-2"]
     assert built.actions[0].steps == ["Open the pull request.", "Merge without squashing."]
 
 
 def test_awaiting_approval_becomes_a_decision_for_approvers_only(repo, monkeypatch):
-    (repo / "kanon/work/2026-11-18-plan.md").write_text(work_file("Plan", status="awaiting-approval", needed="Approve the plan."))
+    (repo / "kanon/work/2026-11-18-plan.md").write_text(work_file("Plan", status="awaiting-approval", needed="Approve the plan."), encoding="utf-8")
     built = desk.build(repo)
     assert [(d.id, d.needed) for d in built.decisions] == [("plan", "Approve the plan.")]
     monkeypatch.setenv("KANON_PROFILE", json.dumps({"github": "outsider"}))
@@ -105,36 +105,36 @@ def test_awaiting_approval_becomes_a_decision_for_approvers_only(repo, monkeypat
 def test_late_fixes_marked_for_the_owner_appear_under_review_later(repo):
     text = work_file("Fixes").replace("Not yet reviewed.", "| Round | Items | Reviewer | Verdict | Blocking | Outcome |\n"
         "|---|---|---|---|---|---|\n| 2 | Fixes | Kritos | correct | K-1 | Fixed after the final round. Owner decides at the review point |")
-    (repo / "kanon/work/2026-11-18-fixes.md").write_text(text)
+    (repo / "kanon/work/2026-11-18-fixes.md").write_text(text, encoding="utf-8")
     assert [r.round for r in desk.build(repo).reviews] == ["2"]
 
 
 def test_removing_an_action_removes_it_from_the_desk(repo):
     path = repo / "kanon/work/2026-11-18-setup.md"
-    path.write_text(work_file("Setup", ACTIONS))
+    path.write_text(work_file("Setup", ACTIONS), encoding="utf-8")
     desk.write(repo)
-    assert "Merge the branch" in (repo / "kanon/local/DESK.md").read_text()
-    path.write_text(work_file("Setup"))
+    assert "Merge the branch" in (repo / "kanon/local/DESK.md").read_text(encoding="utf-8")
+    path.write_text(work_file("Setup"), encoding="utf-8")
     desk.write(repo)
-    assert "Merge the branch" not in (repo / "kanon/local/DESK.md").read_text()
+    assert "Merge the branch" not in (repo / "kanon/local/DESK.md").read_text(encoding="utf-8")
 
 
 def test_desk_page_loads_nothing_external_and_escapes_text(repo):
-    (repo / "kanon/work/2026-11-18-setup.md").write_text(work_file("Setup <script>", ACTIONS))
+    (repo / "kanon/work/2026-11-18-setup.md").write_text(work_file("Setup <script>", ACTIONS), encoding="utf-8")
     desk.write(repo)
-    page = (repo / "kanon/local/desk.html").read_text()
+    page = (repo / "kanon/local/desk.html").read_text(encoding="utf-8")
     assert not re.search(r'(src|href)\s*=\s*["\']?(https?:)?//|url\(', page)
     assert "Setup &lt;script&gt;" in page
 
 
 def test_two_branches_add_work_and_merge_without_conflict(repo):
     git(repo, "checkout", "-q", "-b", "feature-a")
-    (repo / "kanon/work/2026-11-18-a.md").write_text(work_file("A", ACTIONS, status="awaiting-approval"))
+    (repo / "kanon/work/2026-11-18-a.md").write_text(work_file("A", ACTIONS, status="awaiting-approval"), encoding="utf-8")
     ksync.sync(repo)
     commit(repo, "a")
     git(repo, "checkout", "-q", "-")
     git(repo, "checkout", "-q", "-b", "feature-b")
-    (repo / "kanon/work/2026-11-18-b.md").write_text(work_file("B", ACTIONS, status="awaiting-approval"))
+    (repo / "kanon/work/2026-11-18-b.md").write_text(work_file("B", ACTIONS, status="awaiting-approval"), encoding="utf-8")
     ksync.sync(repo)
     commit(repo, "b")
     git(repo, "merge", "-q", "--no-edit", "feature-a")
@@ -145,7 +145,7 @@ def test_two_branches_add_work_and_merge_without_conflict(repo):
 
 def test_without_a_profile_everything_is_shown_with_a_note(repo, monkeypatch):
     monkeypatch.delenv("KANON_PROFILE")
-    (repo / "kanon/work/2026-11-18-setup.md").write_text(work_file("Setup", ACTIONS))
+    (repo / "kanon/work/2026-11-18-setup.md").write_text(work_file("Setup", ACTIONS), encoding="utf-8")
     built = desk.build(repo)
     assert len(built.actions) == 3 and any("showing every person's items" in n for n in built.notes)
 
@@ -154,15 +154,15 @@ def test_every_untrusted_field_is_escaped(repo, monkeypatch):
     payload = '<img src=x onerror=alert(1)>'
     actions = ACTIONS.replace("Open the pull request.", payload).replace("Protect main", payload)
     text = work_file("Plan", actions, status="awaiting-approval", needed=payload)
-    (repo / "kanon/work/2026-11-18-plan.md").write_text(text)
+    (repo / "kanon/work/2026-11-18-plan.md").write_text(text, encoding="utf-8")
     desk.write(repo)
-    page = (repo / "kanon/local/desk.html").read_text()
+    page = (repo / "kanon/local/desk.html").read_text(encoding="utf-8")
     assert payload not in page and page.count("&lt;img src=x onerror=alert(1)&gt;") >= 3
 
 
 def test_replies_name_the_work_file_so_they_are_unambiguous(repo):
-    (repo / "kanon/work/2026-11-18-one.md").write_text(work_file("One", ACTIONS))
-    (repo / "kanon/work/2026-11-18-two.md").write_text(work_file("Two", ACTIONS))
+    (repo / "kanon/work/2026-11-18-one.md").write_text(work_file("One", ACTIONS), encoding="utf-8")
+    (repo / "kanon/work/2026-11-18-two.md").write_text(work_file("Two", ACTIONS), encoding="utf-8")
     replies = [a.reply for a in desk.build(repo).actions]
     assert len(replies) == len(set(replies)) == 4 and "done one A-1" in replies
 
@@ -183,7 +183,7 @@ def test_actions_parse_in_any_column_order_with_flexible_cells(repo):
 
 1. Not a step.
 """
-    (repo / "kanon/work/2026-11-18-x.md").write_text(work_file("X", table))
+    (repo / "kanon/work/2026-11-18-x.md").write_text(work_file("X", table), encoding="utf-8")
     built = desk.build(repo)
     assert sorted(a.id for a in built.actions) == ["A-1", "A-2", "A-3"]
     assert next(a for a in built.actions if a.id == "A-2").steps == ["Real step."]
@@ -196,15 +196,15 @@ def test_cycles_keep_every_action(repo):
 | A-2 | Two | ada-dev | A-1 | no |
 | A-3 | Three | ada-dev | | no |
 """
-    (repo / "kanon/work/2026-11-18-c.md").write_text(work_file("C", table))
+    (repo / "kanon/work/2026-11-18-c.md").write_text(work_file("C", table), encoding="utf-8")
     assert sorted(a.id for a in desk.build(repo).actions) == ["A-1", "A-2", "A-3"]
 
 
 def test_page_has_tabs_cards_and_selectable_replies(repo):
-    (repo / "kanon/work/2026-11-18-setup.md").write_text(work_file("Setup", ACTIONS))
-    (repo / "kanon/work/2026-11-18-plan.md").write_text(work_file("Plan", status="awaiting-approval", needed="Approve."))
+    (repo / "kanon/work/2026-11-18-setup.md").write_text(work_file("Setup", ACTIONS), encoding="utf-8")
+    (repo / "kanon/work/2026-11-18-plan.md").write_text(work_file("Plan", status="awaiting-approval", needed="Approve."), encoding="utf-8")
     desk.write(repo)
-    page = (repo / "kanon/local/desk.html").read_text()
+    page = (repo / "kanon/local/desk.html").read_text(encoding="utf-8")
     for tab in ("decide", "do", "later", "status"):
         assert f'id="tab-{tab}"' in page and f'id="panel-{tab}"' in page
     assert page.count('<details class="card action') == 2 and page.count('<details class="card decision') == 1
@@ -217,14 +217,14 @@ def test_the_same_topic_on_two_days_is_refused_and_reported(repo):
     kinit.new_work(repo, "setup", dt.date(2026, 11, 17))
     with pytest.raises(FileExistsError, match="already uses the topic 'setup'"):
         kinit.new_work(repo, "Setup", dt.date(2026, 11, 18))
-    (repo / "kanon/work/2026-11-18-setup.md").write_text(work_file("Setup again"))
+    (repo / "kanon/work/2026-11-18-setup.md").write_text(work_file("Setup again"), encoding="utf-8")
     from kanon import verify as kv
     assert any(f.rule == "layout" and "topic 'setup'" in f.message for f in kv.verify(repo))
 
 
 def test_desk_is_not_written_when_the_ignore_block_is_damaged(repo):
     gitignore = repo / ".gitignore"
-    gitignore.write_text(gitignore.read_text().replace(ksync.IGNORE_END, ""))
+    gitignore.write_text(gitignore.read_text().replace(ksync.IGNORE_END, ""), encoding="utf-8")
     for name in ("DESK.md", "desk.html", "STATUS.md"):
         target = repo / "kanon/local" / name
         if target.exists():
@@ -238,10 +238,10 @@ def test_kanon_desk_command_guards_the_ignore_entry(repo, monkeypatch, capsys):
     from kanon.cli import main
     monkeypatch.chdir(repo)
     gitignore = repo / ".gitignore"
-    gitignore.write_text("")
+    gitignore.write_text("", encoding="utf-8")
     assert main(["desk"]) == 0
-    assert "/kanon/local/" in gitignore.read_text()
-    gitignore.write_text(ksync.IGNORE_START + "\n")
+    assert "/kanon/local/" in gitignore.read_text(encoding="utf-8")
+    gitignore.write_text(ksync.IGNORE_START + "\n", encoding="utf-8")
     assert main(["desk"]) == 2
 
 
@@ -257,10 +257,10 @@ def test_every_displayed_field_is_escaped(repo, monkeypatch):
                      needed=payload).replace(f"> **Summary:** {payload} summary.", f"> **Summary:** {payload}")
     text = text.replace("Not yet reviewed.", "| Round | Items | Reviewer | Verdict | Blocking | Outcome |\n"
                         f"|---|---|---|---|---|---|\n| 2 | x | Kritos | pass | None | {payload} Owner decides at the review point |")
-    (repo / "kanon/work/2026-11-18-plan.md").write_text(text)
+    (repo / "kanon/work/2026-11-18-plan.md").write_text(text, encoding="utf-8")
     commit(repo, f"ADDED: {payload}")
     desk.write(repo)
-    assert payload not in (repo / "kanon/local/desk.html").read_text()
+    assert payload not in (repo / "kanon/local/desk.html").read_text(encoding="utf-8")
 
 
 def test_attributes_chips_and_paths_are_escaped():  # K-240

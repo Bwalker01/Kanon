@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def pyproject_version() -> str:
-    return tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]["version"]
+    return tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]["version"]
 
 
 def test_version_matches_pyproject():
@@ -42,5 +42,5 @@ def test_module_entry_point():
 def test_version_is_defined_in_one_place():
     """No source file may hard-code the package version; pyproject.toml is the only source."""
     pattern = re.compile(re.escape(pyproject_version()))
-    offenders = [p for p in (ROOT / "src").rglob("*.py") if pattern.search(p.read_text())]
+    offenders = [p for p in (ROOT / "src").rglob("*.py") if pattern.search(p.read_text(encoding="utf-8"))]
     assert offenders == []

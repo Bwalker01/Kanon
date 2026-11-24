@@ -19,17 +19,30 @@ For the reviewer subagent (`agent_type` "kritos-reviewer" in the hook input), co
 change the project (git writes, file writers, redirection, `sed -i`, Kanon's writing commands) are
 also blocked (K-29); writes to the scratchpad and to temporary folders outside the project are allowed.
 
+Paths follow the shell's rules (POSIX). On Windows, where Claude Code runs Bash through Git Bash,
+`\\` is also a separator, Windows paths (`C:\\Users\\x`, `C:/Users/x`) are read in Git Bash form
+(`/c/Users/x`), paths are compared without regard to case, and the project, home and temporary
+folders are protected under both their long and 8.3 short names. Drive roots and the Windows system
+folders are protected as well.
+
 Limits: it reads command text only. It cannot see what variables hold, what scripts do, or deletions
-made by other programs, and patterns with literal text (such as `/tmp/tmp*`) are allowed.
+made by other programs, and patterns with literal text (such as `/tmp/tmp*`) are allowed. On Windows,
+a path that mixes long and 8.3 short folder names is not recognised, and folders inside the system
+folders (such as `C:\\Windows\\System32`) are not protected, as on POSIX (`/usr/bin`). Paths with three or
+more leading backslashes, the device forms `\\\\.\\C:\\` and `\\\\?\\C:\\`, and `/Users/x` inside code run by a
+native Windows program (`python -c`, `node -e`), which that program reads from the current drive's
+root, are not recognised.
 """
 
 from __future__ import annotations
 
 import json
 import os
+import posixpath
 import re
 import shlex
 import sys
+import tempfile
 
 VERBS = {"rm", "rmdir", "unlink", "shred"}
 SEPARATORS = {";", "&&", "||", "&", "\n"}
@@ -43,8 +56,101 @@ PASSIVE = {"cd", "ls", "echo", "printf", "pwd", "cat", "grep", "head", "tail", "
            "mkdir", "touch", "test", "[", "true", "false", "sleep"}
 SYSTEM = {"/", "/tmp", "/private/tmp", "/home", "/root", "/etc", "/usr", "/var", "/opt", "/srv", "/mnt",
           "/bin", "/sbin", "/lib", "/boot", "/dev", "/proc", "/sys", "/Users", "/Volumes"}
+WINDOWS = os.name == "nt"  # read at call time, so tests can set it on any platform
+DRIVE = re.compile(r"^([A-Za-z]):(?:/|$)")
+GIT_BASH_DRIVE = re.compile(r"^/([a-z])(?=/|$)")
+WINDOWS_SYSTEM = ("SystemRoot", "ProgramFiles", "ProgramFiles(x86)", "ProgramData")
 GLOB = re.compile(r"[*?\[{]")
 WILDCARD_ONLY = re.compile(r"^[*?.{},\[\]!]*$")
+
+
+def _posix(path: str) -> str:
+    """On Windows, a path in Git Bash form: `\\` becomes `/`, and `C:/x` becomes `/c/x`. Elsewhere unchanged."""
+    if not WINDOWS:
+        return path
+    path = path.replace("\\", "/")
+    match = DRIVE.match(path)
+    if not match:
+        return path
+    return f"/{match.group(1).lower()}/{path[match.end():]}".rstrip("/") or "/"
+
+
+def _norm(path: str) -> str:
+    """A path normalised by the shell's rules, folded to lower case on Windows (case-insensitive files)."""
+    path = posixpath.normpath(_posix(path))
+    if path.startswith("//"):
+        path = "/" + path.lstrip("/")  # normpath keeps a leading `//`
+    return path.lower() if WINDOWS else path
+
+
+def _from_drive_root(token: str, here: str) -> str:
+    """On Windows, a token starting with one `\\` names a path from the current drive's root.
+
+    Git Bash reads `\\Users\\x` as `C:\\Users\\x` when the current folder is on `C:`. A current folder
+    outside any drive (such as `/tmp`) is taken to be on the system drive (assessment: Git Bash's own
+    folders live there in a default install).
+    """
+    if not WINDOWS or not token.startswith("\\") or token.startswith("\\\\"):
+        return token
+    match = GIT_BASH_DRIVE.match(_norm(here))
+    drive = match.group(1) if match else (os.environ.get("SystemDrive", "C:")[:1] or "c").lower()
+    return f"/{drive}/" + token[1:]
+
+
+def _join(here: str, token: str) -> str:
+    """The path a token names from folder `here`, normalised."""
+    token = _posix(_from_drive_root(token, here))
+    return _norm(token if token.startswith("/") else posixpath.join(here, token))
+
+
+def _short_name(path: str) -> str | None:
+    """The 8.3 short name Windows gives an existing path, or None."""
+    try:
+        import ctypes
+        buffer = ctypes.create_unicode_buffer(32768)
+        length = ctypes.windll.kernel32.GetShortPathNameW(path, buffer, len(buffer))
+    except (AttributeError, OSError, ValueError):
+        return None
+    return buffer.value if 0 < length < len(buffer) else None
+
+
+def _forms(path: str) -> set[str]:
+    """The path normalised, plus on a Windows computer its long and 8.3 short names."""
+    forms = {_norm(path)}
+    if WINDOWS and os.name == "nt":
+        normal = _norm(path)
+        native = GIT_BASH_DRIVE.sub(lambda m: m.group(1) + ":", normal) or normal
+        for other in (os.path.realpath(native), _short_name(native)):
+            if other:
+                forms.add(_norm(other))
+    return forms
+
+
+_SYSTEM_CACHE: dict[bool, frozenset[str]] = {}
+
+
+def _system_paths() -> frozenset[str]:
+    """Shared locations that are always protected; on Windows also drive roots, system and temp folders."""
+    if WINDOWS not in _SYSTEM_CACHE:
+        paths = {_norm(p) for p in SYSTEM}
+        if WINDOWS:
+            paths |= {f"/{letter}" for letter in "abcdefghijklmnopqrstuvwxyz"}
+            names = [os.environ.get(n, "") for n in WINDOWS_SYSTEM]
+            names += [tempfile.gettempdir(), os.environ.get("TEMP", ""), os.environ.get("TMP", "")]
+            for name in names:
+                if name:
+                    paths |= _forms(name)
+            profile = os.environ.get("USERPROFILE", "")
+            if profile:
+                paths |= {posixpath.dirname(f) for f in _forms(profile)}  # the folder holding every user's home
+        _SYSTEM_CACHE[WINDOWS] = frozenset(paths)
+    return _SYSTEM_CACHE[WINDOWS]
+
+
+def _quoted_paths(token: str) -> list[str]:
+    """Absolute paths quoted inside a token, such as code passed to `python -c` (spaces allowed)."""
+    drive = r"|[A-Za-z]:[\\/][^\"']*|\\(?!\\)[^\"']+" if WINDOWS else ""
+    return re.findall(rf"[\"'](/[^\"']*|~[^\"']*{drive})[\"']", token)
 
 
 def _tokens(command: str) -> list[str]:
@@ -82,7 +188,8 @@ def _units(tokens: list[str]) -> list[list[str]]:
 
 
 def _verb(token: str) -> str:
-    return os.path.basename(token.strip("'\"\\").lstrip("\\"))
+    name = posixpath.basename(_posix(token.strip("'\"\\").lstrip("\\")))
+    return name[:-4] if name.lower().endswith(".exe") else name
 
 
 def _stages(unit: list[str]) -> list[list[str]]:
@@ -125,7 +232,8 @@ def resolve(token: str, cwd: str, home: str) -> str | None:
             token = home + token[len(prefix):]
     if "$" in token or "`" in token:
         return None
-    path = token if token.startswith("/") else os.path.join(cwd, token)
+    token = _posix(_from_drive_root(token, cwd))
+    path = token if token.startswith("/") else posixpath.join(cwd, token)
     path = re.sub(r"^/+", "/", path)  # normpath keeps a leading `//`
     parts = path.split("/")
     for index, part in enumerate(parts):
@@ -134,21 +242,21 @@ def resolve(token: str, cwd: str, home: str) -> str | None:
                 return None
             path = "/".join(parts[:index]) or "/"
             break
-    return os.path.normpath(path)
+    return _norm(path)
 
 
 def protected_paths(cwd: str, home: str, extra: list[str]) -> set[str]:
-    paths = set(SYSTEM) | {os.path.normpath(home)}
-    for path in [cwd, *extra]:
-        if not path:
+    paths = set(_system_paths()) | _forms(home)
+    for root in [cwd, *extra]:
+        if not root:
             continue
-        path = os.path.normpath(path)
-        while True:
-            paths.add(path)
-            parent = os.path.dirname(path)
-            if parent == path:
-                break
-            path = parent
+        for path in _forms(root):
+            while True:
+                paths.add(path)
+                parent = posixpath.dirname(path)
+                if parent == path:
+                    break
+                path = parent
     return paths
 
 
@@ -200,13 +308,13 @@ def _path_reason(unit: list[str], cwd: str, home: str, protected: set[str], proj
             start = unit[index + 1]
             filtered = any(t in ("-name", "-iname", "-path", "-ipath", "-regex", "-iregex") for t in unit[index:])
             folder = resolve(start, cwd, home)
-            if folder in protected and not (filtered and folder in project and folder not in SYSTEM):
+            if folder in protected and not (filtered and folder in project and folder not in _system_paths()):
                 return f"a deletion fed by `find {start}`, which includes {folder} itself"
             skip.add(index + 1)
     for index, token in enumerate(unit):
         if index in skip or _verb(token) in VERBS or _verb(token) == "find":
             continue
-        for candidate in [token, *re.findall(r"[\"'](/[^\"'\s]*|~[^\"'\s]*)[\"']", token)]:
+        for candidate in [token, *_quoted_paths(token)]:
             folder = resolve(candidate, cwd, home)
             if folder in protected:
                 return f"a deletion that reaches the protected location {folder}"
@@ -215,9 +323,10 @@ def _path_reason(unit: list[str], cwd: str, home: str, protected: set[str], proj
 
 def check(command: str, cwd: str, home: str, extra: list[str] | None = None, depth: int = 0) -> str | None:
     """Reason to block the command, or None to allow it."""
-    extra = [e for e in (extra or []) if e]
+    cwd, home = _norm(cwd), _norm(home)
+    extra = [_norm(e) for e in (extra or []) if e]
     protected = protected_paths(cwd, home, extra)
-    project = {os.path.normpath(p) for p in [cwd, *extra]}
+    project = {cwd, *extra}
     units = _units(_tokens(command))
     for unit in units:
         for inner in _inner_commands(unit):
@@ -233,7 +342,7 @@ def check(command: str, cwd: str, home: str, extra: list[str] | None = None, dep
             target = resolve(unit[index + 1], here, home) if index + 1 < len(unit) else home
             if target:
                 here = target
-                protected |= protected_paths(os.path.dirname(here), home, [])  # parents only (K-265)
+                protected |= protected_paths(posixpath.dirname(here), home, [])  # parents only (K-265)
             continue
         if not _passive(unit):
             active.append((unit, here))
@@ -364,9 +473,10 @@ def reviewer_write(command: str, cwd: str, home: str, project: str, scratch: lis
     counts as a temporary folder) and otherwise treated as outside the project. Writes made by
     programs the command starts cannot be seen.
     """
-    keep_out = [os.path.normpath(project or cwd)]
-    allowed = [os.path.normpath(p) for p in scratch if p]
-    names: dict[str, str | None] = {"CLAUDE_PROJECT_DIR": keep_out[0], "PWD": cwd, "HOME": home}
+    cwd, home = _norm(cwd), _norm(home)
+    keep_out = sorted(_forms(project or cwd))
+    allowed = sorted(set().union(*(_forms(p) for p in scratch if p)))
+    names: dict[str, str | None] = {"CLAUDE_PROJECT_DIR": _norm(project or cwd), "PWD": cwd, "HOME": home}
 
     def expand(token: str) -> str | None:
         def value(match):
@@ -384,7 +494,7 @@ def reviewer_write(command: str, cwd: str, home: str, project: str, scratch: lis
         token = expand(token.strip("'\""))
         if not token or "$(" in token or "`" in token:
             return False
-        target = os.path.normpath(token if token.startswith("/") else os.path.join(here, token))
+        target = _join(here, token)
         return _inside(target, keep_out) and not _inside(target, allowed)
 
     def judge(text: str, depth: int = 0) -> str | None:
@@ -409,9 +519,9 @@ def reviewer_write(command: str, cwd: str, home: str, project: str, scratch: lis
                 if word == "cd":
                     target = expand(args[0].strip("'\"")) if args else home
                     if target:
-                        here = os.path.normpath(target if target.startswith("/") else os.path.join(here, target))
+                        here = _join(here, target)
                     else:
-                        here = "/tmp/unknown"
+                        here = _norm("/tmp/unknown")
                     continue
                 if word == "find":
                     start = next((a for a in args if not a.startswith("-")), ".")

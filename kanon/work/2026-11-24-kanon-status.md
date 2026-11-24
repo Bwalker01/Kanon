@@ -114,6 +114,7 @@ Done 2026-11-24: the owner put the key in the git-ignored `.env`; the assistant 
 | Item | Decision | Date | Basis |
 |---|---|---|---|
 | Plan | Approved | 2026-11-24 | Owner in chat: "I approve all of the plans.". Transcribed by the assistant for Bwalker01; commit `1694896`; material: plan; sha256:cabd80550d319adcf53c38d91709ac3d50747887c17c9c4ce442c1f1596e9b37 |
+| KS-1 | Approved on merge of pull request #9 | 2026-11-24 | https://github.com/Bwalker01/Kanon/pull/9; a code owner's review is required to merge |
 
 ## 6. Cost
 

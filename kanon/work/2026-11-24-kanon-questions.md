@@ -109,6 +109,7 @@ Done 2026-11-24 with A-1 of `2026-11-24-kanon-status.md`: the key is in the git-
 | Item | Decision | Date | Basis |
 |---|---|---|---|
 | Plan | Approved | 2026-11-24 | Owner in chat: "I approve all of the plans.". Transcribed by the assistant for Bwalker01; commit `1694896`; material: plan; sha256:f5497c82e21263e7d14b22bfb16a58206c2a5962f7b8796b3dd8f5a3d42f0217 |
+| KQ-1 | Approved on merge of pull request #10 | 2026-11-24 | https://github.com/Bwalker01/Kanon/pull/10; a code owner's review is required to merge |
 
 ## 6. Cost
 

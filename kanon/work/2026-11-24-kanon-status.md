@@ -1,6 +1,6 @@
 ---
 type: work
-status: in-progress
+status: awaiting-approval
 updated: 2026-11-24
 ---
 
@@ -8,7 +8,7 @@ updated: 2026-11-24
 
 > **Summary:** P1-08, first requirement: a read-only `kanon status` command that prints each open piece
 > of work with its state and what waits on whom, built and delivered through the full Kanon loop.
-> **Decision needed:** None. Plan approved by Bwalker01 on 2026-11-24.
+> **Decision needed:** Review and merge the App's pull request for `kanon/kanon-status/plan` once it is opened; the merge is the approval. KS-1 passed Kritos in round R3.
 
 ## 1. Plan
 
@@ -82,7 +82,19 @@ same sessions (on 2026-11-24, the Phase 1 records in 07e3263 and the remote sess
 | 2026-11-24 | Two problems found while running `kanon status`: merged work keeps a stale status, and `kanon transcribe` writes CRLF on Windows. Owner in chat: "simplify this. find a way to fix both problems and include the fixes in the kanon status creation." | Both fixed in KS-1 (8b8534f): work whose on-merge pull request merged counts as complete in `desk.build`; every Kanon text write uses LF |
 | 2026-11-24 | Delivery after approval. Owner in chat: "make a pr for the phase-1-close branch. this branch should also be named kanon/phase-1-close. claude's own branch naming convention should be dropped. I'll merge the phase-1-close branch and you begin working on status and questions - skip the PR for the plan for those and complete the work on them and open that PR once done." | The close-out branch is `kanon/phase-1-close`; the plan approval rows travel with it, so no separate plan pull request is needed for steps 0 and 2; `kanon/kanon-status/plan` starts from the tip of `kanon/phase-1-close` |
 
-## 3. Review
+## 3. Actions
+
+| ID | Action | Assignee | Blocks | Done |
+|---|---|---|---|---|
+| A-1 | Make the App key readable on this computer | Bwalker01 | | no |
+
+### A-1: App Key on This Computer
+
+1. Copy the Kanon Agent App's private key (the value of `KANON_APP_KEY` in the cloud "Kanon" environment) to `C:\Users\Ben Walker\.config\kanon\github-app.pem`, or set `KANON_APP_KEY` as a Windows user environment variable and restart the Claude app.
+2. Tell the assistant; it runs `kanon github check`, then `kanon github pr kanon-status`.
+3. Confirm: `kanon github check` lists the App as installed on `Bwalker01/Kanon`, and the pull request's author is `kanon-agent[bot]`.
+
+## 4. Review
 
 | Round | Items | Reviewer | Verdict | Blocking | Outcome |
 |---|---|---|---|---|---|
@@ -95,12 +107,25 @@ same sessions (on 2026-11-24, the Phase 1 records in 07e3263 and the remote sess
 
 **Known limits after R3 (non-blocking):** 1: a file reopened for a new item while its last Decision row is a merged on-merge row counts as complete until the new item adds a row. 2: the App key and the profile, both written outside the repository, still use text mode. 3: the merged-work test does not check leftovers under "From closed work" (confirmed by Kritos's probe). 4: the LF test covers the hook and `kanon/**/*.md`, not the files `kanon sync` writes.
 
-## 4. Decision
+## 5. Decision
 
 | Item | Decision | Date | Basis |
 |---|---|---|---|
 | Plan | Approved | 2026-11-24 | Owner in chat: "I approve all of the plans.". Transcribed by the assistant for Bwalker01; commit `1694896`; material: plan; sha256:cabd80550d319adcf53c38d91709ac3d50747887c17c9c4ce442c1f1596e9b37 |
 
-## 5. Cost
+## 6. Cost
 
-Recorded when work starts.
+Window: `kanon usage --since 2026-11-24T18:05:00Z --until 2b5406b` (plan section 1.4). It also counts other work in the same session: the Phase 1 records (07e3263), the remote session limits commits moved onto `kanon/phase-1-close` and the Windows test fix (174feb3).
+
+| Step | Output (main) | Output (subagents) | Cache writes | Cache reads | Estimated cost |
+|---|---|---|---|---|---|
+| plans (shared with kanon questions), close-out records, KS-1 build and 3 reviews | 93,583 | 69,761 | 485,510 | 36,831,140 | not yet calculated (Claude Code has not updated its estimate) |
+
+**Measures for P1-08 (plan section 1.4, recorded here because the approved plan is hashed):**
+
+| Measure | Value |
+|---|---|
+| Review rounds | 3 plan rounds (P1 to P3, shared with `kanon questions`); 3 result rounds (R1 to R3) |
+| Questions asked | 3 (section 2): plan order, delivery after approval, the two added fixes |
+| Owner actions raised | 1: place the App key where this computer can read it, so the App can open the pull request |
+| Tokens | The Cost row above (shared plan rounds included) |

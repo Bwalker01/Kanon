@@ -1,13 +1,13 @@
 ---
 type: work
-status: awaiting-approval
+status: complete
 updated: 2026-11-24
 ---
 
 # Remote Session Limits
 
 > **Summary:** Investigation of why work cannot be completed in Claude Code cloud sessions, with fixes made here and fixes or workarounds proposed to the owner.
-> **Decision needed:** Approve these findings (Q-1 and Q-2 answered 2026-11-24); owner actions A-1 and A-2 appear on the Desk after `kanon desk`.
+> **Decision needed:** None. Approved by Bwalker01 on 2026-11-24.
 
 ## 1. Plan
 
@@ -84,13 +84,15 @@ Out of scope: the Desk, which a cloud session can send to the owner as a file (d
 | Round | Items | Reviewer | Verdict | Blocking | Outcome |
 |---|---|---|---|---|---|
 | 1 | Findings, actions, `stale_install` (b5f32c8) | Kritos (`kritos-reviewer` agent) | correct | K-500 to K-502 | Fixed in 328f5af: K-500 (push permission now set by the owner in the setup script and checked in a new session), K-501 (Remote Control became Q-2), K-502 (Q-1 cites the owner's answer), K-503 (F-6 says mitigated, with limits), K-504 (counts labelled an assessment), K-505 (untested paths marked), K-506 (sources or assessment labels), K-507 (F-8 corrected), K-508 (F-10 cites ADR-014 and is closed for P1-05 to P1-10), K-509 (F-11 to F-13 added), K-510 (project name read with tomllib; more tests), K-511 (cost recorded) |
-| 2 | Round 1 fixes (328f5af) | Kritos (`kritos-reviewer` agent) | correct | K-520, K-521 | K-520 (Q-1 misstated the 2026-11-19 answer and left out the 2026-11-23 one), K-521 (F-11 and F-13 lacked sources), K-522 to K-530 fixed after the final round; not independently reviewed. Owner decides at the review point |
+| 2 | Round 1 fixes (328f5af) | Kritos (`kritos-reviewer` agent) | correct | K-520, K-521 | K-520 (Q-1 misstated the 2026-11-19 answer and left out the 2026-11-23 one), K-521 (F-11 and F-13 lacked sources), K-522 to K-530 fixed after the final round; not independently reviewed. Owner decides at the review point. Owner reviewed 2026-11-24 |
 
 **Moved 2026-11-24:** cherry-picked onto `claude/phase-1-close` for the Phase 1 close-out (owner). `test_a_stale_install_in_kanons_own_repository_is_reported` failed on Windows because `write_text` adds carriage returns; it now writes bytes. Not independently reviewed; the owner decides at the review point.
 
 ## 5. Decision
 
-Pending.
+| Item | Decision | Date | Basis |
+|---|---|---|---|
+| Result | Approved | 2026-11-24 | Owner in chat: "I approve all of the plans.". Transcribed by the assistant for Bwalker01; commit `1694896`; material: result; sha256:31ef2c02abb8823944d4e9a398dc0f009120080fc78b496bb9194ac0735f4b06 |
 
 ## 6. Cost
 

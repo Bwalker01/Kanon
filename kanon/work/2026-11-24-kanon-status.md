@@ -1,6 +1,6 @@
 ---
 type: work
-status: awaiting-approval
+status: in-progress
 updated: 2026-11-24
 ---
 
@@ -8,7 +8,7 @@ updated: 2026-11-24
 
 > **Summary:** P1-08, first requirement: a read-only `kanon status` command that prints each open piece
 > of work with its state and what waits on whom, built and delivered through the full Kanon loop.
-> **Decision needed:** Approve this plan in chat (`approve kanon-status`). Kritos passed it in round P3.
+> **Decision needed:** None. Plan approved by Bwalker01 on 2026-11-24.
 
 ## 1. Plan
 
@@ -79,6 +79,7 @@ same sessions (on 2026-11-24, the Phase 1 records in 07e3263 and the remote sess
 | Date | Question | Answer |
 |---|---|---|
 | 2026-11-24 | Plan `kanon status` first and `kanon questions` after it ships, or both now? Recommended: status first. | Both now (owner) |
+| 2026-11-24 | Delivery after approval. Owner in chat: "make a pr for the phase-1-close branch. this branch should also be named kanon/phase-1-close. claude's own branch naming convention should be dropped. I'll merge the phase-1-close branch and you begin working on status and questions - skip the PR for the plan for those and complete the work on them and open that PR once done." | The close-out branch is `kanon/phase-1-close`; the plan approval rows travel with it, so no separate plan pull request is needed for steps 0 and 2; `kanon/kanon-status/plan` starts from the tip of `kanon/phase-1-close` |
 
 ## 3. Review
 
@@ -90,7 +91,9 @@ same sessions (on 2026-11-24, the Phase 1 records in 07e3263 and the remote sess
 
 ## 4. Decision
 
-Pending.
+| Item | Decision | Date | Basis |
+|---|---|---|---|
+| Plan | Approved | 2026-11-24 | Owner in chat: "I approve all of the plans.". Transcribed by the assistant for Bwalker01; commit `1694896`; material: plan; sha256:cabd80550d319adcf53c38d91709ac3d50747887c17c9c4ce442c1f1596e9b37 |
 
 ## 5. Cost
 

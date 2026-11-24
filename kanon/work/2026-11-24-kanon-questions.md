@@ -1,6 +1,6 @@
 ---
 type: work
-status: awaiting-approval
+status: in-progress
 updated: 2026-11-24
 ---
 
@@ -8,7 +8,7 @@ updated: 2026-11-24
 
 > **Summary:** P1-08, second requirement: a read-only `kanon questions` command that lists the questions
 > recorded in work files, unanswered ones first, built after `kanon status` and compared with it.
-> **Decision needed:** Approve this plan in chat (`approve kanon-questions`). Kritos passed it in round P3.
+> **Decision needed:** None. Plan approved by Bwalker01 on 2026-11-24.
 
 ## 1. Plan
 
@@ -75,6 +75,7 @@ their likely cause, as an assessment.
 | Date | Question | Answer |
 |---|---|---|
 | 2026-11-24 | Plan `kanon status` first and `kanon questions` after it ships, or both now? Recommended: status first. | Both now (owner) |
+| 2026-11-24 | Delivery after approval (owner in chat, quoted in full in `2026-11-24-kanon-status.md`, Questions) | The close-out branch is `kanon/phase-1-close`; the plan approval rows travel with it. Both requirements are completed now, so `kanon/kanon-questions/plan` starts from `kanon/kanon-status/plan` after KS-1 is merged into it, and its pull request carries only KQ-1 once the status pull request merges |
 
 ## 3. Review
 
@@ -88,7 +89,9 @@ their likely cause, as an assessment.
 
 ## 4. Decision
 
-Pending.
+| Item | Decision | Date | Basis |
+|---|---|---|---|
+| Plan | Approved | 2026-11-24 | Owner in chat: "I approve all of the plans.". Transcribed by the assistant for Bwalker01; commit `1694896`; material: plan; sha256:f5497c82e21263e7d14b22bfb16a58206c2a5962f7b8796b3dd8f5a3d42f0217 |
 
 ## 5. Cost
 

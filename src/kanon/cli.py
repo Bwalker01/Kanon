@@ -31,6 +31,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     commands.add_parser("desk", help="rebuild your Desk: decisions, actions and reviews waiting on you")
 
+    sta = commands.add_parser("status", help="print the project's open work and what waits on whom (writes nothing)")
+    sta.add_argument("--json", action="store_true", help="print JSON")
+
     pro = commands.add_parser("profile", help="show or set your personal profile (stored outside every repository)")
     pro.add_argument("--github", help="your GitHub username")
     pro.add_argument("--name", help="your name")
@@ -149,6 +152,20 @@ def run_sync() -> int:
     for note in result.notes:
         print(f"Note      {note}")
     return 1 if result.refused else 0
+
+
+def run_status(args: argparse.Namespace) -> int:
+    root = init_module.repo_root(Path.cwd())
+    if root is None or not init_module.has_settings(root):
+        print("kanon status: Kanon is not set up here (no kanon/kanon.toml); run kanon init first")
+        return 2
+    from kanon import desk as desk_module
+    result = desk_module.build(root, everyone=True)
+    if args.json:
+        print(json.dumps(desk_module.status_data(result), indent=2))
+    else:
+        print(desk_module.render_terminal(result), end="")
+    return 0
 
 
 def run_desk() -> int:
@@ -365,6 +382,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return run_sync()
     if args.command == "desk":
         return run_desk()
+    if args.command == "status":
+        return run_status(args)
     if args.command == "profile":
         return run_profile(args)
     if args.command == "new":

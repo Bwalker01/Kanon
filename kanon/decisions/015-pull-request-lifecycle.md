@@ -1,13 +1,13 @@
 ---
 type: decision
-status: proposed
-updated: 2026-11-23
+status: accepted
+updated: 2026-11-24
 ---
 
 # ADR-015: Pull Request Lifecycle
 
 > **Decision:** Pull requests carry only completed, reviewed work. They open as drafts; CI runs when one is marked ready; a CI failure or a human review that is not an approval returns it to draft.
-> **Status:** Proposed. Awaiting owner approval (`kanon/work/2026-11-23-pull-request-lifecycle.md`). Amends the Actions bullet of ADR-007 and ADR-014's "only as a GitHub App" (proposed), on which it depends.
+> **Status:** Accepted by the owner on 2026-11-24 (`kanon/work/2026-11-23-pull-request-lifecycle.md`, Decision). Amends the Actions bullet of ADR-007 and ADR-014's "only as a GitHub App" (proposed), on which it depends.
 
 ## Context
 

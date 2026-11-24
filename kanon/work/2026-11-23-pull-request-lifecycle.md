@@ -1,14 +1,14 @@
 ---
 type: work
-status: awaiting-approval
-updated: 2026-11-23
+status: complete
+updated: 2026-11-24
 ---
 
 # Pull Request Lifecycle
 
 > **Summary:** Pull requests are opened as drafts only for completed, reviewed work; CI runs when one
 > is marked ready; a CI failure or a human review that is not an approval returns it to draft.
-> **Decision needed:** Approve ADR-015 in chat (`approve pull-request-lifecycle`); then merge pull request #4. The return to draft is untested on GitHub.
+> **Decision needed:** None. Approved by Bwalker01 on 2026-11-24.
 
 ## 1. Plan
 
@@ -57,9 +57,9 @@ updated: 2026-11-23
 
 ### A-1: Required Checks
 
-1. Mark pull request #4 ready once, so the check runs and GitHub lists its job names.
+1. Pull request #4 has run the check (merged 2026-11-24), so GitHub already lists the job names.
 2. In the repository, open Settings, Rules, Rulesets, and create or edit a branch ruleset for `main`. Use a ruleset, not the classic branch rule: `kanon github protect` (A-4 in the Phase 1 plan) replaces the classic rule and would remove the checks.
-3. Under "Require status checks to pass", add `ubuntu-latest / Python 3.11` and `windows-latest / Python 3.13`.
+3. In the ruleset "Main Protection", under "Require status checks to pass", add `ubuntu-latest / Python 3.11` and `windows-latest / Python 3.13`. Read on 2026-11-24: the ruleset has no required checks yet.
 
 **Confirmed when:** a pull request without a passing check on its latest commit cannot be merged.
 
@@ -75,7 +75,9 @@ updated: 2026-11-23
 
 ## 5. Decision
 
-Pending.
+| Item | Decision | Date | Basis |
+|---|---|---|---|
+| Result | Approved | 2026-11-24 | Owner in chat: "Approve pull-request-lifecycle". Transcribed by the assistant for Bwalker01; commit `246db8d`; material: result; sha256:a4fd4846345c74b9bf670a502e61a248e685b3b2cf8ec0022895083b3ce1a951 |
 
 ## 6. Cost
 

@@ -280,7 +280,7 @@ def check_merge(root: Path) -> str | None:
 MERGE_HOOK = """#!/bin/sh
 # Installed by kanon init. Refuses merging an unreviewed item branch into a Kanon plan branch (P1-09).
 # Limit: 'git merge --no-verify' skips it.
-if grep -q '^name = "kanon-engine"' pyproject.toml 2>/dev/null && command -v uv >/dev/null 2>&1; then
+if grep -Eq '^name *= *"kanon-engine"' pyproject.toml 2>/dev/null && command -v uv >/dev/null 2>&1; then
   exec uv run --quiet kanon branch check-merge
 fi
 if command -v kanon >/dev/null 2>&1; then exec kanon branch check-merge; fi

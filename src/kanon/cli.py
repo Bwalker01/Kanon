@@ -34,6 +34,11 @@ def build_parser() -> argparse.ArgumentParser:
     sta = commands.add_parser("status", help="print the project's open work and what waits on whom (writes nothing)")
     sta.add_argument("--json", action="store_true", help="print JSON")
 
+    que = commands.add_parser("questions", help="list the questions recorded in work files, open ones first")
+    que.add_argument("--all", action="store_true", help="also list answered questions with their answers")
+    que.add_argument("--work", metavar="NAME", help="only this work file (its name without the date)")
+    que.add_argument("--json", action="store_true", help="print JSON")
+
     pro = commands.add_parser("profile", help="show or set your personal profile (stored outside every repository)")
     pro.add_argument("--github", help="your GitHub username")
     pro.add_argument("--name", help="your name")
@@ -169,6 +174,27 @@ def run_status(args: argparse.Namespace) -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(errors="replace")
     print(desk_module.render_terminal(result), end="")
+    return 0
+
+
+def run_questions(args: argparse.Namespace) -> int:
+    root = init_module.repo_root(Path.cwd())
+    if root is None or not init_module.has_settings(root):
+        print("kanon questions: Kanon is not set up here (no kanon/kanon.toml); run kanon init first")
+        return 2
+    from kanon import desk as desk_module
+    names = {desk_module.slug(p.name) for p in (root / "kanon/work").glob("*.md")}
+    if args.work is not None and args.work not in names:
+        print(f"kanon questions: no work file named '{args.work}' in kanon/work/")
+        return 2
+    rows = desk_module.questions(root, args.work)
+    if args.json:
+        print(json.dumps(desk_module.questions_data(rows, args.all), indent=2))
+        return 0
+    import sys
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(errors="replace")  # piped output on Windows code pages (KS-1, R1)
+    print(desk_module.render_questions(rows, args.all), end="")
     return 0
 
 
@@ -388,6 +414,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return run_desk()
     if args.command == "status":
         return run_status(args)
+    if args.command == "questions":
+        return run_questions(args)
     if args.command == "profile":
         return run_profile(args)
     if args.command == "new":

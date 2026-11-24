@@ -1,6 +1,6 @@
 ---
 type: work
-status: in-progress
+status: awaiting-approval
 updated: 2026-11-24
 ---
 
@@ -8,7 +8,7 @@ updated: 2026-11-24
 
 > **Summary:** P1-08, second requirement: a read-only `kanon questions` command that lists the questions
 > recorded in work files, unanswered ones first, built after `kanon status` and compared with it.
-> **Decision needed:** None. Plan approved by Bwalker01 on 2026-11-24.
+> **Decision needed:** Review and merge the App's pull request for `kanon/kanon-questions/plan`, after the `kanon status` one; the merge is the approval. KQ-1 passed Kritos in round R1.
 
 ## 1. Plan
 
@@ -77,22 +77,55 @@ their likely cause, as an assessment.
 | 2026-11-24 | Plan `kanon status` first and `kanon questions` after it ships, or both now? Recommended: status first. | Both now (owner) |
 | 2026-11-24 | Delivery after approval (owner in chat, quoted in full in `2026-11-24-kanon-status.md`, Questions) | The close-out branch is `kanon/phase-1-close`; the plan approval rows travel with it. Both requirements are completed now, so `kanon/kanon-questions/plan` starts from `kanon/kanon-status/plan` after KS-1 is merged into it, and its pull request carries only KQ-1 once the status pull request merges |
 
-## 3. Review
+## 3. Actions
+
+| ID | Action | Assignee | Blocks | Done |
+|---|---|---|---|---|
+| A-1 | Make the App key readable on this computer | Bwalker01 | | yes |
+
+### A-1: App Key on This Computer
+
+1. Do A-1 of `kanon/work/2026-11-24-kanon-status.md`; the same key serves both pull requests.
+2. Tell the assistant; it runs `kanon github pr kanon-questions` after the `kanon status` pull request is open.
+3. Confirm: the pull request's author is `kanon-agent[bot]` and its diff holds only KQ-1 once the `kanon status` pull request has merged.
+
+Done 2026-11-24 with A-1 of `2026-11-24-kanon-status.md`: the key is in the git-ignored `.env`.
+
+## 4. Review
 
 | Round | Items | Reviewer | Verdict | Blocking | Outcome |
 |---|---|---|---|---|---|
 | P1 | Plan, with `kanon status` | Kritos (`kritos-reviewer` agent) | correct | 1, 3 to 6 | 1: Work Items table added. 3, 4: comparison check and token windows added. 5: sequence follows ADR-015 with the plan approval. 6: contrast wording removed. Non-blocking 7 (base), 8 (section order), 12 (exact count command), 13 (dates, duplicates, count line) applied. Outside this plan: `verify` reads `.claude/worktrees/`, listed as a prerequisite. |
 | P2 | Round 1 fixes (fcc3772 and the record after it) | Kritos (`kritos-reviewer` agent) | correct | Q1 | Q1: answers starting with `open`, `pending` or `awaiting` count as unanswered, with a check that this repository shows 3. Non-blocking N1, N2, N3, N4 (file count dropped), N5 applied. |
 | P3 | Round 2 fixes (370166a) | Kritos (`kritos-reviewer` agent) | pass | None | Non-blocking 1 (step 0 waits for every piece of work on the branch), 2 (step 0 merge does not approve), 3 (open count dated), 4 (whole words) and 5 (who creates the plan branch) applied. |
+| R1 | KQ-1 (75d5f82) | Kritos (`kritos-reviewer` agent) | pass | None | Every acceptance row met; 627 passed, 2 skipped. On this repository: `kanon questions` gives 1 open and 61 answered (62 rows), the plan's awk command gives 62, and an independent awk pass of the open rule gives the same single open row (`2026-11-22-windows-test-portability.md`). Non-blocking, recorded as limits below: 1 to 6. |
 
 **After round P3:** the open count example in 1.2 was corrected from 3 to 1 once the owner answered Q-1 and Q-2 on 2026-11-24; the rule is unchanged.
 
-## 4. Decision
+**Known limits after R1 (non-blocking):** 1: a second table inside the Questions section would be read as questions (the awk count shares the gap). 2: of two `## Questions` headings only the last is read. 3: the first word must start the answer, so "(pending)" counts as answered and "Open-ended" as open. 4: an escaped `\|` keeps its backslash. 5: `--work` takes the name without the date. 6: ties between files on one date, and undated answered rows, have no ordering test.
+
+## 5. Decision
 
 | Item | Decision | Date | Basis |
 |---|---|---|---|
 | Plan | Approved | 2026-11-24 | Owner in chat: "I approve all of the plans.". Transcribed by the assistant for Bwalker01; commit `1694896`; material: plan; sha256:f5497c82e21263e7d14b22bfb16a58206c2a5962f7b8796b3dd8f5a3d42f0217 |
+| KQ-1 | Approved on merge of pull request #10 | 2026-11-24 | https://github.com/Bwalker01/Kanon/pull/10; a code owner's review is required to merge |
 
-## 5. Cost
+## 6. Cost
 
-Recorded when work starts.
+Window: `kanon usage --since c4981c5` (the last `kanon status` record, after which this build began) to the end of review round R1. The shared plan rounds are counted in `kanon status` only.
+
+| Step | Output (main) | Output (subagents) | Cache writes | Cache reads | Estimated cost |
+|---|---|---|---|---|---|
+| KQ-1 build and review round R1 | 11,531 | 9,861 | 46,231 | 4,151,146 | not yet calculated (Claude Code has not updated its estimate) |
+
+**Comparison with the first run (plan section 1.4, recorded here because the approved plan is hashed):**
+
+| Measure | `kanon status` | `kanon questions` |
+|---|---|---|
+| Review rounds | 3 plan (shared) and 3 result | 0 own plan (shared, counted in status) and 1 result |
+| Questions asked | 3 | 2 |
+| Owner actions raised | 1 (App key) | 1 (the same key) |
+| Output tokens, main and subagents | 93,583 and 69,761 | 11,531 and 9,861 |
+
+Assessment: the second run cost about an eighth of the first. Likely causes: the joint plan rounds and the close-out records are counted in the first run only; the first run found and fixed the Windows output and line-ending problems, which the second reused; and the second command reads one table, with no profile filters to bypass.

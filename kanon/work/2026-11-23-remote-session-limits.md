@@ -7,7 +7,7 @@ updated: 2026-11-24
 # Remote Session Limits
 
 > **Summary:** Investigation of why work cannot be completed in Claude Code cloud sessions, with fixes made here and fixes or workarounds proposed to the owner.
-> **Decision needed:** Answer Q-2 (Q-1 answered 2026-11-24), and approve these findings; owner actions A-1 and A-2 appear on the Desk after `kanon desk`.
+> **Decision needed:** Approve these findings (Q-1 and Q-2 answered 2026-11-24); owner actions A-1 and A-2 appear on the Desk after `kanon desk`.
 
 ## 1. Plan
 
@@ -57,7 +57,7 @@ Out of scope: the Desk, which a cloud session can send to the owner as a file (d
 | Date | Question | Answer |
 |---|---|---|
 | 2026-11-23 | Q-1: the owner decided on 2026-11-19 that agents do not use the owner's GitHub login, with deny rules for the connector's acting tools, and on 2026-11-23 to deny GitHub connectors under any name, reading included (`2026-11-16-phase-1-plan.md`, Questions). New information (F-5): cloud sessions therefore cannot see pull request reviews or CI results. Reopening the 2026-11-23 answer to allow the connector's reading tools would make those reads under the owner's login. Options: allow reading only, or stay fully denied. Recommendation: allow reading only; default: stay denied | Owner, 2026-11-24: "github connectors should be fully denied, kanon should interact with github via the app". The 2026-11-23 answer stands; pull request and CI reads go through the Kanon App |
-| 2026-11-23 | Q-2: should a cloud session use the owner's computer through Remote Control (F-2)? That conflicts with rule 14 and ADR-014 (the person runs `kanon github pr`); on that computer an agent could reach the App key (ADR-014, Key) and the owner's `gh` login if one is signed in (assessment); whether Kanon's guard and deny rules apply to commands sent to an attached computer is untested. Options: no; or yes, only for `kanon github pr` and `kanon github check` after the owner approves each attach, with ADR-014 amended. Recommendation: no until the guard is tested there; default: no | Awaiting the owner |
+| 2026-11-23 | Q-2: should a cloud session use the owner's computer through Remote Control (F-2)? That conflicts with rule 14 and ADR-014 (the person runs `kanon github pr`); on that computer an agent could reach the App key (ADR-014, Key) and the owner's `gh` login if one is signed in (assessment); whether Kanon's guard and deny rules apply to commands sent to an attached computer is untested. Options: no; or yes, only for `kanon github pr` and `kanon github check` after the owner approves each attach, with ADR-014 amended. Recommendation: no until the guard is tested there; default: no | Owner, 2026-11-24: "no, cloud sessions should remain fully remote." Cloud sessions do not attach to the owner's computer |
 
 ## 3. Actions
 

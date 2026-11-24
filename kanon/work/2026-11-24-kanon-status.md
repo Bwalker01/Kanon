@@ -79,6 +79,7 @@ same sessions (on 2026-11-24, the Phase 1 records in 07e3263 and the remote sess
 | Date | Question | Answer |
 |---|---|---|
 | 2026-11-24 | Plan `kanon status` first and `kanon questions` after it ships, or both now? Recommended: status first. | Both now (owner) |
+| 2026-11-24 | Two problems found while running `kanon status`: merged work keeps a stale status, and `kanon transcribe` writes CRLF on Windows. Owner in chat: "simplify this. find a way to fix both problems and include the fixes in the kanon status creation." | Both fixed in KS-1 (8b8534f): work whose on-merge pull request merged counts as complete in `desk.build`; every Kanon text write uses LF |
 | 2026-11-24 | Delivery after approval. Owner in chat: "make a pr for the phase-1-close branch. this branch should also be named kanon/phase-1-close. claude's own branch naming convention should be dropped. I'll merge the phase-1-close branch and you begin working on status and questions - skip the PR for the plan for those and complete the work on them and open that PR once done." | The close-out branch is `kanon/phase-1-close`; the plan approval rows travel with it, so no separate plan pull request is needed for steps 0 and 2; `kanon/kanon-status/plan` starts from the tip of `kanon/phase-1-close` |
 
 ## 3. Review
@@ -88,6 +89,11 @@ same sessions (on 2026-11-24, the Phase 1 records in 07e3263 and the remote sess
 | P1 | Plan, with `kanon questions` | Kritos (`kritos-reviewer` agent) | correct | 1 to 5 | 1: no Work Items table, so `kanon branch start` failed; table added. 2: `desk.build` filters by profile; `everyone=True` and a test added. 3, 4: comparison checks and token windows added. 5: sequence follows ADR-015 with the plan approval. Non-blocking 7 (base), 8 (section order), 9 (network test), 10, 11 (wording) applied. Outside this plan: `verify` reads `.claude/worktrees/`, listed as a prerequisite. |
 | P2 | Round 1 fixes (fcc3772 and the record after it) | Kritos (`kritos-reviewer` agent) | correct | S1, S2 | S1: items in closed work now shown under "From closed work", with a test. S2: token window starts at an ISO time before planning. Non-blocking N1 (notes file), N2 (status before and after the pull request), N3 (base and approval commit), N5 (concurrent work labelled) applied. |
 | P3 | Round 2 fixes (370166a) | Kritos (`kritos-reviewer` agent) | pass | None | Non-blocking 1 (step 0 waits for every piece of work on the branch), 2 (step 0 merge does not approve), 5 (who creates the plan branch) and 6 (JSON check, concurrent work) applied. |
+| R1 | KS-1 (761e61e) | Kritos (`kritos-reviewer` agent) | correct | 1 | 1: piped output crashed on Windows code pages; fixed with a subprocess test. Non-blocking 2 (parked closed work), 3 (unassigned action), 4 (singular count), 5 (`urlopen` patched) fixed; 6 (plan example out of date) needs no change. |
+| R2 | KS-1 (0207847) | Kritos (`kritos-reviewer` agent) | pass | None | All round 1 findings confirmed; the piped-output test fails without the fix. Optional: pin one decision string; done in 8b8534f. |
+| R3 | KS-1 (8b8534f) | Kritos (`kritos-reviewer` agent) | pass | None | The owner's two fixes confirmed; the three new tests fail without them; 600 passed, 2 skipped. Non-blocking, recorded as limits below: 1 to 4. |
+
+**Known limits after R3 (non-blocking):** 1: a file reopened for a new item while its last Decision row is a merged on-merge row counts as complete until the new item adds a row. 2: the App key and the profile, both written outside the repository, still use text mode. 3: the merged-work test does not check leftovers under "From closed work" (confirmed by Kritos's probe). 4: the LF test covers the hook and `kanon/**/*.md`, not the files `kanon sync` writes.
 
 ## 4. Decision
 

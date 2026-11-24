@@ -81,13 +81,15 @@ their likely cause, as an assessment.
 
 | ID | Action | Assignee | Blocks | Done |
 |---|---|---|---|---|
-| A-1 | Make the App key readable on this computer | Bwalker01 | | no |
+| A-1 | Make the App key readable on this computer | Bwalker01 | | yes |
 
 ### A-1: App Key on This Computer
 
 1. Do A-1 of `kanon/work/2026-11-24-kanon-status.md`; the same key serves both pull requests.
 2. Tell the assistant; it runs `kanon github pr kanon-questions` after the `kanon status` pull request is open.
 3. Confirm: the pull request's author is `kanon-agent[bot]` and its diff holds only KQ-1 once the `kanon status` pull request has merged.
+
+Done 2026-11-24 with A-1 of `2026-11-24-kanon-status.md`: the key is in the git-ignored `.env`.
 
 ## 4. Review
 

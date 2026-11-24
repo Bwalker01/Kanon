@@ -354,7 +354,7 @@ def read_cache(root: Path) -> dict:
 def write_cache(root: Path, data: dict) -> None:
     path = root / CACHE
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    path.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8", newline="\n")
 
 
 def _mark_on_merge(text: str, number: int, url: str, today: str, merged_items: list[str]) -> str:
@@ -420,7 +420,7 @@ def open_pull_request(root: Path, work: str, base: str = "main", session: Sessio
               if re.search(rf"merge {re.escape(i)} into", _git(root, "log", "--merges", "--format=%s", f"{base}..{plan}"))]
     marked = _mark_on_merge(text, pull["number"], pull["html_url"], today or dt.date.today().isoformat(), merged)
     if marked != text:
-        (root / rel).write_text(marked, encoding="utf-8")
+        (root / rel).write_text(marked, encoding="utf-8", newline="\n")
         _git(root, "add", rel)
         _git(root, "commit", "-q", "-m", f"MODIFIED: {work} approved when pull request #{pull['number']} merges")
         push(root, session, plan)
@@ -452,7 +452,7 @@ def sync(root: Path, work: str, session: Session | None = None) -> list[str]:
         rel, text = branches.work_file(root, work)
         marked = _mark_closed(text, pull["number"], pull.get("html_url", ""), dt.date.today().isoformat())
         if marked != text:
-            (root / rel).write_text(marked, encoding="utf-8")
+            (root / rel).write_text(marked, encoding="utf-8", newline="\n")
         lines.append(f"pull request #{pull['number']} was closed without merging: {rel} reopened; commit the change")
     else:
         rel, text = branches.work_file(root, work)
@@ -489,7 +489,7 @@ def protect(root: Path, approvers: list[str], branch: str = "main", run=subproce
     if not owners.exists():
         owners.parent.mkdir(parents=True, exist_ok=True)
         owners.write_text("# Written by kanon github protect: approvers review every change.\n* "
-                          + " ".join(f"@{a}" for a in approvers) + "\n", encoding="utf-8")
+                          + " ".join(f"@{a}" for a in approvers) + "\n", encoding="utf-8", newline="\n")
         out.append(".github/CODEOWNERS written; commit it through a pull request")
     for index, step in enumerate(steps):
         result = run(step, cwd=root, input=json.dumps(rules) if index == 0 else None, capture_output=True, text=True)
@@ -562,6 +562,6 @@ def setup(root: Path, org: str | None = None, open_browser=None, port: int = 0, 
     text = settings_path.read_text(encoding="utf-8")
     block = f'[github]\napp_id = {int(app["id"])}\napp_slug = "{app["slug"]}"\n'
     text = re.sub(r"\[github\]\n(?:[^\[\n].*\n?)*", block, text) if "[github]" in text else text.rstrip("\n") + "\n\n" + block
-    settings_path.write_text(text, encoding="utf-8")
+    settings_path.write_text(text, encoding="utf-8", newline="\n")
     open_browser(f"https://github.com/apps/{app['slug']}/installations/new")
     return {"id": app["id"], "slug": app["slug"], "key": str(path)}

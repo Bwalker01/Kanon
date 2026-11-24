@@ -1,6 +1,6 @@
 ---
 type: work
-status: in-progress
+status: awaiting-approval
 updated: 2026-11-24
 ---
 
@@ -8,7 +8,7 @@ updated: 2026-11-24
 
 > **Summary:** P1-08, first requirement: a read-only `kanon status` command that prints each open piece
 > of work with its state and what waits on whom, built and delivered through the full Kanon loop.
-> **Decision needed:** None. Plan approved by Bwalker01 on 2026-11-24.
+> **Decision needed:** Review and merge the App's pull request for `kanon/kanon-status/plan` once it is opened; the merge is the approval. KS-1 passed Kritos in round R3.
 
 ## 1. Plan
 
@@ -79,22 +79,56 @@ same sessions (on 2026-11-24, the Phase 1 records in 07e3263 and the remote sess
 | Date | Question | Answer |
 |---|---|---|
 | 2026-11-24 | Plan `kanon status` first and `kanon questions` after it ships, or both now? Recommended: status first. | Both now (owner) |
+| 2026-11-24 | Two problems found while running `kanon status`: merged work keeps a stale status, and `kanon transcribe` writes CRLF on Windows. Owner in chat: "simplify this. find a way to fix both problems and include the fixes in the kanon status creation." | Both fixed in KS-1 (8b8534f): work whose on-merge pull request merged counts as complete in `desk.build`; every Kanon text write uses LF |
 | 2026-11-24 | Delivery after approval. Owner in chat: "make a pr for the phase-1-close branch. this branch should also be named kanon/phase-1-close. claude's own branch naming convention should be dropped. I'll merge the phase-1-close branch and you begin working on status and questions - skip the PR for the plan for those and complete the work on them and open that PR once done." | The close-out branch is `kanon/phase-1-close`; the plan approval rows travel with it, so no separate plan pull request is needed for steps 0 and 2; `kanon/kanon-status/plan` starts from the tip of `kanon/phase-1-close` |
 
-## 3. Review
+## 3. Actions
+
+| ID | Action | Assignee | Blocks | Done |
+|---|---|---|---|---|
+| A-1 | Make the App key readable on this computer | Bwalker01 | | yes |
+
+### A-1: App Key on This Computer
+
+1. Copy the Kanon Agent App's private key (the value of `KANON_APP_KEY` in the cloud "Kanon" environment) to `C:\Users\Ben Walker\.config\kanon\github-app.pem`, or set `KANON_APP_KEY` as a Windows user environment variable and restart the Claude app.
+2. Tell the assistant; it runs `kanon github check`, then `kanon github pr kanon-status`.
+3. Confirm: `kanon github check` lists the App as installed on `Bwalker01/Kanon`, and the pull request's author is `kanon-agent[bot]`.
+
+Done 2026-11-24: the owner put the key in the git-ignored `.env`; the assistant loads it into the shell for each `kanon github` command.
+
+## 4. Review
 
 | Round | Items | Reviewer | Verdict | Blocking | Outcome |
 |---|---|---|---|---|---|
 | P1 | Plan, with `kanon questions` | Kritos (`kritos-reviewer` agent) | correct | 1 to 5 | 1: no Work Items table, so `kanon branch start` failed; table added. 2: `desk.build` filters by profile; `everyone=True` and a test added. 3, 4: comparison checks and token windows added. 5: sequence follows ADR-015 with the plan approval. Non-blocking 7 (base), 8 (section order), 9 (network test), 10, 11 (wording) applied. Outside this plan: `verify` reads `.claude/worktrees/`, listed as a prerequisite. |
 | P2 | Round 1 fixes (fcc3772 and the record after it) | Kritos (`kritos-reviewer` agent) | correct | S1, S2 | S1: items in closed work now shown under "From closed work", with a test. S2: token window starts at an ISO time before planning. Non-blocking N1 (notes file), N2 (status before and after the pull request), N3 (base and approval commit), N5 (concurrent work labelled) applied. |
 | P3 | Round 2 fixes (370166a) | Kritos (`kritos-reviewer` agent) | pass | None | Non-blocking 1 (step 0 waits for every piece of work on the branch), 2 (step 0 merge does not approve), 5 (who creates the plan branch) and 6 (JSON check, concurrent work) applied. |
+| R1 | KS-1 (761e61e) | Kritos (`kritos-reviewer` agent) | correct | 1 | 1: piped output crashed on Windows code pages; fixed with a subprocess test. Non-blocking 2 (parked closed work), 3 (unassigned action), 4 (singular count), 5 (`urlopen` patched) fixed; 6 (plan example out of date) needs no change. |
+| R2 | KS-1 (0207847) | Kritos (`kritos-reviewer` agent) | pass | None | All round 1 findings confirmed; the piped-output test fails without the fix. Optional: pin one decision string; done in 8b8534f. |
+| R3 | KS-1 (8b8534f) | Kritos (`kritos-reviewer` agent) | pass | None | The owner's two fixes confirmed; the three new tests fail without them; 600 passed, 2 skipped. Non-blocking, recorded as limits below: 1 to 4. |
 
-## 4. Decision
+**Known limits after R3 (non-blocking):** 1: a file reopened for a new item while its last Decision row is a merged on-merge row counts as complete until the new item adds a row. 2: the App key and the profile, both written outside the repository, still use text mode. 3: the merged-work test does not check leftovers under "From closed work" (confirmed by Kritos's probe). 4: the LF test covers the hook and `kanon/**/*.md`, not the files `kanon sync` writes.
+
+## 5. Decision
 
 | Item | Decision | Date | Basis |
 |---|---|---|---|
 | Plan | Approved | 2026-11-24 | Owner in chat: "I approve all of the plans.". Transcribed by the assistant for Bwalker01; commit `1694896`; material: plan; sha256:cabd80550d319adcf53c38d91709ac3d50747887c17c9c4ce442c1f1596e9b37 |
+| KS-1 | Approved on merge of pull request #9 | 2026-11-24 | https://github.com/Bwalker01/Kanon/pull/9; a code owner's review is required to merge |
 
-## 5. Cost
+## 6. Cost
 
-Recorded when work starts.
+Window: `kanon usage --since 2026-11-24T18:05:00Z --until 2b5406b` (plan section 1.4). It also counts other work in the same session: the Phase 1 records (07e3263), the remote session limits commits moved onto `kanon/phase-1-close` and the Windows test fix (174feb3).
+
+| Step | Output (main) | Output (subagents) | Cache writes | Cache reads | Estimated cost |
+|---|---|---|---|---|---|
+| plans (shared with kanon questions), close-out records, KS-1 build and 3 reviews | 93,583 | 69,761 | 485,510 | 36,831,140 | not yet calculated (Claude Code has not updated its estimate) |
+
+**Measures for P1-08 (plan section 1.4, recorded here because the approved plan is hashed):**
+
+| Measure | Value |
+|---|---|
+| Review rounds | 3 plan rounds (P1 to P3, shared with `kanon questions`); 3 result rounds (R1 to R3) |
+| Questions asked | 3 (section 2): plan order, delivery after approval, the two added fixes |
+| Owner actions raised | 1: place the App key where this computer can read it, so the App can open the pull request |
+| Tokens | The Cost row above (shared plan rounds included) |

@@ -166,11 +166,11 @@ def ensure_guard_hook(root: Path) -> str:
                 if hook.get("command") == GUARD_COMMAND:
                     return "present"
                 hook["command"] = GUARD_COMMAND  # an older Kanon guard entry: bring it up to date
-                path.write_text(json.dumps(settings, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+                path.write_text(json.dumps(settings, indent=2, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n")
                 return "added"
     entries.append({"matcher": "Bash", "hooks": [{"type": "command", "command": GUARD_COMMAND}]})
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(settings, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    path.write_text(json.dumps(settings, indent=2, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n")
     return "added"
 
 
@@ -261,7 +261,7 @@ def ensure_permissions(root: Path) -> str:
         return "present"
     deny += missing
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(settings, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    path.write_text(json.dumps(settings, indent=2, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n")
     return "added"
 
 
@@ -280,7 +280,7 @@ def ensure_gitignore(root: Path) -> bool:
         raise ValueError(".gitignore has a damaged Kanon block (markers missing, repeated or out of order); "
                          "fix or remove it by hand, then run kanon sync again")
     if new != text:
-        path.write_text(new, encoding="utf-8")
+        path.write_text(new, encoding="utf-8", newline="\n")
         return True
     return False
 
@@ -316,7 +316,7 @@ def sync(root: Path) -> SyncResult:
                 result.refused.append(rel)
                 continue
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(content, encoding="utf-8")
+        path.write_text(content, encoding="utf-8", newline="\n")
         result.written.append(rel)
     hook = ensure_guard_hook(root)
     # A settings file Kanon could not read safely is left exactly as it is.

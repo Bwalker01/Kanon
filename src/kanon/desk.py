@@ -189,14 +189,15 @@ def _git(root: Path, *args: str) -> str:
     return subprocess.run(["git", *args], cwd=root, capture_output=True, text=True).stdout.strip()
 
 
-def build(root: Path, today: dt.datetime | None = None) -> Desk:
+def build(root: Path, today: dt.datetime | None = None, everyone: bool = False) -> Desk:
+    """The Desk's data. `everyone=True` (for `kanon status`) skips the profile filters."""
     notes: list[str] = []
     try:
         person = profiles.load()
     except ValueError as error:
         person, _ = None, notes.append(f"profile ignored: {error}")
-    github = (person.github if person else "").lower()
-    if not github:
+    github = "" if everyone else (person.github if person else "").lower()
+    if not github and not everyone:
         notes.append("no GitHub username in the profile: showing every person's items (see `kanon profile`)")
     try:
         settings = tomllib.loads((root / "kanon/kanon.toml").read_text(encoding="utf-8"))
@@ -218,6 +219,7 @@ def build(root: Path, today: dt.datetime | None = None) -> Desk:
         pending = approvals.ON_MERGE_NUMBER.search(rows[-1].decision) if rows else None
         if pending and int(pending.group(1)) in merged:
             d = None  # the pull request merged: decided (P1-10)
+            w.status = "complete"  # the merge is the approval, even before the file's status is updated
         elif pending:  # waiting on GitHub, read from the work file and Git history only (K-402)
             number, url = pending.group(1), links.get(rel, "")
             d = Decision("", rel, w.title, f"Pull request #{number} carries this work; merging it is the approval.",
@@ -450,11 +452,61 @@ background:var(--card);color:var(--accent)}}.btn.primary{{background:var(--accen
 """
 
 
+def _closed_paths(desk: Desk) -> list[str]:
+    """Closed work files that still hold a decision, an open action or a late review, in path order."""
+    open_paths = {w.path for w in desk.work}
+    return sorted({item.work for item in (*desk.decisions, *desk.actions, *desk.reviews)} - open_paths)
+
+
+def _items_for(desk: Desk, path: str) -> tuple[list[Decision], list[Action], list[LateReview]]:
+    return ([d for d in desk.decisions if d.work == path], [a for a in desk.actions if a.work == path],
+            [r for r in desk.reviews if r.work == path])
+
+
+def _item_lines(desk: Desk, path: str) -> list[str]:
+    decisions, actions, reviews = _items_for(desk, path)
+    out = [f"    Decision: {d.needed}" for d in decisions]
+    out += [f"    Action {a.id} ({a.assignee or 'unassigned'}): {a.title}" for a in actions]
+    out += [f"    Late review, round {r.round}" for r in reviews]
+    return out
+
+
+def render_terminal(desk: Desk) -> str:
+    """`kanon status`: every open piece of work with what waits on it, then items left in closed work."""
+    closed = _closed_paths(desk)
+    if not desk.work and not closed:
+        out = [f"Branch {desk.branch}: No open work."]
+    else:
+        count = len(desk.work)
+        out = [f"Branch {desk.branch}: {count} {'piece' if count == 1 else 'pieces'} of work open."]
+        for w in desk.work:
+            out += ["", f"{w.title} ({w.status})", f"    {w.path}"] + _item_lines(desk, w.path)
+        if closed:
+            out += ["", "From closed work"]
+            for path in closed:
+                out += ["", f"  {path}"] + _item_lines(desk, path)
+    out += [f"Note: {n}" for n in desk.notes]
+    return "\n".join(out) + "\n"
+
+
+def status_data(desk: Desk) -> dict:
+    """`kanon status --json`: the same content as render_terminal."""
+    def items(path: str) -> dict:
+        decisions, actions, reviews = _items_for(desk, path)
+        return {"decisions": [d.needed for d in decisions],
+                "actions": [{"id": a.id, "title": a.title, "assignee": a.assignee} for a in actions],
+                "late_reviews": [{"round": r.round, "outcome": r.outcome} for r in reviews]}
+    return {"branch": desk.branch,
+            "work": [{"path": w.path, "title": w.title, "status": w.status, **items(w.path)} for w in desk.work],
+            "closed_work": [{"path": p, **items(p)} for p in _closed_paths(desk)],
+            "notes": list(desk.notes)}
+
+
 def write(root: Path, today: dt.datetime | None = None) -> Desk:
     desk = build(root, today)
     folder = root / LOCAL
     folder.mkdir(parents=True, exist_ok=True)
-    (folder / "DESK.md").write_text(render_markdown(desk), encoding="utf-8")
-    (folder / "STATUS.md").write_text(render_status(desk), encoding="utf-8")
-    (folder / "desk.html").write_text(render_html(desk), encoding="utf-8")
+    (folder / "DESK.md").write_text(render_markdown(desk), encoding="utf-8", newline="\n")
+    (folder / "STATUS.md").write_text(render_status(desk), encoding="utf-8", newline="\n")
+    (folder / "desk.html").write_text(render_html(desk), encoding="utf-8", newline="\n")
     return desk

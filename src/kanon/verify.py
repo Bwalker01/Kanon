@@ -497,6 +497,6 @@ def install_hook(root: Path, name: str = "pre-commit", content: str | None = Non
         if "# Installed by kanon init." not in current or current == content:
             return str(hook), False  # someone else's hook, or already current
     hook.parent.mkdir(parents=True, exist_ok=True)
-    hook.write_text(content, encoding="utf-8")
+    hook.write_text(content, encoding="utf-8", newline="\n")
     hook.chmod(0o755)
     return str(hook), True

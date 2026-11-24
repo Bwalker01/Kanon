@@ -71,7 +71,7 @@ def _write_new(root: Path, rel: str, content: str, result: InitResult) -> None:
         result.kept.append(rel)
         return
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8")
+    path.write_text(content, encoding="utf-8", newline="\n")
     result.created.append(rel)
 
 
@@ -162,5 +162,5 @@ def new_work(path: Path, topic: str, today: dt.date | None = None) -> Path:
     title = topic.strip()[:1].upper() + topic.strip()[1:]
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(render("work.md", date=date, title=title, summary="To be written with the plan."),
-                      encoding="utf-8")
+                      encoding="utf-8", newline="\n")
     return target

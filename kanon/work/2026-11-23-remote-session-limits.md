@@ -86,6 +86,8 @@ Out of scope: the Desk, which a cloud session can send to the owner as a file (d
 | 1 | Findings, actions, `stale_install` (b5f32c8) | Kritos (`kritos-reviewer` agent) | correct | K-500 to K-502 | Fixed in 328f5af: K-500 (push permission now set by the owner in the setup script and checked in a new session), K-501 (Remote Control became Q-2), K-502 (Q-1 cites the owner's answer), K-503 (F-6 says mitigated, with limits), K-504 (counts labelled an assessment), K-505 (untested paths marked), K-506 (sources or assessment labels), K-507 (F-8 corrected), K-508 (F-10 cites ADR-014 and is closed for P1-05 to P1-10), K-509 (F-11 to F-13 added), K-510 (project name read with tomllib; more tests), K-511 (cost recorded) |
 | 2 | Round 1 fixes (328f5af) | Kritos (`kritos-reviewer` agent) | correct | K-520, K-521 | K-520 (Q-1 misstated the 2026-11-19 answer and left out the 2026-11-23 one), K-521 (F-11 and F-13 lacked sources), K-522 to K-530 fixed after the final round; not independently reviewed. Owner decides at the review point |
 
+**Moved 2026-11-24:** cherry-picked onto `claude/phase-1-close` for the Phase 1 close-out (owner). `test_a_stale_install_in_kanons_own_repository_is_reported` failed on Windows because `write_text` adds carriage returns; it now writes bytes. Not independently reviewed; the owner decides at the review point.
+
 ## 5. Decision
 
 Pending.

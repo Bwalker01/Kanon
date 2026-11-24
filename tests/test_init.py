@@ -349,7 +349,7 @@ def test_a_stale_install_in_kanons_own_repository_is_reported(tmp_path, monkeypa
     assert ksync.stale_install(root) is None
     (root / "src" / "kanon" / "guard.py").write_text("# changed\n")
     assert "uv tool install --force ." in ksync.stale_install(root)
-    (root / "src" / "kanon" / "guard.py").write_text((Path(str(package_files("kanon"))) / "guard.py").read_text())
+    (root / "src" / "kanon" / "guard.py").write_bytes((Path(str(package_files("kanon"))) / "guard.py").read_bytes())  # bytes: write_text adds CR on Windows
     extra = root / "src" / "kanon" / "extra.py"
     extra.write_text("x = 1\n")  # an added file
     assert ksync.stale_install(root)

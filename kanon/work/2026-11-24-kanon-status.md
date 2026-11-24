@@ -34,7 +34,7 @@ updated: 2026-11-24
 | Base | This plan is committed on its own on `claude/phase-1-close` (rule 1), which reaches `main` through the owner's pull request. `kanon/kanon-status/plan` is then created from that `main` commit, so its pull request carries only this work. |
 | Branches | One item, `KS-1` (section 1.3), on `kanon/kanon-status/KS-1`, merged into `kanon/kanon-status/plan`. |
 | Sequence | 1. Kritos passes the plan. 2. The owner approves the plan (`kanon approve kanon-status --plan` or a transcribed reply). 3. `kanon branch start kanon-status KS-1`; build and commit on the item branch. 4. Kritos reviews the result; findings and rounds recorded in section 3. 5. `kanon branch merge kanon-status KS-1`. 6. `kanon verify` and the Cost row. 7. `kanon github pr kanon-status` opens a draft as the App and writes the "approved when pull request #N merges" row itself. 8. `kanon github notes kanon-status` posts Kritos's findings as a comment review (P1-10). 9. `kanon github ready kanon-status`; CI runs (ADR-015). 10. The owner merges; the merge is the approval. Nothing is pushed before step 7. |
-| Prerequisite | `kanon verify` must skip git-ignored folders under `.claude` (it now reads `.claude/worktrees/`, `src/kanon/verify.py:447`). Fixed as separate work before step 4, or the owner removes the stale worktree. |
+| Prerequisite | `kanon verify` must skip git-ignored folders under `.claude` (it now reads `.claude/worktrees/`, `src/kanon/verify.py:447`). The stale worktree was removed on 2026-11-24 (owner), so `verify` passes now; the fix stays a separate piece of work. |
 
 ### 1.2 Acceptance
 
@@ -77,7 +77,9 @@ recorded once, here, and marked as shared. Assessment: this makes the first run 
 
 ## 3. Review
 
-Not yet reviewed.
+| Round | Items | Reviewer | Verdict | Blocking | Outcome |
+|---|---|---|---|---|---|
+| P1 | Plan, with `kanon questions` | Kritos (`kritos-reviewer` agent) | correct | 1 to 5 | 1: no Work Items table, so `kanon branch start` failed; table added. 2: `desk.build` filters by profile; `everyone=True` and a test added. 3, 4: comparison checks and token windows added. 5: sequence follows ADR-015 with the plan approval. Non-blocking 7 (base), 8 (section order), 9 (network test), 10, 11 (wording) applied. Outside this plan: `verify` reads `.claude/worktrees/`, listed as a prerequisite. |
 
 ## 4. Decision
 

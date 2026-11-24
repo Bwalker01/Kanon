@@ -35,7 +35,7 @@ updated: 2026-11-24
 | Base | This plan is committed on its own on `claude/phase-1-close` with the `kanon status` plan. `kanon/kanon-questions/plan` is created from `main` after the `kanon status` pull request merges, so it starts from that code and carries only this work. |
 | Branches | One item, `KQ-1` (section 1.3), on `kanon/kanon-questions/KQ-1`, merged into `kanon/kanon-questions/plan`. |
 | Sequence | 1. Kritos passes the plan. 2. The owner approves the plan (`kanon approve kanon-questions --plan` or a transcribed reply). 3. `kanon branch start kanon-questions KQ-1`; build and commit on the item branch. 4. Kritos reviews the result; findings and rounds recorded in section 3. 5. `kanon branch merge kanon-questions KQ-1`. 6. `kanon verify` and the Cost row. 7. `kanon github pr kanon-questions` opens a draft as the App and writes the "approved when pull request #N merges" row itself. 8. `kanon github notes kanon-questions` posts Kritos's findings as a comment review (P1-10). 9. `kanon github ready kanon-questions`; CI runs (ADR-015). 10. The owner merges; the merge is the approval. Nothing is pushed before step 7. |
-| Prerequisite | As for `kanon status`: `kanon verify` must skip git-ignored folders under `.claude`. |
+| Prerequisite | As for `kanon status`: `kanon verify` should skip git-ignored folders under `.claude`; it passes now that the stale worktree is removed. |
 
 ### 1.2 Acceptance
 
@@ -75,7 +75,9 @@ is counted in `kanon status` only. Differences are stated with their likely caus
 
 ## 3. Review
 
-Not yet reviewed.
+| Round | Items | Reviewer | Verdict | Blocking | Outcome |
+|---|---|---|---|---|---|
+| P1 | Plan, with `kanon status` | Kritos (`kritos-reviewer` agent) | correct | 1, 3 to 6 | 1: Work Items table added. 3, 4: comparison check and token windows added. 5: sequence follows ADR-015 with the plan approval. 6: contrast wording removed. Non-blocking 7 (base), 8 (section order), 12 (exact count command), 13 (dates, duplicates, count line) applied. Outside this plan: `verify` reads `.claude/worktrees/`, listed as a prerequisite. |
 
 ## 4. Decision
 

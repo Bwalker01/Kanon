@@ -1,7 +1,10 @@
 """`kanon status` (KS-1, kanon/work/2026-11-24-kanon-status.md)."""
 
 import json
+import os
 import re
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -19,6 +22,14 @@ def late(text):
     return text.replace("Not yet reviewed.", REVIEW)
 
 
+PARKED_ACTIONS = """| ID | Action | Assignee | Blocks | Done |
+|---|---|---|---|---|
+| A-9 | Nobody's job | | | no |
+"""
+ON_MERGE = ("| Item | Decision | Date | Basis |\n|---|---|---|---|\n"
+            "| Result | Approved on merge of pull request #9 | 2026-11-18 | https://github.com/o/r/pull/9 |")
+
+
 @pytest.fixture
 def project(repo):
     work = repo / "kanon/work"
@@ -26,7 +37,9 @@ def project(repo):
     (work / "2026-11-18-waiting.md").write_text(
         work_file("Waiting", status="awaiting-approval", needed="Approve the plan."), encoding="utf-8")
     (work / "2026-11-18-done.md").write_text(late(work_file("Done", ACTIONS, status="complete")), encoding="utf-8")
-    (work / "2026-11-18-parked.md").write_text(work_file("Parked", status="parked"), encoding="utf-8")
+    parked = work_file("Parked", PARKED_ACTIONS, status="parked").replace("## 5. Decision\n\nPending.",
+                                                                             "## 5. Decision\n\n" + ON_MERGE)
+    (work / "2026-11-18-parked.md").write_text(parked, encoding="utf-8")
     (work / "2026-11-18-quiet.md").write_text(work_file("Quiet", status="complete"), encoding="utf-8")
     commit(repo, "work")
     return repo
@@ -65,8 +78,12 @@ def test_open_items_in_closed_work_are_listed_under_from_closed_work(project, ca
     monkeypatch.chdir(project)
     _, out = run(capsys)
     closed = out.split("From closed work")[1]
-    assert re.findall(r"^  (kanon/work/\S+)$", closed, re.M) == ["kanon/work/2026-11-18-done.md"]
-    assert "Action A-1 (ada-dev)" in closed and "Late review, round 2" in closed
+    assert re.findall(r"^  (kanon/work/\S+)$", closed, re.M) == ["kanon/work/2026-11-18-done.md",
+                                                                  "kanon/work/2026-11-18-parked.md"]
+    done, parked = closed.split("kanon/work/2026-11-18-parked.md")
+    assert "Action A-1 (ada-dev)" in done and "Late review, round 2" in done
+    assert "Action A-9 (unassigned): Nobody's job" in parked
+    assert "Decision: Pull request #9 carries this work" in parked or "Decision: Review and merge pull request #9" in parked
 
 
 def test_a_profile_that_is_neither_assignee_nor_approver_still_sees_everything(project, capsys, monkeypatch):
@@ -79,7 +96,7 @@ def test_a_profile_that_is_neither_assignee_nor_approver_still_sees_everything(p
     assert opened["kanon/work/2026-11-18-waiting.md"]["decisions"] == ["Approve the plan."]
     assert sorted(a["id"] for a in opened["kanon/work/2026-11-18-open.md"]["actions"]) == ["A-1", "A-2", "A-3"]
     assert opened["kanon/work/2026-11-18-open.md"]["late_reviews"][0]["round"] == "2"
-    assert data["closed_work"][0]["path"] == "kanon/work/2026-11-18-done.md"
+    assert [c["path"] for c in data["closed_work"]] == ["kanon/work/2026-11-18-done.md", "kanon/work/2026-11-18-parked.md"]
     assert not any("showing every person's items" in n for n in data["notes"])
 
 
@@ -95,6 +112,7 @@ def test_no_network_call_is_made(project, capsys, monkeypatch):
         raise AssertionError("network call")
     monkeypatch.setattr(github, "sign_in", refuse)
     monkeypatch.setattr(github, "call", refuse)
+    monkeypatch.setattr("urllib.request.urlopen", refuse)
     monkeypatch.chdir(project)
     assert run(capsys)[0] == 0 and run(capsys, "--json")[0] == 0
 
@@ -109,7 +127,7 @@ def test_json_holds_the_same_content_as_the_text(project, capsys, monkeypatch):
         for d in entry["decisions"]:
             assert f"Decision: {d}" in text
         for a in entry["actions"]:
-            assert f"Action {a['id']} ({a['assignee']}): {a['title']}" in text
+            assert f"Action {a['id']} ({a['assignee'] or 'unassigned'}): {a['title']}" in text
         for r in entry["late_reviews"]:
             assert f"Late review, round {r['round']}" in text
     assert [c["path"] for c in data["closed_work"]] == re.findall(r"^  (kanon/work/\S+)$", text, re.M)
@@ -126,6 +144,21 @@ def test_no_file_is_written_or_changed(project, capsys, monkeypatch):
     run(capsys)
     run(capsys, "--json")
     assert snapshot(project) == before  # includes kanon/local/, which kanon init already filled
+
+
+def test_piped_output_survives_characters_outside_the_code_page(project):
+    path = project / "kanon/work/2026-11-18-open.md"
+    path.write_text(path.read_text(encoding="utf-8").replace("# Open", "# Arrows → Work"), encoding="utf-8")
+    env = {**os.environ, "PYTHONIOENCODING": "cp1252", "PYTHONUTF8": "0"}
+    result = subprocess.run([sys.executable, "-m", "kanon", "status"], cwd=project, env=env, capture_output=True)
+    assert result.returncode == 0, result.stderr.decode(errors="replace")
+    assert b"Arrows ? Work" in result.stdout
+
+
+def test_one_open_piece_is_singular(repo, capsys, monkeypatch):
+    (repo / "kanon/work/2026-11-18-one.md").write_text(work_file("One"), encoding="utf-8")
+    monkeypatch.chdir(repo)
+    assert "1 piece of work open." in run(capsys)[1]
 
 
 def test_runs_from_a_subdirectory(project, capsys, monkeypatch):

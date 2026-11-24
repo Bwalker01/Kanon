@@ -476,7 +476,8 @@ def render_terminal(desk: Desk) -> str:
     if not desk.work and not closed:
         out = [f"Branch {desk.branch}: No open work."]
     else:
-        out = [f"Branch {desk.branch}: {len(desk.work)} pieces of work open."]
+        count = len(desk.work)
+        out = [f"Branch {desk.branch}: {count} {'piece' if count == 1 else 'pieces'} of work open."]
         for w in desk.work:
             out += ["", f"{w.title} ({w.status})", f"    {w.path}"] + _item_lines(desk, w.path)
         if closed:

@@ -162,9 +162,13 @@ def run_status(args: argparse.Namespace) -> int:
     from kanon import desk as desk_module
     result = desk_module.build(root, everyone=True)
     if args.json:
-        print(json.dumps(desk_module.status_data(result), indent=2))
-    else:
-        print(desk_module.render_terminal(result), end="")
+        print(json.dumps(desk_module.status_data(result), indent=2))  # ASCII by default
+        return 0
+    import sys
+    # A piped stdout on Windows uses the ANSI code page (cp1252), which cannot encode every title.
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(errors="replace")
+    print(desk_module.render_terminal(result), end="")
     return 0
 
 

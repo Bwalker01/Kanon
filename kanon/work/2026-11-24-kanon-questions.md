@@ -43,7 +43,7 @@ updated: 2026-11-24
 |---|---|
 | Every Questions row in every work file is found once; rows in code fences are not | Test on a fixture repository |
 | Empty and `-` answers, and answers whose first word is `open`, `pending` or `awaiting`, are unanswered; "Opened" and any other text are answered | Tests, one per form |
-| On this repository the open rows equal those that fit the rule at build time (as of 2026-11-24: 3, Q-1 and Q-2 in `2026-11-23-remote-session-limits.md` and the open row in `2026-11-22-windows-test-portability.md`) | Command output and an independent count recorded in section 3 |
+| On this repository the open rows equal those that fit the rule at build time (as of 2026-11-24, after the owner answered Q-1 and Q-2 of `2026-11-23-remote-session-limits.md`: 1, the open row in `2026-11-22-windows-test-portability.md`) | Command output and an independent count recorded in section 3 |
 | Order: unanswered oldest first; with `--all`, answered newest first | Test |
 | `--work` limits to one file; an unknown name exits 2 with a message | Tests |
 | `--json` holds the same rows as the text output | Test |
@@ -83,6 +83,8 @@ their likely cause, as an assessment.
 | P1 | Plan, with `kanon status` | Kritos (`kritos-reviewer` agent) | correct | 1, 3 to 6 | 1: Work Items table added. 3, 4: comparison check and token windows added. 5: sequence follows ADR-015 with the plan approval. 6: contrast wording removed. Non-blocking 7 (base), 8 (section order), 12 (exact count command), 13 (dates, duplicates, count line) applied. Outside this plan: `verify` reads `.claude/worktrees/`, listed as a prerequisite. |
 | P2 | Round 1 fixes (fcc3772 and the record after it) | Kritos (`kritos-reviewer` agent) | correct | Q1 | Q1: answers starting with `open`, `pending` or `awaiting` count as unanswered, with a check that this repository shows 3. Non-blocking N1, N2, N3, N4 (file count dropped), N5 applied. |
 | P3 | Round 2 fixes (370166a) | Kritos (`kritos-reviewer` agent) | pass | None | Non-blocking 1 (step 0 waits for every piece of work on the branch), 2 (step 0 merge does not approve), 3 (open count dated), 4 (whole words) and 5 (who creates the plan branch) applied. |
+
+**After round P3:** the open count example in 1.2 was corrected from 3 to 1 once the owner answered Q-1 and Q-2 on 2026-11-24; the rule is unchanged.
 
 ## 4. Decision
 

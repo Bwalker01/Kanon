@@ -1,13 +1,13 @@
 ---
 type: work
 status: awaiting-approval
-updated: 2026-11-23
+updated: 2026-11-24
 ---
 
 # Remote Session Limits
 
 > **Summary:** Investigation of why work cannot be completed in Claude Code cloud sessions, with fixes made here and fixes or workarounds proposed to the owner.
-> **Decision needed:** Answer Q-1 and Q-2 (asked in chat), and approve these findings; owner actions A-1 and A-2 appear on the Desk after `kanon desk`.
+> **Decision needed:** Answer Q-2 (Q-1 answered 2026-11-24), and approve these findings; owner actions A-1 and A-2 appear on the Desk after `kanon desk`.
 
 ## 1. Plan
 
@@ -40,7 +40,7 @@ updated: 2026-11-23
 | F-2 | A cloud session cannot run commands on the owner's computer | Tested: `list_computer_folders` returned no folders on 2026-11-23 | No folder is shared through Remote Control; the environment documentation says sharing may not be available to every account | Q-2 |
 | F-3 | Pushing any branch but the session's own needs the owner's permission in each session | This session's harness instruction: "Push to no other branch without explicit permission"; P1-10 needed a question on 2026-11-20 | The cloud harness's default | A-2 records a standing permission in the environment's setup script; whether the harness accepts it as explicit permission is an assessment until A-2's check passes |
 | F-4 | The owner's GitHub login carries the clone and harness pushes, and cannot be removed | Tested: this session's command-line Git configuration holds the URL rewrites and credential settings (2026-11-23) | Claude's GitHub connection serves the session's Git traffic | Recorded limit (ADR-014); rule 14 and the connector deny stop agents opening, approving or merging pull requests with it |
-| F-5 | Cloud sessions cannot read pull requests or CI results | Tested: `gh auth status` reports "The token in GH_TOKEN is invalid" (2026-11-23); the whole connector is denied since 9ba6245 | The connector, which acts as the owner, was the only reader; `gh` serves only search here (assessment, from this session's harness instructions) | Q-1 |
+| F-5 | Cloud sessions cannot read pull requests or CI results | Tested: `gh auth status` reports "The token in GH_TOKEN is invalid" (2026-11-23); the whole connector is denied since 9ba6245 | The connector, which acts as the owner, was the only reader; `gh` serves only search here (assessment, from this session's harness instructions) | Q-1 answered 2026-11-24: connectors stay fully denied; reads go through the Kanon App |
 | F-6 | The installed `kanon` drifts from the repository after engine changes | On 2026-11-18 `kanon sync` left the guard hook unchanged after fixes until `uv tool install --force .` ran; later engine changes needed the same step (assessment: this session's commands, not a repository record) | `uv tool install` copies a snapshot; the setup script installs once per session | Mitigated: `kanon sync` in Kanon's own repository now reports a stale install with the command to refresh it (`stale_install`, tested). It still writes the stale files, the first refresh after this change is manual, and `kanon verify` does not check |
 | F-7 | Environment variables apply only to new or resumed sessions | Tested: `KANON_APP_ID` was missing until the session was resumed (2026-11-20) | Containers read variables at start (assessment) | Resume or start a session after changing the environment |
 | F-8 | Uncommitted or unpushed edits can be lost when the worker restarts | Two worker restarts in this session; L-003 | Only pushed commits survive a replaced container (assessment) | Commit after each change (L-003); the harness's Stop hook asks for a push (`/root/.claude/launcher-settings.json`, harness level). No Kanon rule requires the push; a push rule can be added if the owner wants it |
@@ -56,7 +56,7 @@ Out of scope: the Desk, which a cloud session can send to the owner as a file (d
 
 | Date | Question | Answer |
 |---|---|---|
-| 2026-11-23 | Q-1: the owner decided on 2026-11-19 that agents do not use the owner's GitHub login, with deny rules for the connector's acting tools, and on 2026-11-23 to deny GitHub connectors under any name, reading included (`2026-11-16-phase-1-plan.md`, Questions). New information (F-5): cloud sessions therefore cannot see pull request reviews or CI results. Reopening the 2026-11-23 answer to allow the connector's reading tools would make those reads under the owner's login. Options: allow reading only, or stay fully denied. Recommendation: allow reading only; default: stay denied | Awaiting the owner |
+| 2026-11-23 | Q-1: the owner decided on 2026-11-19 that agents do not use the owner's GitHub login, with deny rules for the connector's acting tools, and on 2026-11-23 to deny GitHub connectors under any name, reading included (`2026-11-16-phase-1-plan.md`, Questions). New information (F-5): cloud sessions therefore cannot see pull request reviews or CI results. Reopening the 2026-11-23 answer to allow the connector's reading tools would make those reads under the owner's login. Options: allow reading only, or stay fully denied. Recommendation: allow reading only; default: stay denied | Owner, 2026-11-24: "github connectors should be fully denied, kanon should interact with github via the app". The 2026-11-23 answer stands; pull request and CI reads go through the Kanon App |
 | 2026-11-23 | Q-2: should a cloud session use the owner's computer through Remote Control (F-2)? That conflicts with rule 14 and ADR-014 (the person runs `kanon github pr`); on that computer an agent could reach the App key (ADR-014, Key) and the owner's `gh` login if one is signed in (assessment); whether Kanon's guard and deny rules apply to commands sent to an attached computer is untested. Options: no; or yes, only for `kanon github pr` and `kanon github check` after the owner approves each attach, with ADR-014 amended. Recommendation: no until the guard is tested there; default: no | Awaiting the owner |
 
 ## 3. Actions

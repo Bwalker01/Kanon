@@ -14,7 +14,7 @@ updated: 2026-11-23
 | Field | Value |
 |---|---|
 | Output | Section 1.3 Findings: each limit with evidence, cause, and a fix made, proposed or a workaround; any fixes Kanon can make itself, with tests |
-| Inputs | Owner request, 2026-11-23 (`kanon/sources.md`, section 18); this session's record (P1-05 to P1-10, learnings L-001 to L-004); the environment documentation; read-only probes in this session |
+| Inputs | Owner request, 2026-11-23 (`kanon/sources.md`, section 20); this session's record (P1-05 to P1-10, learnings L-001 to L-004); the environment documentation; read-only probes in this session |
 | Acceptance | Every finding cites a test, a probe or a documented source, or is labelled an assessment; no probe retries a proxy denial or works around a policy; each proposed fix names who acts and how success is confirmed |
 | Creator | Claude Code (cloud session) |
 | Reviewer | Kritos (`kritos-reviewer` agent) |

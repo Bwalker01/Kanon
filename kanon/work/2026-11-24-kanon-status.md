@@ -86,13 +86,15 @@ same sessions (on 2026-11-24, the Phase 1 records in 07e3263 and the remote sess
 
 | ID | Action | Assignee | Blocks | Done |
 |---|---|---|---|---|
-| A-1 | Make the App key readable on this computer | Bwalker01 | | no |
+| A-1 | Make the App key readable on this computer | Bwalker01 | | yes |
 
 ### A-1: App Key on This Computer
 
 1. Copy the Kanon Agent App's private key (the value of `KANON_APP_KEY` in the cloud "Kanon" environment) to `C:\Users\Ben Walker\.config\kanon\github-app.pem`, or set `KANON_APP_KEY` as a Windows user environment variable and restart the Claude app.
 2. Tell the assistant; it runs `kanon github check`, then `kanon github pr kanon-status`.
 3. Confirm: `kanon github check` lists the App as installed on `Bwalker01/Kanon`, and the pull request's author is `kanon-agent[bot]`.
+
+Done 2026-11-24: the owner put the key in the git-ignored `.env`; the assistant loads it into the shell for each `kanon github` command.
 
 ## 4. Review
 
@@ -112,6 +114,7 @@ same sessions (on 2026-11-24, the Phase 1 records in 07e3263 and the remote sess
 | Item | Decision | Date | Basis |
 |---|---|---|---|
 | Plan | Approved | 2026-11-24 | Owner in chat: "I approve all of the plans.". Transcribed by the assistant for Bwalker01; commit `1694896`; material: plan; sha256:cabd80550d319adcf53c38d91709ac3d50747887c17c9c4ce442c1f1596e9b37 |
+| KS-1 | Approved on merge of pull request #9 | 2026-11-24 | https://github.com/Bwalker01/Kanon/pull/9; a code owner's review is required to merge |
 
 ## 6. Cost
 

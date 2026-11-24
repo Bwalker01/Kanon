@@ -284,7 +284,7 @@ def record(root: Path, rel: str, approver: str, approvers: list[str], *, changes
         _set_summary(lines, decided)
         head = re.sub(r"^status: .*$", f"status: {status}", head, count=1, flags=re.M)
     head = re.sub(r"^updated: .*$", f"updated: {today}", head, count=1, flags=re.M)
-    path.write_text(head + "\n".join(lines), encoding="utf-8")
+    path.write_text(head + "\n".join(lines), encoding="utf-8", newline="\n")
     return row
 
 

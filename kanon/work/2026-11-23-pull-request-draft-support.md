@@ -8,7 +8,7 @@ updated: 2026-11-23
 
 > **Summary:** `kanon github pr` opens pull requests as drafts; new `kanon github ready` and `kanon github draft`
 > mark the App's pull request ready or return it to draft, as the App, for the ADR-015 lifecycle.
-> **Decision needed:** Approve the draft, ready and draft commands in chat (`approve pull-request-draft-support`); they act as the App and agents may run them. Untested against live GitHub; merge after PR #4.
+> **Decision needed:** Review and merge pull request #6 on GitHub; the merge is the approval.
 
 ## 1. Plan
 
@@ -65,7 +65,9 @@ Not covered: a live run against GitHub. The App is not yet installed on the owne
 
 ## 4. Decision
 
-Pending.
+| Item | Decision | Date | Basis |
+|---|---|---|---|
+| Result | Approved on merge of pull request #6 | 2026-11-24 | https://github.com/Bwalker01/Kanon/pull/6; a code owner's review is required to merge |
 
 ## 5. Cost
 

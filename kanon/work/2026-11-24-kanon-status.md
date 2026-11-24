@@ -86,13 +86,15 @@ same sessions (on 2026-11-24, the Phase 1 records in 07e3263 and the remote sess
 
 | ID | Action | Assignee | Blocks | Done |
 |---|---|---|---|---|
-| A-1 | Make the App key readable on this computer | Bwalker01 | | no |
+| A-1 | Make the App key readable on this computer | Bwalker01 | | yes |
 
 ### A-1: App Key on This Computer
 
 1. Copy the Kanon Agent App's private key (the value of `KANON_APP_KEY` in the cloud "Kanon" environment) to `C:\Users\Ben Walker\.config\kanon\github-app.pem`, or set `KANON_APP_KEY` as a Windows user environment variable and restart the Claude app.
 2. Tell the assistant; it runs `kanon github check`, then `kanon github pr kanon-status`.
 3. Confirm: `kanon github check` lists the App as installed on `Bwalker01/Kanon`, and the pull request's author is `kanon-agent[bot]`.
+
+Done 2026-11-24: the owner put the key in the git-ignored `.env`; the assistant loads it into the shell for each `kanon github` command.
 
 ## 4. Review
 

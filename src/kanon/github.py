@@ -208,9 +208,10 @@ def push(root: Path, session: Session, branch: str) -> None:
         raise GitHubError(f"push of {branch} failed: {message}")
 
 
-def _pull_for(session: Session, head: str, base: str) -> dict | None:
+def _pull_for(session: Session, head: str, base: str | None) -> dict | None:
     owner = session.repo.split("/")[0]
-    found = call("GET", f"/repos/{session.repo}/pulls?state=open&head={owner}:{head}&base={base}", session.token)
+    into = f"&base={base}" if base else ""  # None: the open pull request from head into any base
+    found = call("GET", f"/repos/{session.repo}/pulls?state=open&head={owner}:{head}{into}", session.token)
     return found[0] if found else None
 
 
@@ -219,8 +220,56 @@ def open_or_update(session: Session, head: str, base: str, title: str, body: str
     if existing:
         return call("PATCH", f"/repos/{session.repo}/pulls/{existing['number']}", session.token,
                     {"title": title, "body": body})
+    # New pull requests open as drafts (ADR-015); an update changes only the title and description.
     return call("POST", f"/repos/{session.repo}/pulls", session.token,
-                {"title": title, "head": head, "base": base, "body": body, "maintainer_can_modify": False})
+                {"title": title, "head": head, "base": base, "body": body, "draft": True,
+                 "maintainer_can_modify": False})
+
+
+MUTATIONS = {True: "convertPullRequestToDraft", False: "markPullRequestReadyForReview"}
+
+
+def graphql(session: Session, query: str, variables: dict) -> dict:
+    """One GraphQL call with the App's token. GitHub reports failures as `errors` with status 200."""
+    answer = call("POST", "/graphql", session.token, {"query": query, "variables": variables}) or {}
+    if answer.get("errors"):
+        raise GitHubError("GitHub GraphQL: " + "; ".join(str(e.get("message", e)) for e in answer["errors"]))
+    return answer.get("data") or {}
+
+
+def set_draft(session: Session, number: int, draft: bool) -> str:
+    """Return the App's own open pull request to draft, or mark it ready for review (ADR-015)."""
+    pull = call("GET", f"/repos/{session.repo}/pulls/{number}", session.token) or {}
+    if pull.get("merged_at") or pull.get("state") != "open":
+        raise GitHubError(f"pull request #{number} is not open")
+    author, bot = (pull.get("user") or {}).get("login", ""), f"{session.app.get('slug')}[bot]"
+    if not session.app.get("slug") or author.lower() != bot.lower():
+        raise GitHubError(f"pull request #{number} was opened by {author or 'someone else'}, not by the App; "
+                          "Kanon changes only its own pull requests")
+    wanted = "a draft" if draft else "ready for review"
+    if bool(pull.get("draft")) == draft:
+        return f"pull request #{number} is already {wanted}"
+    if not pull.get("node_id"):
+        raise GitHubError(f"GitHub gave no node ID for pull request #{number}")
+    mutation = MUTATIONS[draft]
+    graphql(session, f"mutation($id: ID!) {{ {mutation}(input: {{pullRequestId: $id}}) "
+                     "{ pullRequest { number isDraft } } }", {"id": pull["node_id"]})
+    return f"pull request #{number} is now {wanted}"
+
+
+def find_pull(root: Path, session: Session, work: str) -> int:
+    """The number of the work's open pull request: the cached one while it is open, else the open one
+    from its plan branch into any base (so `pr --base` is found too)."""
+    from kanon import branch as branches
+    entry = read_cache(root).get(work)
+    if entry:
+        cached = call("GET", f"/repos/{session.repo}/pulls/{entry['number']}", session.token) or {}
+        if cached.get("state") == "open" and not cached.get("merged_at"):
+            return int(entry["number"])
+    pull = _pull_for(session, branches.plan_branch(work), None)
+    if not pull:
+        raise GitHubError(f"no open pull request for {branches.plan_branch(work)}; run kanon github pr {work} first")
+    return int(pull["number"])
 
 
 def comment_review(session: Session, number: int, body: str) -> dict:

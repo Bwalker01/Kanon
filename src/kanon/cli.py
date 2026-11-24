@@ -67,9 +67,13 @@ def build_parser() -> argparse.ArgumentParser:
     g_setup = gh_actions.add_parser("setup", help="create the App with GitHub's manifest flow (on your own computer)")
     g_setup.add_argument("--org", help="create the App for this organisation instead of your account")
     gh_actions.add_parser("check", help="sign in as the App and report its installation and permissions")
-    g_pr = gh_actions.add_parser("pr", help="push the plan branch and open or update its pull request")
+    g_pr = gh_actions.add_parser("pr", help="push the plan branch and open its pull request as a draft, or update it")
     g_pr.add_argument("work", help="work file name without its date")
     g_pr.add_argument("--base", default="main", help="branch to merge into (default main)")
+    for action, text in (("ready", "mark the work's pull request ready for review, as the App (the check runs)"),
+                         ("draft", "return the work's pull request to draft, as the App")):
+        g_state = gh_actions.add_parser(action, help=text)
+        g_state.add_argument("work", help="work file name without its date")
     g_notes = gh_actions.add_parser("notes", help="post reviewer notes on the pull request as a comment-only review")
     g_notes.add_argument("work", help="work file name without its date")
     g_notes.add_argument("file", type=Path, help="text file holding the notes")
@@ -296,6 +300,9 @@ def run_github(args) -> int:
         elif name == "pr":
             pull = github.open_pull_request(root, args.work, args.base)
             print(f"Pull request #{pull['number']}: {pull['html_url']}")
+        elif name in ("ready", "draft"):
+            session = github.sign_in(root)
+            print(github.set_draft(session, github.find_pull(root, session, args.work), name == "draft"))
         elif name == "notes":
             entry = github.read_cache(root).get(args.work)
             if not entry:

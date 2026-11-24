@@ -19,3 +19,7 @@ path = "kanon/work/2026-11-16-phase-1-plan.md"
 rule = "loop"
 contains = "not committed on its own"
 reason = "Plan approved by the owner at 7141598 before any code; the Creator and Reviewer rows were added later. Accepted by the owner 2026-11-17."
+
+[github]
+app_id = 5801120
+app_slug = "kanon-agent"

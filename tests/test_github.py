@@ -356,3 +356,133 @@ def test_github_connectors_are_found_under_any_name(repo, tmp_path):
                  "mcp__plugin_github_github"):
         assert rule in rules
     assert "mcp__notes" not in rules
+
+
+# ---------------------------------------------------------------- draft-first pull requests (ADR-015)
+
+def test_a_new_pull_request_opens_as_a_draft_and_an_update_keeps_its_state(repo, monkeypatch):
+    item_merged(repo)
+    monkeypatch.setattr(github, "push", lambda root, session, ref: None)
+    fake = pr_fake()
+    monkeypatch.setattr(github, "call", fake)
+    session = github.Session("ada-dev/project", "t", {}, {})
+    github.open_pull_request(repo, "build", session=session, today="2026-11-20")
+    created = next(c for c in fake.calls if c[0] == "POST" and c[1] == "/repos/ada-dev/project/pulls")
+    assert created[2]["draft"] is True and created[2]["head"] == "kanon/build/plan"
+    fake.responses[("GET", "/repos/ada-dev/project/pulls?state=open")] = [{"number": 7}]
+    fake.calls.clear()
+    github.open_pull_request(repo, "build", session=session, today="2026-11-21")
+    updates = [c for c in fake.calls if c[0] == "PATCH"]
+    assert updates and all(set(c[2]) == {"title", "body"} for c in updates)  # draft state left alone
+    assert not any(c[0] == "POST" for c in fake.calls)
+
+
+def state_fake(draft, user="kanon-ada[bot]", state="open", merged_at=None, graphql=None):
+    return FakeGitHub({
+        ("GET", "/repos/ada-dev/project/pulls/7"): {"number": 7, "node_id": "PR_node7", "draft": draft, "state": state,
+                                                    "merged_at": merged_at, "user": {"login": user}},
+        ("POST", "/graphql"): graphql if graphql is not None else {"data": {"pullRequest": {"number": 7}}}})
+
+
+MUTATION_OTHER = {"markPullRequestReadyForReview": "convertPullRequestToDraft",
+                  "convertPullRequestToDraft": "markPullRequestReadyForReview"}
+APP_SESSION = github.Session("ada-dev/project", "ghs_secret", {}, {"slug": "kanon-ada"})
+
+
+@pytest.mark.parametrize("draft, mutation, was", [(False, "markPullRequestReadyForReview", True),
+                                                   (True, "convertPullRequestToDraft", False)])
+def test_ready_and_draft_send_the_mutation_for_the_apps_pull_request(monkeypatch, draft, mutation, was):
+    fake = state_fake(was)
+    monkeypatch.setattr(github, "call", fake)
+    message = github.set_draft(APP_SESSION, 7, draft)
+    method, path, body, kind = fake.calls[-1]
+    assert (method, path, kind) == ("POST", "/graphql", "token")
+    assert mutation in body["query"] and body["variables"] == {"id": "PR_node7"}
+    assert MUTATION_OTHER[mutation] not in body["query"] and "now" in message and "ghs_secret" not in message
+
+
+def test_a_pull_request_already_in_state_is_left_alone(monkeypatch):
+    fake = state_fake(True)
+    monkeypatch.setattr(github, "call", fake)
+    assert "already a draft" in github.set_draft(APP_SESSION, 7, True)
+    assert not any(c[1] == "/graphql" for c in fake.calls)
+
+
+@pytest.mark.parametrize("change, match", [({"user": "ada-dev"}, "not by the App"),
+                                           ({"user": "other-app[bot]"}, "not by the App"),
+                                           ({"state": "closed"}, "not open"),
+                                           ({"state": "closed", "merged_at": "2026-11-21T10:00:00Z"}, "not open")])
+def test_only_the_apps_open_pull_request_changes_state(monkeypatch, change, match):
+    fake = state_fake(True, **change)
+    monkeypatch.setattr(github, "call", fake)
+    with pytest.raises(github.GitHubError, match=match):
+        github.set_draft(APP_SESSION, 7, False)
+    assert not any(c[1] == "/graphql" for c in fake.calls)
+
+
+def test_a_session_without_the_apps_slug_changes_nothing(monkeypatch):
+    fake = state_fake(True)
+    monkeypatch.setattr(github, "call", fake)
+    with pytest.raises(github.GitHubError, match="not by the App"):
+        github.set_draft(github.Session("ada-dev/project", "t", {}, {}), 7, False)
+
+
+def test_a_pull_request_without_a_node_id_gives_a_clear_error(monkeypatch):
+    fake = state_fake(True)
+    del fake.responses[("GET", "/repos/ada-dev/project/pulls/7")]["node_id"]
+    monkeypatch.setattr(github, "call", fake)
+    with pytest.raises(github.GitHubError, match="no node ID"):
+        github.set_draft(APP_SESSION, 7, False)
+
+
+def test_graphql_errors_are_reported(monkeypatch):
+    monkeypatch.setattr(github, "call", state_fake(True, graphql={"data": None, "errors": [
+        {"message": "Resource not accessible by integration"}]}))
+    with pytest.raises(github.GitHubError, match="Resource not accessible by integration"):
+        github.set_draft(APP_SESSION, 7, False)
+
+
+def test_the_pull_request_is_found_in_the_cache_then_on_github(repo, monkeypatch):
+    fake = FakeGitHub({("GET", "/repos/ada-dev/project/pulls?state=open"): [{"number": 12}],
+                       ("GET", "/repos/ada-dev/project/pulls/7"): {"number": 7, "state": "open"}})
+    monkeypatch.setattr(github, "call", fake)
+    assert github.find_pull(repo, APP_SESSION, "build") == 12
+    assert "head=ada-dev:kanon/build/plan" in fake.calls[0][1] and "base=" not in fake.calls[0][1]  # any base
+    github.write_cache(repo, {"build": {"number": 7}})
+    assert github.find_pull(repo, APP_SESSION, "build") == 7
+    fake.responses[("GET", "/repos/ada-dev/project/pulls/7")] = {"number": 7, "state": "closed"}
+    assert github.find_pull(repo, APP_SESSION, "build") == 12  # a closed cached pull request is passed over
+    fake.responses[("GET", "/repos/ada-dev/project/pulls?state=open")] = []
+    with pytest.raises(github.GitHubError, match="run kanon github pr other"):
+        github.find_pull(repo, APP_SESSION, "other")
+
+
+def test_an_assistant_may_mark_ready_and_return_to_draft_as_the_app(repo, monkeypatch, capsys):
+    monkeypatch.chdir(repo)
+    monkeypatch.setenv("CLAUDECODE", "1")  # owner, 2026-11-23: agents may run pr, ready and draft
+    github.write_cache(repo, {"build": {"number": 7}})
+    answers = dict(SIGN_IN)
+    answers.update(state_fake(True).responses)
+    fake = FakeGitHub(answers)
+    monkeypatch.setattr(github, "call", fake)
+    assert main(["github", "ready", "build"]) == 0
+    assert "now ready for review" in capsys.readouterr().out
+    assert any(c[1] == "/graphql" for c in fake.calls)
+    assert main(["github", "draft", "build"]) == 0 and "already a draft" in capsys.readouterr().out
+
+
+def test_the_cli_returns_to_draft_and_refuses_a_pull_request_the_app_did_not_open(repo, monkeypatch, capsys):
+    monkeypatch.chdir(repo)
+    monkeypatch.setenv("CLAUDECODE", "1")
+    github.write_cache(repo, {"build": {"number": 7}})
+    answers = dict(SIGN_IN)
+    answers.update(state_fake(False).responses)
+    fake = FakeGitHub(answers)
+    monkeypatch.setattr(github, "call", fake)
+    assert main(["github", "draft", "build"]) == 0 and "now a draft" in capsys.readouterr().out
+    assert "convertPullRequestToDraft" in next(c for c in fake.calls if c[1] == "/graphql")[2]["query"]
+    answers.update(state_fake(True, user="ada-dev").responses)
+    monkeypatch.setattr(github, "call", FakeGitHub(answers))
+    assert main(["github", "ready", "build"]) == 2
+    out = capsys.readouterr().out
+    assert "not by the App" in out and "ghs_secret" not in out

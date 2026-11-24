@@ -39,6 +39,12 @@ def test_approval_records_form_commit_and_hash(repo):
     assert approval_findings(repo) == []
 
 
+def test_recording_writes_lf_line_endings(repo):
+    """On Windows a text-mode write turned every newline into CRLF (found 2026-11-24)."""
+    approve.record(repo, WORK, "ada-dev", APPROVERS, quote="approve example", today=TODAY)
+    assert b"\r" not in (repo / WORK).read_bytes()
+
+
 def test_transcription_is_labelled_with_the_persons_words(repo):
     row = approve.record(repo, WORK, "ada-dev", APPROVERS, quote="approve example", today=TODAY)
     assert 'Owner in chat: "approve example". Transcribed by the assistant for ada-dev' in row

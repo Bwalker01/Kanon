@@ -219,6 +219,7 @@ def build(root: Path, today: dt.datetime | None = None, everyone: bool = False) 
         pending = approvals.ON_MERGE_NUMBER.search(rows[-1].decision) if rows else None
         if pending and int(pending.group(1)) in merged:
             d = None  # the pull request merged: decided (P1-10)
+            w.status = "complete"  # the merge is the approval, even before the file's status is updated
         elif pending:  # waiting on GitHub, read from the work file and Git history only (K-402)
             number, url = pending.group(1), links.get(rel, "")
             d = Decision("", rel, w.title, f"Pull request #{number} carries this work; merging it is the approval.",
@@ -505,7 +506,7 @@ def write(root: Path, today: dt.datetime | None = None) -> Desk:
     desk = build(root, today)
     folder = root / LOCAL
     folder.mkdir(parents=True, exist_ok=True)
-    (folder / "DESK.md").write_text(render_markdown(desk), encoding="utf-8")
-    (folder / "STATUS.md").write_text(render_status(desk), encoding="utf-8")
-    (folder / "desk.html").write_text(render_html(desk), encoding="utf-8")
+    (folder / "DESK.md").write_text(render_markdown(desk), encoding="utf-8", newline="\n")
+    (folder / "STATUS.md").write_text(render_status(desk), encoding="utf-8", newline="\n")
+    (folder / "desk.html").write_text(render_html(desk), encoding="utf-8", newline="\n")
     return desk

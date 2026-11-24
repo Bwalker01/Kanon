@@ -83,7 +83,7 @@ def test_open_items_in_closed_work_are_listed_under_from_closed_work(project, ca
     done, parked = closed.split("kanon/work/2026-11-18-parked.md")
     assert "Action A-1 (ada-dev)" in done and "Late review, round 2" in done
     assert "Action A-9 (unassigned): Nobody's job" in parked
-    assert "Decision: Pull request #9 carries this work" in parked or "Decision: Review and merge pull request #9" in parked
+    assert "Decision: Review and merge pull request #9 on GitHub." in parked
 
 
 def test_a_profile_that_is_neither_assignee_nor_approver_still_sees_everything(project, capsys, monkeypatch):
@@ -191,3 +191,28 @@ def test_removing_a_section_of_this_work_file_fails_verify(section):
     cut = re.sub(rf"^## \d+\. {section}\n.*?(?=^## |\Z)", "", text, count=1, flags=re.M | re.S)
     assert cut != text
     assert any(f.rule == "sections" and f"'{section}'" in f.message for f in check_document(rel, cut))
+
+
+def test_work_whose_pull_request_merged_counts_as_complete(repo, capsys, monkeypatch):
+    """The merge is the approval (P1-10), so the file's stale status no longer keeps it open."""
+    text = work_file("Shipped", status="awaiting-approval", needed="Review and merge pull request #7.")
+    text = text.replace("## 5. Decision\n\nPending.", "## 5. Decision\n\n" + ON_MERGE.replace("#9", "#7").replace("/9", "/7"))
+    (repo / "kanon/work/2026-11-18-shipped.md").write_text(text, encoding="utf-8")
+    commit(repo, "shipped")
+    monkeypatch.chdir(repo)
+    assert "Shipped" in run(capsys)[1]  # not merged yet: open, with its decision
+    from test_desk import git
+    git(repo, "checkout", "-q", "-b", "side")
+    git(repo, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "--no-verify", "-m", "side")
+    git(repo, "checkout", "-q", "-")
+    git(repo, "-c", "user.name=t", "-c", "user.email=t@t", "merge", "-q", "--no-ff", "--no-verify", "-m",
+        "Merge pull request #7 from o/side", "side")
+    code, out = run(capsys)
+    assert code == 0 and "Shipped" not in out and "No open work." in out
+
+
+def test_kanon_writes_lf_files_on_every_platform(repo):
+    hook = repo / ".git/hooks/pre-commit"
+    for path in [hook, *(repo / "kanon").rglob("*.md")]:
+        if path.is_file():
+            assert b"\r" not in path.read_bytes(), path

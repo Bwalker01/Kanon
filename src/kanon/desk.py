@@ -502,6 +502,97 @@ def status_data(desk: Desk) -> dict:
             "notes": list(desk.notes)}
 
 
+# ---------------------------------------------------------------- questions (KQ-1)
+
+OPEN_WORDS = ("open", "pending", "awaiting")
+_DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
+
+
+@dataclass
+class Question:
+    work: str
+    date: str
+    question: str
+    answer: str
+    line: int  # 1-based line in the work file, for row order
+
+    @property
+    def is_open(self) -> bool:
+        plain = re.sub(r"[`*_]", "", self.answer).strip()
+        if plain in ("", "-"):
+            return True
+        first = re.match(r"[A-Za-z]+", plain)
+        return bool(first) and first.group(0).lower() in OPEN_WORDS
+
+    @property
+    def sort_date(self) -> str:
+        found = _DATE.search(self.date)
+        return found.group(0) if found else ""
+
+
+def _cells(row: str) -> list[str]:
+    return [c.strip() for c in re.split(r"(?<!\\)\|", row.strip().strip("|"))]
+
+
+def parse_questions(rel: str, text: str) -> list[Question]:
+    """Rows of the Questions table (Date, Question, Answer), outside code fences."""
+    _, lines, offset = _body(text)  # fenced lines are blanked
+    span = _sections(lines).get("Questions")
+    if not span:
+        return []
+    found, columns = [], None
+    for index in range(span[0] + 1, span[1]):
+        line = lines[index]
+        if not line.startswith("|") or re.fullmatch(r"\|[\s|:-]+\|", line.strip()):
+            continue
+        cells = _cells(line)
+        if columns is None:
+            names = [c.lower() for c in cells]
+            if not {"date", "question", "answer"} <= set(names):
+                return []
+            columns = (names.index("date"), names.index("question"), names.index("answer"))
+            continue
+        get = lambda i: cells[i] if i < len(cells) else ""  # noqa: E731
+        found.append(Question(rel, get(columns[0]), get(columns[1]), get(columns[2]), index + offset))
+    return found
+
+
+def questions(root: Path, work: str | None = None) -> list[Question]:
+    """Every recorded question, in file and row order; `work` limits to one file by name."""
+    out = []
+    for path in sorted((root / "kanon/work").glob("*.md")):
+        rel = path.relative_to(root).as_posix()
+        if work is None or slug(rel) == work:
+            out += parse_questions(rel, path.read_text(encoding="utf-8"))
+    return out
+
+
+def order_questions(rows: list[Question]) -> tuple[list[Question], list[Question]]:
+    """(open oldest first, answered newest first); undated rows last; ties keep file and row order."""
+    position = {id(q): n for n, q in enumerate(rows)}
+    opened = sorted((q for q in rows if q.is_open), key=lambda q: (not q.sort_date, q.sort_date, position[id(q)]))
+    answered = [q for q in rows if not q.is_open]
+    dated = sorted((q for q in answered if q.sort_date), key=lambda q: position[id(q)])
+    dated = sorted(dated, key=lambda q: q.sort_date, reverse=True)  # stable: ties stay in file order
+    return opened, dated + [q for q in answered if not q.sort_date]
+
+
+def render_questions(rows: list[Question], show_all: bool = False) -> str:
+    opened, answered = order_questions(rows)
+    out = ([f"{q.date}  {q.work}\n    {q.question}" for q in opened] or ["No open questions."])
+    if show_all and answered:
+        out += ["", "Answered"] + [f"{q.date}  {q.work}\n    {q.question}\n    Answer: {q.answer}" for q in answered]
+    out += ["", f"{len(opened)} open, {len(answered)} answered"]
+    return "\n".join(out) + "\n"
+
+
+def questions_data(rows: list[Question], show_all: bool = False) -> dict:
+    opened, answered = order_questions(rows)
+    item = lambda q: {"work": q.work, "date": q.date, "question": q.question, "answer": q.answer}  # noqa: E731
+    return {"open": [item(q) for q in opened], "answered": [item(q) for q in answered] if show_all else [],
+            "counts": {"open": len(opened), "answered": len(answered)}}
+
+
 def write(root: Path, today: dt.datetime | None = None) -> Desk:
     desk = build(root, today)
     folder = root / LOCAL

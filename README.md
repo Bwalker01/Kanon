@@ -6,7 +6,7 @@ specialist AI agents through an independent review loop with owner approval.
 
 ## Status
 
-Phase 1 (core engine) is in progress. Run `kanon desk` to see what waits on you. Run `kanon status` to print every open piece of work and what waits on whom, without writing a file.
+Phase 1 (core engine) is in progress. Run `kanon desk` to see what waits on you. Run `kanon status` to print every open piece of work and what waits on whom, without writing a file. Run `kanon questions` to list the questions recorded in work files, open ones first.
 
 | Start here | Purpose |
 |---|---|

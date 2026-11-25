@@ -343,11 +343,9 @@ def run_github(args) -> int:
             if app.get("settings_written", True):
                 print(f"Created {app['slug']} (ID {app['id']}); key saved to {app['key']}; kanon/kanon.toml updated.")
             else:
-                keys = [f"app_id = {app['id']}", f'app_slug = "{app["slug"]}"']
-                keys += [f"bot_user_id = {app['bot_user_id']}"] if app.get("bot_user_id") else []
-                print(f"Created {app['slug']} (ID {app['id']}); key saved to {app['key']}. kanon/kanon.toml has an "
-                      "unusual [github] layout and was left as it is; set these keys under [github] by hand:")
-                print("\n".join(keys))
+                print(f"Created {app['slug']} (ID {app['id']}); key saved to {app['key']}. kanon/kanon.toml was left "
+                      f"as it is: {app['settings_problem']}. Set these keys under [github] by hand:")
+                print("\n".join(github.settings_by_hand(app)))
             print("Install the App on this repository in the page that opened, then run kanon github check.")
         elif name == "check":
             print("\n".join(github.check(root)))

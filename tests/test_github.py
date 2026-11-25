@@ -522,3 +522,39 @@ def test_setup_writes_the_bot_user_id(repo, monkeypatch, tmp_path):  # AC-1
     assert github.setup(repo, open_browser=browser)["bot_user_id"] == 42
     text = (repo / "kanon/kanon.toml").read_text(encoding="utf-8")
     assert "bot_user_id = 42" in text and validate_settings(text) == []
+
+
+def test_setup_leaves_an_unusual_kanon_toml_unchanged_and_says_what_to_set(repo, monkeypatch, tmp_path):  # D-7, D-8, D-9
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+    monkeypatch.setattr(github, "call", FakeGitHub({("POST", "/app-manifests/abc/conversions"): {
+        "id": 456, "slug": "kanon-ada", "pem": PEM}}))  # the bot ID lookup fails
+
+    def browser(url):
+        if url.startswith("http://127.0.0.1"):
+            page = urllib.request.urlopen(url).read().decode()  # noqa: S310  (local test server)
+            state = page.split("state=", 1)[1].split('"', 1)[0]
+            threading.Thread(target=lambda: urllib.request.urlopen(f"{url}callback?code=abc&state={state}").read()).start()  # noqa: S310
+    monkeypatch.delenv("HTTPS_PROXY", raising=False)
+    monkeypatch.delenv("https_proxy", raising=False)
+    monkeypatch.setenv("NO_PROXY", "127.0.0.1")
+    path = repo / "kanon/kanon.toml"
+    path.write_text("github = { app_id = 1, bot_user_id = 5 }" + chr(10) + path.read_text(encoding="utf-8"), encoding="utf-8")
+    before = path.read_bytes()
+    app = github.setup(repo, open_browser=browser)
+    assert path.read_bytes() == before and app["settings_written"] is False
+    assert "could not be updated safely" in app["settings_problem"]
+    lines = github.settings_by_hand(app)
+    assert lines[:2] == ["app_id = 456", 'app_slug = "kanon-ada"'] and "remove any bot_user_id" in lines[2]
+    assert github.settings_by_hand({**app, "bot_user_id": 42})[2] == "bot_user_id = 42"
+
+
+def test_the_cli_prints_the_keys_to_set_when_setup_left_kanon_toml(repo, monkeypatch, capsys):  # D-7
+    monkeypatch.chdir(repo)
+    monkeypatch.delenv("CLAUDECODE", raising=False)
+    monkeypatch.setattr(github, "setup", lambda root, org=None: {
+        "id": 456, "slug": "kanon-ada", "key": "k", "bot_user_id": None,
+        "settings_written": False, "settings_problem": "kanon/kanon.toml could not be updated safely (x)"})
+    assert main(["github", "setup"]) == 0
+    out = capsys.readouterr().out
+    assert "left as it is: kanon/kanon.toml could not be updated safely (x)" in out
+    assert "app_id = 456" in out and "remove any bot_user_id" in out

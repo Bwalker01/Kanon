@@ -234,6 +234,14 @@ def test_an_unusual_layout_is_refused_rather_than_duplicated(text):  # D-1
 def test_crlf_text_is_updated_in_place():  # D-3
     new = github.github_table('[github]\r\napp_id = 5\r\napp_slug = "old"\r\n', 7, "kanon-ada", 42)
     assert tomllib.loads(new) == {"github": {"app_id": 7, "app_slug": "kanon-ada", "bot_user_id": 42}}
+    assert "\r" not in new  # D-10
+
+
+def test_check_never_suggests_a_second_table_for_an_unreadable_kanon_toml(repo, monkeypatch):  # D-11
+    path = repo / "kanon/kanon.toml"
+    path.write_text("broken = \n" + path.read_text(encoding="utf-8"), encoding="utf-8")
+    fake_check(monkeypatch, repo)
+    assert any(l.startswith("Replace the [github] table") for l in github.check(repo))
 
 
 def test_check_says_replace_for_an_inline_github_table(repo, monkeypatch):  # D-1

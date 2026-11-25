@@ -612,13 +612,26 @@ def setup(root: Path, org: str | None = None, open_browser=None, port: int = 0, 
         bot_id = None  # `kanon github check` prints the line to add later
     settings_path = root / "kanon" / "kanon.toml"
     text = settings_path.read_text(encoding="utf-8")
-    written = True
+    problem = None
     try:
-        settings_path.write_text(github_table(text, int(app["id"]), app["slug"], bot_id), encoding="utf-8", newline="\n")
-    except ValueError:
-        written = False  # the file is left as it is; the CLI prints the keys to set by hand (D-1)
+        new = github_table(text, int(app["id"]), app["slug"], bot_id)
+    except ValueError as error:
+        problem = str(error)  # the file is left as it is; the CLI prints the keys to set by hand (D-1, D-9)
+    else:
+        settings_path.write_text(new, encoding="utf-8", newline="\n")
     open_browser(f"https://github.com/apps/{app['slug']}/installations/new")
-    return {"id": app["id"], "slug": app["slug"], "key": str(path), "bot_user_id": bot_id, "settings_written": written}
+    return {"id": app["id"], "slug": app["slug"], "key": str(path), "bot_user_id": bot_id,
+            "settings_written": problem is None, "settings_problem": problem}
+
+
+def settings_by_hand(app: dict) -> list[str]:
+    """What the person sets under [github] when `setup` could not update kanon.toml (D-8)."""
+    lines = [f"app_id = {app['id']}", f'app_slug = "{app["slug"]}"']
+    if app.get("bot_user_id"):
+        lines.append(f"bot_user_id = {app['bot_user_id']}")
+    else:
+        lines.append("and remove any bot_user_id line: it belongs to an earlier App; `kanon github check` prints the new one")
+    return lines
 
 
 def github_table(text: str, app: int, slug: str, bot_id: int | None) -> str:
@@ -636,7 +649,7 @@ def github_table(text: str, app: int, slug: str, bot_id: int | None) -> str:
     if start is None:
         body = "\n".join(f"{k} = {v}" for k, v in values.items())
         return _checked((text.rstrip("\n") + "\n\n" if text.strip() else "") + "[github]\n" + body + "\n", values)
-    end =next((i for i in range(start + 1, len(lines)) if lines[i].lstrip().startswith("[")), len(lines))
+    end = next((i for i in range(start + 1, len(lines)) if lines[i].lstrip().startswith("[")), len(lines))
     section, written = [], set()
     for line in lines[start + 1:end]:
         key = re.match(r"\s*([A-Za-z0-9_-]+)\s*=", line)

@@ -486,3 +486,35 @@ def test_the_cli_returns_to_draft_and_refuses_a_pull_request_the_app_did_not_ope
     assert main(["github", "ready", "build"]) == 2
     out = capsys.readouterr().out
     assert "not by the App" in out and "ghs_secret" not in out
+
+
+def test_the_record_commit_is_authored_as_the_app(repo, monkeypatch):  # AC-1
+    path = repo / "kanon/kanon.toml"
+    path.write_text(path.read_text(encoding="utf-8").rstrip("\n") + '\n\n[github]\napp_id = 123\napp_slug = "kanon-ada"\n'
+                    'bot_user_id = 42\n', encoding="utf-8", newline="\n")
+    git(repo, "commit", "-qam", "bot user id")
+    item_merged(repo)
+    monkeypatch.setattr(github, "push", lambda root, session, ref: None)
+    monkeypatch.setattr(github, "call", pr_fake())
+    github.open_pull_request(repo, "build", session=github.Session("ada-dev/project", "t", {}, {}), today="2026-11-25")
+    who = "kanon-ada[bot] <42+kanon-ada[bot]@users.noreply.github.com>"
+    assert git(repo, "log", "-1", "--format=%an <%ae>|%cn <%ce>").strip() == f"{who}|{who}"
+
+
+def test_setup_writes_the_bot_user_id(repo, monkeypatch, tmp_path):  # AC-1
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+    monkeypatch.setattr(github, "call", FakeGitHub({
+        ("POST", "/app-manifests/abc/conversions"): {"id": 456, "slug": "kanon-ada", "pem": PEM},
+        ("GET", "/users/kanon-ada%5Bbot%5D"): {"id": 42}}))
+
+    def browser(url):
+        if url.startswith("http://127.0.0.1"):
+            page = urllib.request.urlopen(url).read().decode()  # noqa: S310  (local test server)
+            state = page.split("state=", 1)[1].split('"', 1)[0]
+            threading.Thread(target=lambda: urllib.request.urlopen(f"{url}callback?code=abc&state={state}").read()).start()  # noqa: S310
+    monkeypatch.delenv("HTTPS_PROXY", raising=False)
+    monkeypatch.delenv("https_proxy", raising=False)
+    monkeypatch.setenv("NO_PROXY", "127.0.0.1")
+    assert github.setup(repo, open_browser=browser)["bot_user_id"] == 42
+    text = (repo / "kanon/kanon.toml").read_text(encoding="utf-8")
+    assert "bot_user_id = 42" in text and validate_settings(text) == []

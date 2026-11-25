@@ -56,6 +56,9 @@ def validate_settings(text: str) -> list[Problem]:
         else:
             if "app_id" in github and (not isinstance(github["app_id"], int) or isinstance(github["app_id"], bool)):
                 problems.append(Problem("settings", "github.app_id must be the App's numeric ID"))
+            if "bot_user_id" in github and (not isinstance(github["bot_user_id"], int)
+                                            or isinstance(github["bot_user_id"], bool) or github["bot_user_id"] <= 0):
+                problems.append(Problem("settings", "github.bot_user_id must be the App bot user's numeric ID"))
             if "app_slug" in github and not (isinstance(github["app_slug"], str) and re.fullmatch(r"[a-z0-9-]+", github["app_slug"])):
                 problems.append(Problem("settings", "github.app_slug must be the App's slug, as in github.com/apps/<slug>"))
             for secret in ("key", "private_key", "pem", "token"):

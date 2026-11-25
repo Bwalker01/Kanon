@@ -174,10 +174,51 @@ def check(root: Path) -> list[str]:
     if extra:
         lines.append("Other permissions (not used by Kanon): " + ", ".join(extra))
     configured = settings(root)
-    if str(configured.get("app_id", "")) != str(session.app.get("id")) or configured.get("app_slug") != session.app.get("slug"):
-        lines += ["Add these lines to kanon/kanon.toml:", "", "[github]", f"app_id = {session.app.get('id')}",
-                  f'app_slug = "{session.app.get("slug")}"']  # K-411
+    try:
+        bot_id: int | None = bot_user_id(str(session.app.get("slug")))
+    except GitHubError as error:
+        bot_id = None
+        lines.append(f"Bot user ID: could not be read ({error}); agents keep this computer's Git identity until "
+                     "bot_user_id is set under [github] in kanon/kanon.toml")
+    app_differs = str(configured.get("app_id", "")) != str(session.app.get("id")) or \
+        configured.get("app_slug") != session.app.get("slug")
+    if app_differs:
+        block = ["[github]", f"app_id = {session.app.get('id')}", f'app_slug = "{session.app.get("slug")}"']
+        block += [f"bot_user_id = {bot_id}"] if bot_id is not None else []
+        lead = "Replace the [github] table in kanon/kanon.toml with:" if _has_github_table(root) \
+            else "Add these lines to kanon/kanon.toml:"
+        lines += [lead, "", *block]  # K-411; a paste never adds a second table (C-12)
+    elif bot_id is not None and configured.get("bot_user_id") != bot_id:
+        lines += ["Add or change this line under [github] in kanon/kanon.toml, so agents commit as the App:", "",
+                  f"bot_user_id = {bot_id}"]
     return lines
+
+
+def bot_user_id(slug: str) -> int:
+    """The GitHub user ID of the App's bot user (`<slug>[bot]`), read from the public users API."""
+    data = call("GET", f"/users/{slug}%5Bbot%5D")
+    user_id = (data or {}).get("id")
+    if isinstance(user_id, bool) or not isinstance(user_id, int) or user_id <= 0:
+        raise GitHubError(f"GitHub returned no user ID for {slug}[bot]")
+    return user_id
+
+
+def _has_github_table(root: Path) -> bool:
+    try:
+        text = (root / "kanon" / "kanon.toml").read_text(encoding="utf-8")
+    except OSError:
+        return False
+    return re.search(r"^\[github\][ \t]*$", text, flags=re.M) is not None
+
+
+def commit_identity(root: Path) -> dict[str, str]:
+    """Git environment variables that author and commit as the App, or {} when bot_user_id is not set."""
+    from kanon import sync as sync_module
+    wanted, _ = sync_module.identity_setting(root)
+    if not wanted:
+        return {}
+    name, email = wanted
+    return {"GIT_AUTHOR_NAME": name, "GIT_AUTHOR_EMAIL": email, "GIT_COMMITTER_NAME": name, "GIT_COMMITTER_EMAIL": email}
 
 
 # ---------------------------------------------------------------- push and pull requests
@@ -336,8 +377,9 @@ CACHE = "kanon/local/pull-requests.json"
 ON_MERGE = "Approved on merge of pull request"
 
 
-def _git(root: Path, *args: str) -> str:
-    result = subprocess.run(["git", *args], cwd=root, capture_output=True, text=True)
+def _git(root: Path, *args: str, env: dict[str, str] | None = None) -> str:
+    result = subprocess.run(["git", *args], cwd=root, capture_output=True, text=True,
+                            env={**os.environ, **env} if env else None)
     if result.returncode != 0:
         raise GitHubError(result.stderr.strip() or f"git {' '.join(args)} failed")
     return result.stdout.strip()
@@ -422,7 +464,8 @@ def open_pull_request(root: Path, work: str, base: str = "main", session: Sessio
     if marked != text:
         (root / rel).write_text(marked, encoding="utf-8", newline="\n")
         _git(root, "add", rel)
-        _git(root, "commit", "-q", "-m", f"MODIFIED: {work} approved when pull request #{pull['number']} merges")
+        _git(root, "commit", "-q", "-m", f"MODIFIED: {work} approved when pull request #{pull['number']} merges",
+             env=commit_identity(root))  # authored as the App, so it never counts as the owner's (AC-1)
         push(root, session, plan)
         pull = open_or_update(session, plan, base, title, describe(root, rel, marked, plan, base))
     cache = read_cache(root)
@@ -558,10 +601,45 @@ def setup(root: Path, org: str | None = None, open_browser=None, port: int = 0, 
     descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
     with os.fdopen(descriptor, "w") as handle:
         handle.write(app["pem"])
+    try:
+        bot_id: int | None = bot_user_id(app["slug"])
+    except GitHubError:
+        bot_id = None  # `kanon github check` prints the line to add later
     settings_path = root / "kanon" / "kanon.toml"
     text = settings_path.read_text(encoding="utf-8")
-    block = f'[github]\napp_id = {int(app["id"])}\napp_slug = "{app["slug"]}"\n'
-    text = re.sub(r"\[github\]\n(?:[^\[\n].*\n?)*", block, text) if "[github]" in text else text.rstrip("\n") + "\n\n" + block
-    settings_path.write_text(text, encoding="utf-8", newline="\n")
+    settings_path.write_text(github_table(text, int(app["id"]), app["slug"], bot_id), encoding="utf-8", newline="\n")
     open_browser(f"https://github.com/apps/{app['slug']}/installations/new")
-    return {"id": app["id"], "slug": app["slug"], "key": str(path)}
+    return {"id": app["id"], "slug": app["slug"], "key": str(path), "bot_user_id": bot_id}
+
+
+def github_table(text: str, app: int, slug: str, bot_id: int | None) -> str:
+    """kanon.toml text with `[github]` holding this App's keys and every other key it already had.
+
+    `app_id`, `app_slug` and `bot_user_id` are overwritten; when the bot ID is unknown, an existing
+    `bot_user_id` is removed, since it belongs to an earlier App (C-23).
+    """
+    values = {"app_id": str(app), "app_slug": f'"{slug}"'}
+    if bot_id is not None:
+        values["bot_user_id"] = str(bot_id)
+    lines = text.split("\n")
+    start = next((i for i, l in enumerate(lines) if re.fullmatch(r"\[github\][ \t]*", l)), None)
+    if start is None:
+        body = "\n".join(f"{k} = {v}" for k, v in values.items())
+        return (text.rstrip("\n") + "\n\n" if text.strip() else "") + "[github]\n" + body + "\n"
+    end = next((i for i in range(start + 1, len(lines)) if lines[i].lstrip().startswith("[")), len(lines))
+    section, written = [], set()
+    for line in lines[start + 1:end]:
+        key = re.match(r"\s*([A-Za-z0-9_-]+)\s*=", line)
+        name = key.group(1) if key else None
+        if name in ("app_id", "app_slug", "bot_user_id"):
+            if name in values and name not in written:
+                section.append(f"{name} = {values[name]}")
+                written.add(name)
+            continue
+        section.append(line)
+    missing = [f"{k} = {v}" for k, v in values.items() if k not in written]
+    insert = len(section)
+    while insert > 0 and not section[insert - 1].strip():
+        insert -= 1  # new keys go before the blank lines that end the table
+    section[insert:insert] = missing
+    return "\n".join(lines[:start + 1] + section + lines[end:])

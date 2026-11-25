@@ -32,6 +32,10 @@ Set it up once, on your own computer, in a clone of your repository:
 2. `kanon github check` confirms the App signs in and has the right permissions.
 3. `kanon github protect`, run with your own `gh` login, makes a code owner's review required on `main`. As administrator you can still merge your own pull requests; the App and agents cannot.
 
+With `bot_user_id` under `[github]` in `kanon/kanon.toml` (`kanon github check` prints the line), `kanon sync` makes
+Claude Code sessions commit as the App's bot user, so the last commit of an App pull request is not yours and your
+review counts. Commits from your own terminal keep your Git identity.
+
 Merging the pull request is the approval. Cloud sessions cannot sign in as the App (their proxy refuses GitHub App
 paths), so pull requests are opened from your computer. A repository's own CI runs on the App's pull requests as on
 any other.

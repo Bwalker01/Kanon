@@ -288,3 +288,13 @@ def test_waiting_items_outrank_a_remembered_tab():  # K-246
     assert "show(!false&&saved" in desk.render_html(empty)
     waiting = desk.Desk("ada-dev", "main", "now", [desk.Decision("w", "w.md", "T", "S", "N")], [], [], [], [], [])
     assert "show(!true&&saved" in desk.render_html(waiting)
+
+
+def test_dark_palette_is_the_default():  # DT-1: the app's browser pane renders local files light
+    page = desk.render_html(desk.Desk("ada-dev", "main", "now", [], [], [], [], [], []))
+    style = page[page.index("<style>"):page.index("</style>")]
+    assert ":root{color-scheme:dark;--bg:#14161a;" in style
+    assert "prefers-color-scheme" not in style and "#f4f3ef" not in style
+    assert ".badge{background:var(--accent);color:var(--on-accent);" in style
+    assert ".btn.primary{background:var(--accent);color:var(--on-accent)}" in style
+    assert "--on-accent:#14161a" in style and "color:#fff" not in style

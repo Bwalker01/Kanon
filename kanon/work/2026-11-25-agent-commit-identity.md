@@ -94,7 +94,7 @@ updated: 2026-11-25
 
 | ID | Action | Assignee | Blocks | Done |
 |---|---|---|---|---|
-| A-1 | Add the App's bot user ID to `kanon/kanon.toml` | Bwalker01 | | no |
+| A-1 | Add the App's bot user ID to `kanon/kanon.toml` | Bwalker01 | | yes |
 | A-2 | Check the owner's terminal identity (L-2) | Bwalker01 | | no |
 | A-3 | Approve the pull request on GitHub and report the merge box (L-3) | Bwalker01 | | no |
 

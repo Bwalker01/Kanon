@@ -361,10 +361,8 @@ def render_html(desk: Desk) -> str:
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Kanon Desk</title>
 <style>
-:root{{--bg:#f4f3ef;--card:#fff;--ink:#1d2127;--muted:#5f6772;--line:#dde1e6;--accent:#3451c7;--accent-soft:#e8ecfb;
---done:#2b8a3e;--warn:#b35c00;--warn-soft:#fff1e0;--shadow:0 1px 2px rgba(0,0,0,.06)}}
-@media (prefers-color-scheme:dark){{:root{{--bg:#14161a;--card:#1d2026;--ink:#e7ebf0;--muted:#98a1ad;--line:#2e333b;
---accent:#8299ff;--accent-soft:#232a45;--done:#57c26a;--warn:#f0a050;--warn-soft:#3a2a17;--shadow:none}}}}
+:root{{color-scheme:dark;--bg:#14161a;--card:#1d2026;--ink:#e7ebf0;--muted:#98a1ad;--line:#2e333b;
+--accent:#8299ff;--accent-soft:#232a45;--on-accent:#14161a;--done:#57c26a;--warn:#f0a050;--warn-soft:#3a2a17;--shadow:none}}
 *{{box-sizing:border-box}}body{{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,sans-serif}}
 main{{max-width:880px;margin:0 auto;padding:16px}}
 .top h1{{font-size:1.35rem;margin:0}}.top p{{margin:.2rem 0 0;color:var(--muted);font-size:.9rem}}
@@ -372,7 +370,7 @@ main{{max-width:880px;margin:0 auto;padding:16px}}
 .tab{{appearance:none;border:0;background:none;color:var(--muted);font:600 .95rem system-ui,sans-serif;padding:10px 14px;
 cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-1px;white-space:nowrap;display:flex;gap:8px;align-items:center}}
 .tab[aria-selected=true]{{color:var(--ink);border-bottom-color:var(--accent)}}.tab:focus-visible{{outline:2px solid var(--accent)}}
-.badge{{background:var(--accent);color:#fff;border-radius:999px;font-size:.75rem;padding:0 8px;min-width:22px;text-align:center}}
+.badge{{background:var(--accent);color:var(--on-accent);border-radius:999px;font-size:.75rem;padding:0 8px;min-width:22px;text-align:center}}
 .badge.zero{{background:var(--line);color:var(--muted)}}
 .js .tabs{{display:flex}} .tabs{{display:none}} .js .panel{{display:none}} .js .panel.active{{display:block}}
 .js .panel-title{{display:none}} .panel-title{{font-size:1rem;margin:20px 0 8px}}
@@ -398,7 +396,7 @@ transform:rotate(45deg);transition:transform .15s}}.card[open] .chevron{{transfo
 .reply-text{{flex:1 1 220px;font:.9rem ui-monospace,monospace;padding:7px 9px;border:1px solid var(--line);border-radius:8px;
 background:var(--bg);color:var(--ink)}}
 .btn{{font:600 .9rem system-ui,sans-serif;border-radius:8px;padding:7px 14px;cursor:pointer;border:1px solid var(--accent);
-background:var(--card);color:var(--accent)}}.btn.primary{{background:var(--accent);color:#fff}}.btn:focus-visible{{outline:2px solid var(--ink)}}
+background:var(--card);color:var(--accent)}}.btn.primary{{background:var(--accent);color:var(--on-accent)}}.btn:focus-visible{{outline:2px solid var(--ink)}}
 .btn.ok{{background:var(--done);border-color:var(--done)}}.hint{{font-size:.82rem;color:var(--muted)}}
 .empty,.note{{color:var(--muted)}}.recent{{padding-left:1.1rem;font-size:.9rem}}
 </style></head><body><main>

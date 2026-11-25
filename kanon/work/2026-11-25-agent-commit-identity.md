@@ -14,8 +14,8 @@ updated: 2026-11-25
 
 | Field | Value |
 |---|---|
-| Output | `src/kanon/sync.py` (identity in `.claude/settings.local.json`), `src/kanon/github.py` (`check` line, record commit identity), tests, a README line |
-| Inputs | The owner's report (section 2); pull requests #6, #9, #10 and #11 read through the App on 2026-11-25; ADR-014 ("Owner's login"); the "Main Protection" ruleset read through the App on 2026-11-25 |
+| Output | `src/kanon/sync.py` (identity in `.claude/settings.local.json`), `src/kanon/github.py` (`check`, `setup`, record commit), tests, a README line |
+| Inputs | The owner's report (section 2); pull requests #6, #9, #10 and #11 read through the App on 2026-11-25; the "Main Protection" ruleset read through the App on 2026-11-25; ADR-014 ("Owner's login") |
 | Acceptance | See 1.2 |
 | Creator | Claude (assistant) |
 | Reviewer | Kritos (independent) |
@@ -24,30 +24,51 @@ updated: 2026-11-25
 
 | Part | Choice |
 |---|---|
-| Cause | Every commit on the App's pull requests #6, #9, #10 and #11 is authored and committed as `Bwalker01`, because agents commit with the computer's Git identity (`user.name`, `user.email`). GitHub showed the owner as the author of the last commit, so the owner's review did not count towards the one required approval and the merge needed the owner's bypass (owner, section 2). |
-| Identity | Author and committer `kanon-agent[bot] <357858083+kanon-agent[bot]@users.noreply.github.com>`. 357858083 is the App's bot user ID, read through the App with `GET /users/kanon-agent%5Bbot%5D` on 2026-11-25; GitHub links commits to an account by its no-reply address (assessment, from GitHub's no-reply address format). |
-| Setting | `[github] bot_user_id` in `kanon/kanon.toml`, written by the owner (A-1), since agents never edit that file. `kanon github check` prints the line to add when it is missing or differs, as it does for `app_id` (K-411). |
-| Agent sessions | `kanon sync` adds `GIT_AUTHOR_NAME`, `GIT_AUTHOR_EMAIL`, `GIT_COMMITTER_NAME` and `GIT_COMMITTER_EMAIL` to the `env` object of `.claude/settings.local.json` (git-ignored, already written by `kanon sync`), keeping other settings, and updates them when they differ. Claude Code applies that `env` to the session's commands, so the owner's own terminal keeps the owner's identity (assessment, from Claude Code's settings documentation; confirmed by test step 4). It takes effect from the next session. Without `bot_user_id`, `sync` writes nothing and prints a note naming A-1. Cloud sessions get the same entries, because the setup script runs `kanon init`, which runs `sync` (assessment). |
-| Record commits | The commit `kanon github pr` makes for the "Approved on merge" row is authored as the App when `bot_user_id` is set, whoever runs the command, since it is Kanon's own record. |
+| Cause | Every commit on pull requests #6, #9, #10 and #11 is authored and committed as `Bwalker01`, since agents commit with the computer's Git identity. The App pushes, so the last pusher is the App, and the ruleset's `require_last_push_approval` is false. The ruleset's `pull_request` rule, read 2026-11-25: 1 approval, `require_code_owner_review` true, `dismiss_stale_reviews_on_push` true, `required_review_thread_resolution` true, `require_extra_approval_for_unattributed_changes` true, merge commits only. GitHub showed the owner as the last commit's author and did not count the owner's review (owner, section 2). The rule GitHub applied is inferred from that report; GitHub's documentation read on 2026-11-25 does not describe it (assessment). |
+| Rule under test | The approver must not be the author of the pull request's last commit (assessment from the owner's report). If GitHub instead excludes anyone who authored any commit, earlier owner commits on the branch still block, and the outcome table says what follows. |
+| Simpler option, rejected | Authoring only the "Approved on merge" record commit as the App: agents commit review notes, cost rows and fixes after `kanon github pr` runs, so the last commit would often still be the owner's. |
+| Identity | Author and committer `<app_slug>[bot] <<bot_user_id>+<app_slug>[bot]@users.noreply.github.com>`, here `kanon-agent[bot] <357858083+kanon-agent[bot]@users.noreply.github.com>`. The form is the one GitHub uses for its own Actions bot (`41898282+github-actions[bot]@users.noreply.github.com`); 357858083 was read with `GET /users/kanon-agent%5Bbot%5D` on 2026-11-25. |
+| Setting | `[github] bot_user_id` in `kanon/kanon.toml`. The owner adds it here (A-1); `kanon github setup` writes it for new Apps by looking it up, and keeps every existing `[github]` key when run again. When only `bot_user_id` is missing or differs, `check` prints `bot_user_id = N` with "under [github]"; when `app_id` or `app_slug` also differ, it prints one combined `[github]` block, so a paste never makes a duplicate table. |
+| Agent sessions | `kanon sync` (new `ensure_identity`, beside `ensure_guard_hook` and `ensure_permissions`, and run only when the hook is in place) sets `GIT_AUTHOR_NAME`, `GIT_AUTHOR_EMAIL`, `GIT_COMMITTER_NAME` and `GIT_COMMITTER_EMAIL` in the `env` object of `.claude/settings.local.json` (git-ignored), keeping other keys. Policy: Kanon owns these four keys; it overwrites them when they differ and removes them when `bot_user_id` is removed. An `env` that is not an object is left untouched with a note. A `bot_user_id` that is not a positive integer is reported and nothing is written. Claude Code applies settings `env` to the session's commands; that is unconfirmed here, so live check L-1 tests it. |
+| Record commits | The record commit `kanon github pr` makes is authored as the App when `bot_user_id` is set, through the four variables in that `git commit`'s environment. |
 | Not changed | Existing history (no rewrite); the `Co-Authored-By` trailer; commits the owner makes in their own terminal. |
-| Limits | Attribution only: an agent can still override the variables, so this is not a control; the owner's merge stays the approval (ADR-014). Cloud commit signing uses a helper tied to the owner (F-9 of `2026-11-23-remote-session-limits.md`), so bot-authored cloud commits may show as unverified; the ruleset does not require signatures (read 2026-11-25). |
-| Risk | The ruleset has `require_extra_approval_for_unattributed_changes: true`. GitHub documents an extra approval for unattributed Copilot pull requests only; whether it also applies to bot-authored commits is untested. Test step 4 shows it; if it applies, the owner decides whether to turn the setting off. |
+| Limits | Attribution only: an agent can override the variables, and the owner's merge stays the approval (ADR-014). The settings `env` also reaches commands the owner runs inside a Claude Code session and hooks, which would commit as the App (assessment); Kanon never reads commit authors. Cloud: harness pushes run as the owner (F-4 of `2026-11-23-remote-session-limits.md`), so cloud pull requests still have the owner as pusher; the cloud signing helper (F-9) is untested with a bot committer and might refuse to sign, failing the commit. |
+| Risk | `require_extra_approval_for_unattributed_changes` is documented for unattributed Copilot pull requests only; whether it applies to bot-authored commits is untested. With one approver, an extra required approval would bring back the bypass. If it applies, the owner decides whether to turn it off, and the live test repeats. |
 | Branches | Plan branch `kanon/agent-commit-identity/plan`, cut from `main` at 2b586b3. One item, `AC-1`, on `kanon/agent-commit-identity/AC-1`. |
-| Sequence | 1. Kritos passes the plan. 2. The owner approves it and does A-1. 3. AC-1 built and reviewed by Kritos, then merged. 4. Live test: from step 3 on, the assistant commits with the four variables set in each command (this session predates the setting), so this work's pull request is the first with no commit by the owner; the owner reviews and approves it on GitHub without the bypass and reports whether the approval counted. 5. `kanon github pr`, `notes` and `ready`; the owner merges, which approves the result. |
+| Sequence | 1. Kritos passes the plan. 2. The owner approves it and does A-1. 3. AC-1 built, reviewed by Kritos, merged; `kanon sync` run. 4. Live checks L-1 and L-2 (1.3). 5. `kanon github pr`, `notes` and `ready`. 6. The owner approves the pull request on GitHub without the bypass and reports the result (L-3); the outcome table in 1.4 gives the next step. 7. The owner merges, which approves the result. |
 
 ### 1.2 Acceptance
 
 | Check | Confirmed by |
 |---|---|
-| With `bot_user_id` set, `kanon sync` writes the four variables into `settings.local.json`, keeps every other key, and a second run changes nothing | Test |
-| Without `bot_user_id`, `sync` writes no variables and prints the A-1 note | Test |
-| A commit made under the written `env` has the App as author and committer | Test in a temporary repository |
-| `kanon github check` prints the `bot_user_id` line when it is missing or differs, and nothing when it matches | Tests with `call` patched |
-| The "Approved on merge" record commit is authored as the App when `bot_user_id` is set | Test |
-| On this work's pull request, every commit after step 3 is authored by `kanon-agent[bot]`, and the owner's approval counts without the bypass | The owner's report at step 4, recorded in section 4 |
+| With `bot_user_id` set, `sync` writes the four variables, keeps other keys, and a second run changes nothing | Test |
+| `bot_user_id` removed: the four variables are removed; `env` not an object: untouched, with a note; `bot_user_id` not a positive integer: reported, nothing written; the name follows `app_slug` | Tests, one per case |
+| Without the guard hook in place, `ensure_identity` does not run | Test |
+| A commit made under the written variables has the App as author and committer, even with `user.*` set in Git config | Test in a temporary repository |
+| `check` prints `bot_user_id = N` alone when only it is missing, one combined block when `app_id` also differs, nothing when all match | Tests with `call` patched |
+| `setup` writes `bot_user_id` and keeps existing `[github]` keys when run again | Test |
+| The record commit is authored as the App when `bot_user_id` is set | Test |
+| L-1 to L-3 recorded with their results | Section 4 |
 | `uv run pytest -q` and `uv run kanon verify` pass | Command output |
 
-### 1.3 Work Items
+### 1.3 Live Checks
+
+| ID | Who | Check | Pass |
+|---|---|---|---|
+| L-1 | A new Claude Code session in this folder, started after step 3 | `git var GIT_AUTHOR_IDENT` and `git var GIT_COMMITTER_IDENT`, then the same from a Kritos subagent | Both show `kanon-agent[bot]` |
+| L-2 | The owner, in their own terminal | `git var GIT_AUTHOR_IDENT` | Shows the owner |
+| L-3 | The owner, on GitHub | The pull request's last commit, made by the L-1 session with no variables typed, is authored by `kanon-agent[bot]`; the owner approves | The approval counts and the merge box needs no bypass |
+
+### 1.4 Outcomes of L-3
+
+| Result | Meaning | Next step |
+|---|---|---|
+| Approval counts | The last commit's author was the cause; the fix works | Merge without the bypass |
+| Approval does not count; GitHub names unattributed changes or asks for another approval | The ruleset's unattributed-changes setting applies to bot commits | Owner decides whether to turn it off; L-3 repeats |
+| Approval does not count; GitHub names the owner as a commit author | GitHub excludes any commit author, and earlier owner commits on the branch block | A fresh pull request with only bot commits repeats L-3; the rule is recorded |
+| L-1 fails | Claude Code did not apply the settings `env` | Stop; record it; the owner decides between another mechanism and the bypass |
+
+### 1.5 Work Items
 
 | ID | Item | Delivers |
 |---|---|---|
@@ -68,13 +89,17 @@ updated: 2026-11-25
 
 ### A-1: Bot User ID in kanon.toml
 
+Sequence step 3 waits for this action.
+
 1. After approving the plan, open `kanon/kanon.toml` on the branch `kanon/agent-commit-identity/plan`.
 2. Under `[github]`, below `app_slug`, add the line `bot_user_id = 357858083` and commit it with a message starting `MODIFIED:`.
-3. Confirm: reply `done agent-commit-identity A-1`; once AC-1 is built, `kanon github check` prints no `bot_user_id` line.
+3. Confirm: open `https://api.github.com/users/kanon-agent%5Bbot%5D` in a browser and check that `id` is 357858083; reply `done agent-commit-identity A-1`.
 
 ## 4. Review
 
-Not yet reviewed.
+| Round | Items | Reviewer | Verdict | Blocking | Outcome |
+|---|---|---|---|---|---|
+| P1 | Plan (b5a2f92) | Kritos (`kritos-reviewer` agent) | correct | C-1, C-2 | C-1: live check L-1 tests that Claude Code applies the settings `env`, in a new session and a subagent. C-2: the rule under test is stated, the "no owner commit" claim removed, and the outcome table added. Non-blocking C-3 (ruleset recorded, simpler option rejected), C-4 (`setup` writes and keeps keys), C-5 (no duplicate table), C-6 (edge cases and policy), C-7 and C-8 (limits), C-9 (A-1 confirmable now; step 3 waits for it) and C-10 (format sourced) applied. |
 
 ## 5. Decision
 

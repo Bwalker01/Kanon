@@ -70,7 +70,9 @@ updated: 2026-11-25
 
 ## 5. Decision
 
-Pending.
+| Item | Decision | Date | Basis |
+|---|---|---|---|
+| DT-1 | Approved on merge of pull request #11 | 2026-11-25 | https://github.com/Bwalker01/Kanon/pull/11; a code owner's review is required to merge |
 
 ## 6. Cost
 

@@ -1,6 +1,6 @@
 ---
 type: work
-status: in-progress
+status: awaiting-approval
 updated: 2026-11-25
 ---
 
@@ -8,7 +8,7 @@ updated: 2026-11-25
 
 > **Summary:** The Desk (`kanon/local/desk.html`) uses its dark palette by default, since the Claude app's browser
 > pane renders local files in light mode and so never showed the existing dark media query.
-> **Decision needed:** None until Kritos passes the result; then merging its pull request is the approval.
+> **Decision needed:** View the dark Desk (A-1), then merge the App's pull request; the merge approves the plan and the result.
 
 ## 1. Plan
 
@@ -74,4 +74,8 @@ Pending.
 
 ## 6. Cost
 
-Recorded when work starts.
+Window: `kanon usage --since 00d4eee` (the plan commit). Main-session output in the window includes the cloud session parity plan rounds P2 and P3 (assessment).
+
+| Step | Output (main) | Output (subagents) | Cache writes | Cache reads | Estimated cost |
+|---|---|---|---|---|---|
+| DT-1 build and review R1 (window shared with cloud session parity rounds P2 and P3) | 15,180 | 29,654 | 110,679 | 4,590,770 | not yet calculated (Claude Code has not updated its estimate) |

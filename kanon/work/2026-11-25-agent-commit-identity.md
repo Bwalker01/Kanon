@@ -146,6 +146,7 @@ Sequence step 7 waits for this action.
 | Item | Decision | Date | Basis |
 |---|---|---|---|
 | Plan | Approved | 2026-11-25 | Owner in chat: "identity plan approved.". Transcribed by the assistant for Bwalker01; commit `43c9ab4`; material: plan; sha256:32866b5d8a608cee9aa148d378c0d63d8196f823683cf9924f9800362abdf470 |
+| AC-1 | Approved on merge of pull request #12 | 2026-11-25 | https://github.com/Bwalker01/Kanon/pull/12; a code owner's review is required to merge |
 
 ## 6. Cost
 

@@ -35,7 +35,7 @@ updated: 2026-11-25
 |---|---|
 | The generated HTML sets the dark values on `:root`, sets `color-scheme: dark`, and has no `prefers-color-scheme` query or light background value (`#f4f3ef`) | Test |
 | Text on the accent colour uses the background colour | Test |
-| The Desk opened in the browser pane is dark | Screenshot, recorded in section 3 |
+| The Desk opened in the browser pane is dark | The owner views it in the pane (A-1); the browser pane cannot screenshot local files. Confirmation recorded in section 4 |
 | `uv run pytest -q` and `uv run kanon verify` pass | Command output |
 
 ### 1.3 Work Items
@@ -50,14 +50,28 @@ updated: 2026-11-25
 |---|---|---|
 | 2026-11-25 | Desk theme (owner in chat) | "when you get a second, give the desk a dark theme palette" |
 
-## 3. Review
+## 3. Actions
 
-Not yet reviewed.
+| ID | Action | Assignee | Blocks | Done |
+|---|---|---|---|---|
+| A-1 | Confirm the Desk looks right in the dark palette | Bwalker01 | | no |
 
-## 4. Decision
+### A-1: View the Dark Desk
+
+1. In the Claude app's browser pane, open the Desk the assistant built from this branch (it opens it for you).
+2. Check the tabs, the count badges, the cards and the Copy button read clearly.
+3. Confirm: reply `done desk-dark-theme A-1`, or describe what looks wrong, before merging the pull request.
+
+## 4. Review
+
+| Round | Items | Reviewer | Verdict | Blocking | Outcome |
+|---|---|---|---|---|---|
+| R1 | DT-1 (88e8b01) | Kritos (`kritos-reviewer` agent) | pass | None | Design and acceptance met. Contrast confirmed: white on `#8299ff` 2.64:1, `#14161a` on `#8299ff` 6.86:1; every text pair on the dark palette meets AA (4.5:1), and the Copy button after copying improves from 1.88:1 to 8.05:1. The one suite failure (WinError 206, path too long) is the checkout's location; the test passes in the main checkout. F1: screenshot row revised to the owner's view (A-1). F2: Cost filled. F3: `--line` borders are about 1.3:1 against the cards, below WCAG 1.4.11's 3:1, unchanged from the old dark palette; recorded as a known limit. F4: the test matches exact stylesheet strings. |
+
+## 5. Decision
 
 Pending.
 
-## 5. Cost
+## 6. Cost
 
 Recorded when work starts.

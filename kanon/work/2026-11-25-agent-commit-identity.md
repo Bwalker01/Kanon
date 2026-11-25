@@ -95,7 +95,7 @@ updated: 2026-11-25
 | ID | Action | Assignee | Blocks | Done |
 |---|---|---|---|---|
 | A-1 | Add the App's bot user ID to `kanon/kanon.toml` | Bwalker01 | | yes |
-| A-2 | Check the owner's terminal identity (L-2) | Bwalker01 | | no |
+| A-2 | Check the owner's terminal identity (L-2) | Bwalker01 | | yes |
 | A-3 | Approve the pull request on GitHub and report the merge box (L-3) | Bwalker01 | | no |
 
 ### A-1: Bot User ID in kanon.toml
@@ -132,6 +132,14 @@ Sequence step 7 waits for this action.
 | R1 | AC-1 (2a44a2f) | Kritos (`kritos-reviewer` agent) | pass | None | All test rows of 1.2 met. Non-blocking D-1 (unusual `[github]` layouts gave a duplicate table), D-2 (setup lookup failure untested), D-3 (CRLF), D-4 (validation untested), D-5 (missing slug) and D-6 (README wording) applied in 2b4e715. |
 | R2 | AC-1 fixes (2b4e715) | Kritos (`kritos-reviewer` agent) | pass | None | D-1 to D-6 resolved. Non-blocking D-7 (setup refusal and CLI untested), D-8 (no instruction to remove an earlier App's `bot_user_id`), D-9 (problem text discarded), D-10 and D-11 (tests) and D-12 (formatting) applied in 4b35f59. |
 | R3 | AC-1 fixes (4b35f59) | Kritos (`kritos-reviewer` agent) | pass | None | D-7 to D-12 resolved, each confirmed by a mutation run. Non-blocking D-13 (the refusal message names `kanon.toml` twice), D-14 (the removal instruction is printed inside the key block) and D-15 (`setup` does not say when `bot_user_id` is missing; `check` prints it) recorded as known limits of the setup output; round limit reached, so no further change. |
+
+### Live Checks L-1 and L-2
+
+- **Date:** 2026-11-25.
+- **L-1, main session:** a new Claude Code session in this folder, started after step 3, ran `git var GIT_AUTHOR_IDENT` and `git var GIT_COMMITTER_IDENT`. Both printed `kanon-agent[bot] <357858083+kanon-agent[bot]@users.noreply.github.com>`. Pass.
+- **L-1, subagent:** a `kritos-reviewer` subagent of that session ran the same two commands. Both printed `kanon-agent[bot] <357858083+kanon-agent[bot]@users.noreply.github.com>`. Pass.
+- **L-2:** the owner ran `git var GIT_AUTHOR_IDENT` in their own terminal outside Claude Code (A-2). It printed the owner's name, Ben Walker, with the owner's own email, not `kanon-agent[bot]`. Pass.
+- **Outcome:** Claude Code applies the settings `env` to sessions and subagents, and it does not reach the owner's terminal. Step 5 proceeds.
 
 ## 5. Decision
 

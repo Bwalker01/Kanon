@@ -34,7 +34,8 @@ Set it up once, on your own computer, in a clone of your repository:
 
 With `bot_user_id` under `[github]` in `kanon/kanon.toml` (`kanon github check` prints the line), `kanon sync` makes
 Claude Code sessions commit as the App's bot user, so the last commit of an App pull request is not yours and your
-review counts. Commits from your own terminal keep your Git identity.
+review is expected to count (to be confirmed on the first such pull request). Commits from your own terminal keep
+your Git identity, except the record commit `kanon github pr` makes, which is authored as the App.
 
 Merging the pull request is the approval. Cloud sessions cannot sign in as the App (their proxy refuses GitHub App
 paths), so pull requests are opened from your computer. A repository's own CI runs on the App's pull requests as on

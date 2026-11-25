@@ -256,6 +256,9 @@ def test_protect_sets_code_owner_reviews_and_merge_commits_only(repo):
 
 def test_setup_runs_the_manifest_flow_and_saves_the_key_privately(repo, monkeypatch, tmp_path):
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+    path = repo / "kanon/kanon.toml"  # an earlier App's bot user ID is removed when the lookup fails (D-2)
+    path.write_text(path.read_text(encoding="utf-8").rstrip(chr(10)) + chr(10) * 2 + "[github]" + chr(10)
+                    + "app_id = 1" + chr(10) + "bot_user_id = 5" + chr(10), encoding="utf-8")
     monkeypatch.setattr(github, "call", FakeGitHub({("POST", "/app-manifests/abc/conversions"): {
         "id": 456, "slug": "kanon-ada", "pem": PEM}}))
     opened = []
@@ -272,6 +275,7 @@ def test_setup_runs_the_manifest_flow_and_saves_the_key_privately(repo, monkeypa
     monkeypatch.setenv("NO_PROXY", "127.0.0.1")
     app = github.setup(repo, open_browser=browser)
     key = github.key_path()
+    assert app["bot_user_id"] is None and "bot_user_id" not in path.read_text(encoding="utf-8")
     assert app["id"] == 456 and key.read_text(encoding="utf-8") == PEM and (not POSIX_MODES or key.stat().st_mode & 0o077 == 0)
     assert 'app_id = 456' in (repo / "kanon/kanon.toml").read_text(encoding="utf-8")
     assert opened[-1] == "https://github.com/apps/kanon-ada/installations/new"

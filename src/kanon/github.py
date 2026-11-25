@@ -174,8 +174,11 @@ def check(root: Path) -> list[str]:
     if extra:
         lines.append("Other permissions (not used by Kanon): " + ", ".join(extra))
     configured = settings(root)
+    slug = session.app.get("slug")
     try:
-        bot_id: int | None = bot_user_id(str(session.app.get("slug")))
+        if not isinstance(slug, str):
+            raise GitHubError("GitHub returned no App slug")  # D-5
+        bot_id: int | None = bot_user_id(slug)
     except GitHubError as error:
         bot_id = None
         lines.append(f"Bot user ID: could not be read ({error}); agents keep this computer's Git identity until "
@@ -204,11 +207,13 @@ def bot_user_id(slug: str) -> int:
 
 
 def _has_github_table(root: Path) -> bool:
+    """True when kanon.toml defines `github` in any form: table, inline table or dotted keys (D-1)."""
     try:
-        text = (root / "kanon" / "kanon.toml").read_text(encoding="utf-8")
+        return "github" in tomllib.loads((root / "kanon" / "kanon.toml").read_text(encoding="utf-8"))
     except OSError:
         return False
-    return re.search(r"^\[github\][ \t]*$", text, flags=re.M) is not None
+    except (UnicodeDecodeError, tomllib.TOMLDecodeError):
+        return True  # unknown layout: never suggest adding a second table
 
 
 def commit_identity(root: Path) -> dict[str, str]:
@@ -607,9 +612,13 @@ def setup(root: Path, org: str | None = None, open_browser=None, port: int = 0, 
         bot_id = None  # `kanon github check` prints the line to add later
     settings_path = root / "kanon" / "kanon.toml"
     text = settings_path.read_text(encoding="utf-8")
-    settings_path.write_text(github_table(text, int(app["id"]), app["slug"], bot_id), encoding="utf-8", newline="\n")
+    written = True
+    try:
+        settings_path.write_text(github_table(text, int(app["id"]), app["slug"], bot_id), encoding="utf-8", newline="\n")
+    except ValueError:
+        written = False  # the file is left as it is; the CLI prints the keys to set by hand (D-1)
     open_browser(f"https://github.com/apps/{app['slug']}/installations/new")
-    return {"id": app["id"], "slug": app["slug"], "key": str(path), "bot_user_id": bot_id}
+    return {"id": app["id"], "slug": app["slug"], "key": str(path), "bot_user_id": bot_id, "settings_written": written}
 
 
 def github_table(text: str, app: int, slug: str, bot_id: int | None) -> str:
@@ -618,15 +627,16 @@ def github_table(text: str, app: int, slug: str, bot_id: int | None) -> str:
     `app_id`, `app_slug` and `bot_user_id` are overwritten; when the bot ID is unknown, an existing
     `bot_user_id` is removed, since it belongs to an earlier App (C-23).
     """
+    text = text.replace("\r\n", "\n")  # D-3
     values = {"app_id": str(app), "app_slug": f'"{slug}"'}
     if bot_id is not None:
         values["bot_user_id"] = str(bot_id)
     lines = text.split("\n")
-    start = next((i for i, l in enumerate(lines) if re.fullmatch(r"\[github\][ \t]*", l)), None)
+    start = next((i for i, l in enumerate(lines) if re.fullmatch(r"\[\s*github\s*\]\s*(#.*)?", l)), None)
     if start is None:
         body = "\n".join(f"{k} = {v}" for k, v in values.items())
-        return (text.rstrip("\n") + "\n\n" if text.strip() else "") + "[github]\n" + body + "\n"
-    end = next((i for i in range(start + 1, len(lines)) if lines[i].lstrip().startswith("[")), len(lines))
+        return _checked((text.rstrip("\n") + "\n\n" if text.strip() else "") + "[github]\n" + body + "\n", values)
+    end =next((i for i in range(start + 1, len(lines)) if lines[i].lstrip().startswith("[")), len(lines))
     section, written = [], set()
     for line in lines[start + 1:end]:
         key = re.match(r"\s*([A-Za-z0-9_-]+)\s*=", line)
@@ -642,4 +652,17 @@ def github_table(text: str, app: int, slug: str, bot_id: int | None) -> str:
     while insert > 0 and not section[insert - 1].strip():
         insert -= 1  # new keys go before the blank lines that end the table
     section[insert:insert] = missing
-    return "\n".join(lines[:start + 1] + section + lines[end:])
+    return _checked("\n".join(lines[:start + 1] + section + lines[end:]), values)
+
+
+def _checked(new: str, values: dict[str, str]) -> str:
+    """Raise ValueError unless the rewrite is valid TOML holding exactly the App's keys (D-1)."""
+    try:
+        table = tomllib.loads(new).get("github")
+    except tomllib.TOMLDecodeError as error:
+        raise ValueError(f"kanon/kanon.toml could not be updated safely ({error})") from None
+    expected = {k: tomllib.loads(f"v = {v}")["v"] for k, v in values.items()}
+    if not isinstance(table, dict) or any(table.get(k) != v for k, v in expected.items()) \
+            or ("bot_user_id" not in values and "bot_user_id" in table):
+        raise ValueError("kanon/kanon.toml could not be updated safely: its [github] table has an unusual layout")
+    return new

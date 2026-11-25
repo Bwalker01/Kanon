@@ -213,3 +213,45 @@ def test_a_failed_lookup_removes_the_earlier_apps_bot_user_id():
 def test_a_missing_table_is_added_with_the_bot_user_id():
     new = github.github_table('name = "x"\n', 7, "kanon-ada", 42)
     assert tomllib.loads(new) == {"name": "x", "github": {"app_id": 7, "app_slug": "kanon-ada", "bot_user_id": 42}}
+
+
+def test_a_commented_or_spaced_header_is_updated_in_place():  # D-1
+    for header in ("[github] # the App", "[ github ]"):
+        new = github.github_table(f'{header}\napp_id = 5\napp_slug = "old"\n', 7, "kanon-ada", 42)
+        assert tomllib.loads(new) == {"github": {"app_id": 7, "app_slug": "kanon-ada", "bot_user_id": 42}}
+
+
+@pytest.mark.parametrize("text", [
+    'github = { app_id = 5, app_slug = "old" }\n',
+    'github.app_id = 5\ngithub.app_slug = "old"\n',
+    '[github]\n"app_id" = 5\napp_slug = "old"\n',
+])
+def test_an_unusual_layout_is_refused_rather_than_duplicated(text):  # D-1
+    with pytest.raises(ValueError, match="could not be updated safely"):
+        github.github_table(text, 7, "kanon-ada", 42)
+
+
+def test_crlf_text_is_updated_in_place():  # D-3
+    new = github.github_table('[github]\r\napp_id = 5\r\napp_slug = "old"\r\n', 7, "kanon-ada", 42)
+    assert tomllib.loads(new) == {"github": {"app_id": 7, "app_slug": "kanon-ada", "bot_user_id": 42}}
+
+
+def test_check_says_replace_for_an_inline_github_table(repo, monkeypatch):  # D-1
+    path = repo / "kanon/kanon.toml"
+    path.write_text('github = { app_id = 5 }\n' + path.read_text(encoding="utf-8"), encoding="utf-8")  # a root key
+    fake_check(monkeypatch, repo)
+    assert any(l.startswith("Replace the [github] table") for l in github.check(repo))
+
+
+def test_check_skips_the_lookup_without_a_slug(repo, monkeypatch):  # D-5
+    fake_check(monkeypatch, repo)
+    monkeypatch.setattr(github, "sign_in", lambda root: github.Session("ada-dev/project", "t", {"id": 9}, {"id": 7}, {}))
+    lines = github.check(repo)
+    assert any("no App slug" in l for l in lines) and not any("None%5Bbot" in l for l in lines)
+
+
+@pytest.mark.parametrize("value", ['"42"', "0", "-1", "true"])
+def test_settings_refuse_a_bad_bot_user_id(value):  # D-4
+    from kanon.settings import validate_settings
+    problems = validate_settings(f'[github]\napp_id = 7\napp_slug = "kanon-ada"\nbot_user_id = {value}\n')
+    assert any("bot_user_id" in p.message for p in problems)

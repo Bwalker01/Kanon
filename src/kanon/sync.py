@@ -265,6 +265,90 @@ def ensure_permissions(root: Path) -> str:
     return "added"
 
 
+IDENTITY_KEYS = ("GIT_AUTHOR_NAME", "GIT_AUTHOR_EMAIL", "GIT_COMMITTER_NAME", "GIT_COMMITTER_EMAIL")
+# Kanon's own form of the App's commit identity (agent-commit-identity, C-21); case-sensitive.
+BOT_NAME = re.compile(r"[a-z0-9-]+\[bot\]")
+BOT_EMAIL = re.compile(r"\d+\+[a-z0-9-]+\[bot\]@users\.noreply\.github\.com")
+
+
+def bot_identity(slug: str, user_id: int) -> tuple[str, str]:
+    """The name and email GitHub attributes to the App's bot user, as its own Actions bot uses."""
+    return f"{slug}[bot]", f"{user_id}+{slug}[bot]@users.noreply.github.com"
+
+
+def identity_setting(root: Path) -> tuple[tuple[str, str] | None, str | None]:
+    """(identity, note) from `[github]` in kanon/kanon.toml.
+
+    The identity is None when no `bot_user_id` is set. The note is set when Kanon must leave the
+    identity keys untouched ("untouched: ...") or when the setting is missing.
+    """
+    path = root / "kanon" / "kanon.toml"
+    if not path.is_file():
+        return None, None
+    try:
+        data = tomllib.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError) as error:
+        return None, f"untouched: kanon/kanon.toml could not be read ({error})"
+    github = data.get("github")
+    if not isinstance(github, dict):
+        return None, None  # GitHub mode is not set up here
+    user_id, slug = github.get("bot_user_id"), github.get("app_slug")
+    if user_id is None:
+        return None, ("kanon/kanon.toml has no [github] bot_user_id, so agents commit with this computer's Git identity; "
+                      "`kanon github check` prints the line to add")
+    if isinstance(user_id, bool) or not isinstance(user_id, int) or user_id <= 0:
+        return None, "untouched: [github] bot_user_id in kanon/kanon.toml is not a positive whole number"
+    if not isinstance(slug, str) or not re.fullmatch(r"[a-z0-9-]+", slug):
+        return None, "untouched: [github] app_slug in kanon/kanon.toml is missing or not an App slug"
+    return bot_identity(slug, user_id), None
+
+
+def ensure_identity(root: Path) -> tuple[str, str | None]:
+    """Set the App's commit identity in the `env` of .claude/settings.local.json for agent sessions.
+
+    Returns (outcome, note): outcome is "added" when the file changed, otherwise "present". The four
+    keys are decided together: Kanon writes or removes them only when every present key is in Kanon's
+    own form, and leaves all of them when any holds another value (rule 12; C-11, C-21).
+    """
+    import json
+    wanted, note = identity_setting(root)
+    if note and note.startswith("untouched: "):
+        return "present", f"the commit identity in {SETTINGS_LOCAL} was left as it is: {note[len('untouched: '):]}"
+    path = root / SETTINGS_LOCAL
+    try:
+        settings = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return "present", f"{SETTINGS_LOCAL} is not valid JSON; the commit identity was not set"
+    if not isinstance(settings, dict):
+        return "present", f"{SETTINGS_LOCAL} does not hold an object; the commit identity was not set"
+    env = settings.get("env", {})
+    if not isinstance(env, dict):
+        return "present", f"{SETTINGS_LOCAL} has an 'env' that is not an object; the commit identity was not set"
+    for key in IDENTITY_KEYS:
+        if key in env:
+            form = BOT_NAME if key.endswith("_NAME") else BOT_EMAIL
+            if not isinstance(env[key], str) or not form.fullmatch(env[key]):
+                return "present", (f"{key} in {SETTINGS_LOCAL} holds a value Kanon did not write, so the commit "
+                                   "identity was left as it is")
+    updated = dict(env)
+    if wanted:
+        name, email = wanted
+        updated.update({"GIT_AUTHOR_NAME": name, "GIT_AUTHOR_EMAIL": email,
+                        "GIT_COMMITTER_NAME": name, "GIT_COMMITTER_EMAIL": email})
+    else:
+        for key in IDENTITY_KEYS:
+            updated.pop(key, None)
+    if updated == env:
+        return "present", note
+    if updated:
+        settings["env"] = updated
+    else:
+        settings.pop("env", None)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(settings, indent=2, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n")
+    return "added", note
+
+
 def ensure_gitignore(root: Path) -> bool:
     """Add or refresh the Kanon block in .gitignore. Returns True if the file changed."""
     path = root / ".gitignore"
@@ -326,6 +410,12 @@ def sync(root: Path) -> SyncResult:
                 result.written.append(SETTINGS_LOCAL)
         elif outcome != "present":
             result.notes.append(outcome)
+    if hook in ("added", "present"):  # agent sessions only: the same file holds the guard (AC-1)
+        outcome, note = ensure_identity(root)
+        if outcome == "added" and SETTINGS_LOCAL not in result.written:
+            result.written.append(SETTINGS_LOCAL)
+        if note:
+            result.notes.append(note)
     if ".gitignore" in result.refused:
         result.notes.append("the Desk was not rebuilt: it would not be ignored by Git until .gitignore is fixed")
     elif (root / "kanon/kanon.toml").exists():

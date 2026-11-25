@@ -256,6 +256,9 @@ def test_protect_sets_code_owner_reviews_and_merge_commits_only(repo):
 
 def test_setup_runs_the_manifest_flow_and_saves_the_key_privately(repo, monkeypatch, tmp_path):
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+    path = repo / "kanon/kanon.toml"  # an earlier App's bot user ID is removed when the lookup fails (D-2)
+    path.write_text(path.read_text(encoding="utf-8").rstrip(chr(10)) + chr(10) * 2 + "[github]" + chr(10)
+                    + "app_id = 1" + chr(10) + "bot_user_id = 5" + chr(10), encoding="utf-8")
     monkeypatch.setattr(github, "call", FakeGitHub({("POST", "/app-manifests/abc/conversions"): {
         "id": 456, "slug": "kanon-ada", "pem": PEM}}))
     opened = []
@@ -272,6 +275,7 @@ def test_setup_runs_the_manifest_flow_and_saves_the_key_privately(repo, monkeypa
     monkeypatch.setenv("NO_PROXY", "127.0.0.1")
     app = github.setup(repo, open_browser=browser)
     key = github.key_path()
+    assert app["bot_user_id"] is None and "bot_user_id" not in path.read_text(encoding="utf-8")
     assert app["id"] == 456 and key.read_text(encoding="utf-8") == PEM and (not POSIX_MODES or key.stat().st_mode & 0o077 == 0)
     assert 'app_id = 456' in (repo / "kanon/kanon.toml").read_text(encoding="utf-8")
     assert opened[-1] == "https://github.com/apps/kanon-ada/installations/new"
@@ -486,3 +490,71 @@ def test_the_cli_returns_to_draft_and_refuses_a_pull_request_the_app_did_not_ope
     assert main(["github", "ready", "build"]) == 2
     out = capsys.readouterr().out
     assert "not by the App" in out and "ghs_secret" not in out
+
+
+def test_the_record_commit_is_authored_as_the_app(repo, monkeypatch):  # AC-1
+    path = repo / "kanon/kanon.toml"
+    path.write_text(path.read_text(encoding="utf-8").rstrip("\n") + '\n\n[github]\napp_id = 123\napp_slug = "kanon-ada"\n'
+                    'bot_user_id = 42\n', encoding="utf-8", newline="\n")
+    git(repo, "commit", "-qam", "bot user id")
+    item_merged(repo)
+    monkeypatch.setattr(github, "push", lambda root, session, ref: None)
+    monkeypatch.setattr(github, "call", pr_fake())
+    github.open_pull_request(repo, "build", session=github.Session("ada-dev/project", "t", {}, {}), today="2026-11-25")
+    who = "kanon-ada[bot] <42+kanon-ada[bot]@users.noreply.github.com>"
+    assert git(repo, "log", "-1", "--format=%an <%ae>|%cn <%ce>").strip() == f"{who}|{who}"
+
+
+def test_setup_writes_the_bot_user_id(repo, monkeypatch, tmp_path):  # AC-1
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+    monkeypatch.setattr(github, "call", FakeGitHub({
+        ("POST", "/app-manifests/abc/conversions"): {"id": 456, "slug": "kanon-ada", "pem": PEM},
+        ("GET", "/users/kanon-ada%5Bbot%5D"): {"id": 42}}))
+
+    def browser(url):
+        if url.startswith("http://127.0.0.1"):
+            page = urllib.request.urlopen(url).read().decode()  # noqa: S310  (local test server)
+            state = page.split("state=", 1)[1].split('"', 1)[0]
+            threading.Thread(target=lambda: urllib.request.urlopen(f"{url}callback?code=abc&state={state}").read()).start()  # noqa: S310
+    monkeypatch.delenv("HTTPS_PROXY", raising=False)
+    monkeypatch.delenv("https_proxy", raising=False)
+    monkeypatch.setenv("NO_PROXY", "127.0.0.1")
+    assert github.setup(repo, open_browser=browser)["bot_user_id"] == 42
+    text = (repo / "kanon/kanon.toml").read_text(encoding="utf-8")
+    assert "bot_user_id = 42" in text and validate_settings(text) == []
+
+
+def test_setup_leaves_an_unusual_kanon_toml_unchanged_and_says_what_to_set(repo, monkeypatch, tmp_path):  # D-7, D-8, D-9
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+    monkeypatch.setattr(github, "call", FakeGitHub({("POST", "/app-manifests/abc/conversions"): {
+        "id": 456, "slug": "kanon-ada", "pem": PEM}}))  # the bot ID lookup fails
+
+    def browser(url):
+        if url.startswith("http://127.0.0.1"):
+            page = urllib.request.urlopen(url).read().decode()  # noqa: S310  (local test server)
+            state = page.split("state=", 1)[1].split('"', 1)[0]
+            threading.Thread(target=lambda: urllib.request.urlopen(f"{url}callback?code=abc&state={state}").read()).start()  # noqa: S310
+    monkeypatch.delenv("HTTPS_PROXY", raising=False)
+    monkeypatch.delenv("https_proxy", raising=False)
+    monkeypatch.setenv("NO_PROXY", "127.0.0.1")
+    path = repo / "kanon/kanon.toml"
+    path.write_text("github = { app_id = 1, bot_user_id = 5 }" + chr(10) + path.read_text(encoding="utf-8"), encoding="utf-8")
+    before = path.read_bytes()
+    app = github.setup(repo, open_browser=browser)
+    assert path.read_bytes() == before and app["settings_written"] is False
+    assert "could not be updated safely" in app["settings_problem"]
+    lines = github.settings_by_hand(app)
+    assert lines[:2] == ["app_id = 456", 'app_slug = "kanon-ada"'] and "remove any bot_user_id" in lines[2]
+    assert github.settings_by_hand({**app, "bot_user_id": 42})[2] == "bot_user_id = 42"
+
+
+def test_the_cli_prints_the_keys_to_set_when_setup_left_kanon_toml(repo, monkeypatch, capsys):  # D-7
+    monkeypatch.chdir(repo)
+    monkeypatch.delenv("CLAUDECODE", raising=False)
+    monkeypatch.setattr(github, "setup", lambda root, org=None: {
+        "id": 456, "slug": "kanon-ada", "key": "k", "bot_user_id": None,
+        "settings_written": False, "settings_problem": "kanon/kanon.toml could not be updated safely (x)"})
+    assert main(["github", "setup"]) == 0
+    out = capsys.readouterr().out
+    assert "left as it is: kanon/kanon.toml could not be updated safely (x)" in out
+    assert "app_id = 456" in out and "remove any bot_user_id" in out

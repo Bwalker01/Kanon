@@ -340,7 +340,12 @@ def run_github(args) -> int:
     try:
         if name == "setup":
             app = github.setup(root, args.org)
-            print(f"Created {app['slug']} (ID {app['id']}); key saved to {app['key']}; kanon/kanon.toml updated.")
+            if app.get("settings_written", True):
+                print(f"Created {app['slug']} (ID {app['id']}); key saved to {app['key']}; kanon/kanon.toml updated.")
+            else:
+                print(f"Created {app['slug']} (ID {app['id']}); key saved to {app['key']}. kanon/kanon.toml was left "
+                      f"as it is: {app['settings_problem']}. Set these keys under [github] by hand:")
+                print("\n".join(github.settings_by_hand(app)))
             print("Install the App on this repository in the page that opened, then run kanon github check.")
         elif name == "check":
             print("\n".join(github.check(root)))

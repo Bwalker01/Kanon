@@ -1,6 +1,6 @@
 ---
 type: work
-status: awaiting-approval
+status: in-progress
 updated: 2026-11-25
 ---
 
@@ -8,7 +8,7 @@ updated: 2026-11-25
 
 > **Summary:** Part of Phase 1 completion: agents commit as the Kanon App (`kanon-agent[bot]`), so the owner's review of an
 > App pull request counts and merging needs no bypass. `kanon sync` sets the identity for agent sessions only.
-> **Decision needed:** Approve the plan (`kanon approve agent-commit-identity --plan` or a reply), or ask for review round P4 of the fixes after P3.
+> **Decision needed:** None. Plan approved by Bwalker01 on 2026-11-25.
 
 ## 1. Plan
 
@@ -128,11 +128,13 @@ Sequence step 7 waits for this action.
 |---|---|---|---|---|---|
 | P1 | Plan (b5a2f92) | Kritos (`kritos-reviewer` agent) | correct | C-1, C-2 | C-1: live check L-1 tests that Claude Code applies the settings `env`, in a new session and a subagent. C-2: the rule under test is stated, the "no owner commit" claim removed, and the outcome table added. Non-blocking C-3 (ruleset recorded, simpler option rejected), C-4 (`setup` writes and keeps keys), C-5 (no duplicate table), C-6 (edge cases and policy), C-7 and C-8 (limits), C-9 (A-1 confirmable now; step 3 waits for it) and C-10 (format sourced) applied. |
 | P2 | Plan fixes (87e3eaa) | Kritos (`kritos-reviewer` agent) | correct | C-11 | C-11: Kanon changes or removes the identity keys only when absent or in its own form; an unreadable `kanon.toml` leaves them untouched. Non-blocking C-12 ("replace the table" wording), C-13 (L-2 and catch-all rows, merge box text), C-14 (nothing pushed after the approval; L-3 recorded after merge), C-15 (record commit exception), C-16 (`setup` overwrites the App keys; lookup failure), C-17 (A-1 note restored; documentation cited), C-18 (cloud expectation) and C-19 (classic protection off, read through the App) applied. |
-| P3 | Plan fixes (d621c04) | Kritos (`kritos-reviewer` agent) | correct | C-20 | Round limit reached. C-20: L-1 and L-2 recorded before step 5; L-3 reaches `main` through the cloud-session-parity pull request; the Decision row is written by `kanon github pr`. Non-blocking C-21 (Kanon's form as patterns; four keys decided together; mixed-case test), C-22 (`ensure_identity` reads `kanon.toml`), C-23 (`setup` removes a stale `bot_user_id`), C-24 (Actions A-2 and A-3), C-25 (owner decides after the "any commit author" outcome) and C-26 (Cause and Limits split) applied. These fixes were not independently reviewed: owner decides between approving the plan and a round P4. |
+| P3 | Plan fixes (d621c04) | Kritos (`kritos-reviewer` agent) | correct | C-20 | Round limit reached. C-20: L-1 and L-2 recorded before step 5; L-3 reaches `main` through the cloud-session-parity pull request; the Decision row is written by `kanon github pr`. Non-blocking C-21 (Kanon's form as patterns; four keys decided together; mixed-case test), C-22 (`ensure_identity` reads `kanon.toml`), C-23 (`setup` removes a stale `bot_user_id`), C-24 (Actions A-2 and A-3), C-25 (owner decides after the "any commit author" outcome) and C-26 (Cause and Limits split) applied. These fixes were not independently reviewed: owner decides between approving the plan and a round P4.. Owner reviewed 2026-11-25 |
 
 ## 5. Decision
 
-Pending.
+| Item | Decision | Date | Basis |
+|---|---|---|---|
+| Plan | Approved | 2026-11-25 | Owner in chat: "identity plan approved.". Transcribed by the assistant for Bwalker01; commit `43c9ab4`; material: plan; sha256:32866b5d8a608cee9aa148d378c0d63d8196f823683cf9924f9800362abdf470 |
 
 ## 6. Cost
 

@@ -1,0 +1,63 @@
+---
+type: work
+status: in-progress
+updated: 2026-11-25
+---
+
+# Desk Dark Theme
+
+> **Summary:** The Desk (`kanon/local/desk.html`) uses its dark palette by default, since the Claude app's browser
+> pane renders local files in light mode and so never showed the existing dark media query.
+> **Decision needed:** None until Kritos passes the result; then merging its pull request is the approval.
+
+## 1. Plan
+
+| Field | Value |
+|---|---|
+| Output | The stylesheet in `desk.render_html` (`src/kanon/desk.py`), a test in `tests/test_desk.py` |
+| Inputs | The owner's request in chat on 2026-11-25 (section 2); the existing `prefers-color-scheme:dark` palette in `render_html`; the browser pane's behaviour, from its tool description: "local documents and static HTML previews always render light" |
+| Acceptance | See 1.2 |
+| Creator | Claude (assistant) |
+| Reviewer | Kritos (independent) |
+
+### 1.1 Design
+
+| Part | Choice |
+|---|---|
+| Palette | The existing dark values become the `:root` defaults; the light palette and the media query are removed, so the Desk looks the same in every browser. `color-scheme: dark` is set so form controls and scroll bars match. |
+| Contrast | Text on the accent colour (`.badge`, `.btn.primary`) changes from white to the background colour: white on `#8299ff` is about 2.6:1, below WCAG AA's 4.5:1 for normal text (assessment, WCAG relative luminance formula); `#14161a` on `#8299ff` is about 6.9:1. |
+| Branches | One item, DT-1, on `kanon/desk-dark-theme/DT-1`, merged into `kanon/desk-dark-theme/plan` (cut from `main` at 513dccc) after review. |
+| Sequence | 1. This plan is committed on its own. 2. DT-1 built and reviewed by Kritos. 3. Merged into the plan branch; Cost recorded. 4. The assistant runs `kanon github pr desk-dark-theme`, `kanon github notes` and `kanon github ready`. 5. The owner merges; the merge approves the plan and the result. |
+
+### 1.2 Acceptance
+
+| Check | Confirmed by |
+|---|---|
+| The generated HTML sets the dark values on `:root`, sets `color-scheme: dark`, and has no `prefers-color-scheme` query or light background value (`#f4f3ef`) | Test |
+| Text on the accent colour uses the background colour | Test |
+| The Desk opened in the browser pane is dark | Screenshot, recorded in section 3 |
+| `uv run pytest -q` and `uv run kanon verify` pass | Command output |
+
+### 1.3 Work Items
+
+| ID | Item | Delivers |
+|---|---|---|
+| DT-1 | Dark palette | Stylesheet change, test |
+
+## 2. Questions
+
+| Date | Question | Answer |
+|---|---|---|
+| 2026-11-25 | Desk theme (owner in chat) | "when you get a second, give the desk a dark theme palette" |
+
+## 3. Review
+
+Not yet reviewed.
+
+## 4. Decision
+
+Pending.
+
+## 5. Cost
+
+Recorded when work starts.
